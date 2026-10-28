@@ -8,6 +8,7 @@ export async function apiFetch(path, options = {}) {
   const token = data.session?.access_token;
 
   const res = await fetch(`${API_URL}${path}`, {
+    cache: "no-store",
     ...options,
     headers: {
       "Content-Type": "application/json",

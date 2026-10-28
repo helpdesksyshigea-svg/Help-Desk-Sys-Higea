@@ -22,10 +22,16 @@ function Protegido({ children }) {
   return children;
 }
 
+function RutaLogin() {
+  const { autenticado, cargando } = useAuth();
+  if (!cargando && autenticado) return <Navigate to="/" replace />;
+  return <Login />;
+}
+
 function Rutas() {
   return (
     <Routes>
-      <Route path="/login" element={<Login />} />
+      <Route path="/login" element={<RutaLogin />} />
       <Route
         element={
           <Protegido>
