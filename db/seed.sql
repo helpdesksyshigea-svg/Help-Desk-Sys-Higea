@@ -6,18 +6,18 @@ insert into sla_config (prioridad, dias_habiles) values
   ('baja', 5);
 
 insert into tipos_solicitud (clave, etiqueta) values
-  ('lab', 'Eliminación de laboratorio (código y resultado)'),
-  ('factura', 'Eliminación completa de factura'),
-  ('hc', 'Eliminación o anulación de historia clínica'),
-  ('otro', 'Otro ajuste en el sistema');
+  ('elim_lab', 'Eliminación de laboratorio (código y resultado)'),
+  ('elim_fact', 'Eliminación completa de factura'),
+  ('elim_hc', 'Eliminación o anulación de historia clínica'),
+  ('otro_ajuste', 'Otro ajuste en el sistema');
 
 insert into motivos (clave, etiqueta) values
   ('arl_vencida', 'Autorización ARL/EPS vencida'),
-  ('doble', 'Doble facturación'),
+  ('doble_fact', 'Doble facturación'),
   ('no_corresponde', 'Servicio no corresponde a lo prestado'),
-  ('registro', 'Error de registro o paciente equivocado'),
+  ('error_registro', 'Error de registro o paciente equivocado'),
   ('hc_error', 'Historia clínica abierta por error'),
-  ('otro', 'Otro motivo');
+  ('otro_motivo', 'Otro motivo');
 
 insert into festivos_colombia (fecha, descripcion) values
   ('2026-01-01', 'Año Nuevo'),
