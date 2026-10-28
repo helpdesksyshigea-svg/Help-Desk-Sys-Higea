@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { apiFetch } from "../lib/api";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
@@ -215,14 +215,29 @@ function Roles() {
     }
   }
 
-  async function guardarPermisos(rol) {
-    await apiFetch(`/admin/roles/${rol.id}`, { method: "PATCH", body: JSON.stringify({ permisos: rol.permisos }) });
-    cargar();
-  }
-
-  function togglePermisoRol(rol, clave) {
+  // Guarda inmediatamente al marcar/desmarcar una casilla de la matriz: no hay botón
+  // "Guardar" aparte, cada clic en la tabla persiste de una vez.
+  async function togglePermisoRol(rol, clave) {
     const nuevos = rol.permisos.includes(clave) ? rol.permisos.filter((c) => c !== clave) : [...rol.permisos, clave];
     setRoles((prev) => prev.map((r) => (r.id === rol.id ? { ...r, permisos: nuevos } : r)));
+    await apiFetch(`/admin/roles/${rol.id}`, { method: "PATCH", body: JSON.stringify({ permisos: nuevos }) });
+  }
+
+  const CATEGORIAS = {
+    tickets: "Tickets",
+    usuarios: "Usuarios",
+    roles: "Roles",
+    config: "Configuración",
+    reportes: "Reportes",
+  };
+  const grupos = {};
+  for (const p of permisos) {
+    const cat = p.clave.split(".")[0];
+    (grupos[cat] ||= []).push(p);
+  }
+
+  function nombreLegible(nombre) {
+    return nombre.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   }
 
   return (
@@ -238,12 +253,21 @@ function Roles() {
             <span className="mb-1 block font-medium">Descripción</span>
             <input value={descripcion} onChange={(e) => setDescripcion(e.target.value)} className={inputClass} />
           </label>
-          <div className="sm:col-span-2 flex flex-wrap gap-2">
-            {permisos.map((p) => (
-              <label key={p.clave} className="flex items-center gap-1.5 text-xs">
-                <input type="checkbox" checked={seleccion.includes(p.clave)} onChange={() => alternarPermiso(p.clave)} />
-                {p.clave}
-              </label>
+          <div className="sm:col-span-2 grid gap-3">
+            {Object.entries(grupos).map(([cat, items]) => (
+              <div key={cat}>
+                <div className="mb-1 text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">
+                  {CATEGORIAS[cat] || cat}
+                </div>
+                <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+                  {items.map((p) => (
+                    <label key={p.clave} className="flex items-center gap-1.5 text-xs">
+                      <input type="checkbox" checked={seleccion.includes(p.clave)} onChange={() => alternarPermiso(p.clave)} />
+                      {p.descripcion}
+                    </label>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
           <div className="sm:col-span-2">
@@ -257,29 +281,51 @@ function Roles() {
         </form>
       </Card>
 
-      <div className="grid gap-3">
-        {roles.map((r) => (
-          <Card key={r.id} className="grid gap-2">
-            <div className="flex items-center justify-between">
-              <div>
-                <b>{r.nombre}</b> {r.es_sistema && <span className="text-xs text-[var(--color-muted)]">(rol de sistema)</span>}
-                <div className="text-xs text-[var(--color-muted)]">{r.descripcion}</div>
-              </div>
-              <Button variant="ghost" onClick={() => guardarPermisos(r)}>
-                Guardar permisos
-              </Button>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {permisos.map((p) => (
-                <label key={p.clave} className="flex items-center gap-1.5 text-xs">
-                  <input type="checkbox" checked={r.permisos.includes(p.clave)} onChange={() => togglePermisoRol(r, p.clave)} />
-                  {p.clave}
-                </label>
+      <Card className="overflow-x-auto p-0">
+        <table className="w-full text-sm">
+          <thead>
+            <tr>
+              <th className="sticky left-0 bg-[var(--color-surface)] px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">
+                Permiso
+              </th>
+              {roles.map((r) => (
+                <th key={r.id} className="px-4 py-3 text-center text-xs font-semibold">
+                  {nombreLegible(r.nombre)}
+                  {r.es_sistema && <div className="font-normal normal-case text-[var(--color-muted)]">rol de sistema</div>}
+                </th>
               ))}
-            </div>
-          </Card>
-        ))}
-      </div>
+            </tr>
+          </thead>
+          <tbody>
+            {Object.entries(grupos).map(([cat, items]) => (
+              <Fragment key={cat}>
+                <tr>
+                  <td
+                    colSpan={roles.length + 1}
+                    className="bg-[var(--color-canvas)] px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)] border-t border-b border-[var(--color-border)]"
+                  >
+                    {CATEGORIAS[cat] || cat}
+                  </td>
+                </tr>
+                {items.map((p) => (
+                  <tr key={p.clave} className="border-b border-[var(--color-border)] last:border-0">
+                    <td className="sticky left-0 bg-[var(--color-surface)] px-4 py-2">{p.descripcion}</td>
+                    {roles.map((r) => (
+                      <td key={r.id} className="px-4 py-2 text-center">
+                        <input
+                          type="checkbox"
+                          checked={r.permisos.includes(p.clave)}
+                          onChange={() => togglePermisoRol(r, p.clave)}
+                        />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </Fragment>
+            ))}
+          </tbody>
+        </table>
+      </Card>
     </div>
   );
 }
