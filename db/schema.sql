@@ -37,7 +37,7 @@ create table usuarios (
   updated_at timestamptz not null default now()
 );
 
--- ---------- Configuración ----------
+-- ---------- Configuración (parametrizable desde el panel de administración) ----------
 
 create table festivos_colombia (
   fecha date primary key,
@@ -49,12 +49,24 @@ create table sla_config (
   dias_habiles int not null
 );
 
+create table tipos_solicitud (
+  clave text primary key,
+  etiqueta text not null,
+  activo boolean not null default true
+);
+
+create table motivos (
+  clave text primary key,
+  etiqueta text not null,
+  activo boolean not null default true
+);
+
 -- ---------- Tickets ----------
 
 create table tickets (
   id uuid primary key default gen_random_uuid(),
   code text not null unique,
-  tipo text not null,          -- 'lab' | 'factura' | 'hc' | 'otro'
+  tipo text not null references tipos_solicitud(clave),
   prioridad text not null references sla_config(prioridad),
   estado text not null default 'pendiente',
   solicitante_id uuid not null references usuarios(id),
@@ -76,7 +88,7 @@ create table ticket_items (
   cups text,
   descripcion text,
   fecha date,
-  motivo text not null -- motivo por registro individual (backlog ítem 2, resuelto desde el inicio)
+  motivo text not null references motivos(clave) -- motivo por registro individual (backlog ítem 2, resuelto desde el inicio)
 );
 
 create table ticket_adjuntos (

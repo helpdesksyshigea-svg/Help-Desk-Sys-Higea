@@ -1,21 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { apiFetch } from "../lib/api";
 import { Card } from "./Card";
 import { Button } from "./Button";
 
-export const TIPOS = {
-  lab: "Eliminación de laboratorio (código y resultado)",
-  factura: "Eliminación completa de factura",
-  hc: "Eliminación o anulación de historia clínica",
-  otro: "Otro ajuste en el sistema",
-};
-export const MOTIVOS = {
-  arl_vencida: "Autorización ARL/EPS vencida",
-  doble: "Doble facturación",
-  no_corresponde: "Servicio no corresponde a lo prestado",
-  registro: "Error de registro o paciente equivocado",
-  hc_error: "Historia clínica abierta por error",
-  otro: "Otro motivo",
-};
 export const PRIORIDADES = { alta: "Alta (1 día hábil)", normal: "Normal (2 días hábiles)", baja: "Baja (5 días hábiles)" };
 
 const ITEM_VACIO = { factura: "", paciente: "", documento: "", cups: "", descripcion: "", fecha: "", motivo: "" };
@@ -28,7 +15,9 @@ const inputClass =
  * El oficio firmado es obligatorio al crear; al editar es opcional (se puede reemplazar o dejar el que ya está).
  */
 export function TicketForm({ modo, inicial, onSubmit, submitLabel }) {
-  const [tipo, setTipo] = useState(inicial?.tipo || "lab");
+  const [tipos, setTipos] = useState([]);
+  const [motivos, setMotivos] = useState([]);
+  const [tipo, setTipo] = useState(inicial?.tipo || "");
   const [prioridad, setPrioridad] = useState(inicial?.prioridad || "normal");
   const [firmante, setFirmante] = useState(inicial?.firmante || "");
   const [observacion, setObservacion] = useState(inicial?.observacion || "");
@@ -38,6 +27,14 @@ export function TicketForm({ modo, inicial, onSubmit, submitLabel }) {
   const [oficio, setOficio] = useState(null);
   const [error, setError] = useState(null);
   const [enviando, setEnviando] = useState(false);
+
+  useEffect(() => {
+    apiFetch("/catalogos/tipos").then((data) => {
+      setTipos(data);
+      if (!inicial?.tipo && data[0]) setTipo(data[0].clave);
+    });
+    apiFetch("/catalogos/motivos").then(setMotivos);
+  }, []);
 
   function actualizarItem(i, campo, valor) {
     setItems((prev) => prev.map((item, idx) => (idx === i ? { ...item, [campo]: valor } : item)));
@@ -85,9 +82,9 @@ export function TicketForm({ modo, inicial, onSubmit, submitLabel }) {
         <label className="text-sm">
           <span className="mb-1 block font-medium">Tipo de solicitud</span>
           <select value={tipo} onChange={(e) => setTipo(e.target.value)} className={inputClass}>
-            {Object.entries(TIPOS).map(([k, l]) => (
-              <option key={k} value={k}>
-                {l}
+            {tipos.map((t) => (
+              <option key={t.clave} value={t.clave}>
+                {t.etiqueta}
               </option>
             ))}
           </select>
@@ -171,9 +168,9 @@ export function TicketForm({ modo, inicial, onSubmit, submitLabel }) {
                 required
               >
                 <option value="">Seleccione…</option>
-                {Object.entries(MOTIVOS).map(([k, l]) => (
-                  <option key={k} value={k}>
-                    {l}
+                {motivos.map((m) => (
+                  <option key={m.clave} value={m.clave}>
+                    {m.etiqueta}
                   </option>
                 ))}
               </select>
