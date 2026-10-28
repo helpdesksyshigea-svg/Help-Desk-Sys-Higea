@@ -100,7 +100,11 @@ ticketsRouter.get("/tickets/:id", async (req, res) => {
 
 // ---------- transiciones ----------
 
-async function transicion(req, res, { permiso, estadosValidos, nuevoEstado, tipoEvento, notaObligatoria, efecto }) {
+async function transicion(
+  req,
+  res,
+  { permiso, estadosValidos, nuevoEstado, tipoEvento, notaObligatoria, efecto, validar }
+) {
   const ticket = await cargarTicketCompleto(req.params.id);
   if (!ticket) return res.status(404).json({ error: "Tiquete no encontrado" });
   if (!req.user.permisos.has(permiso)) {
@@ -112,6 +116,10 @@ async function transicion(req, res, { permiso, estadosValidos, nuevoEstado, tipo
   const nota = req.body?.nota?.trim();
   if (notaObligatoria && !nota) {
     return res.status(400).json({ error: "Esta acción requiere una nota" });
+  }
+  if (validar) {
+    const errorValidacion = await validar(ticket);
+    if (errorValidacion) return res.status(409).json({ error: errorValidacion });
   }
 
   const patch = { estado: nuevoEstado, updated_at: new Date().toISOString() };
@@ -131,6 +139,17 @@ ticketsRouter.post("/tickets/:id/aprobar", (req, res) =>
     nuevoEstado: "aprobado",
     tipoEvento: "aprobado",
     notaObligatoria: false,
+    async validar(ticket) {
+      const { data: adjuntos } = await supabase
+        .from("ticket_adjuntos")
+        .select("id")
+        .eq("ticket_id", ticket.id)
+        .eq("kind", "oficio");
+      if (!adjuntos || adjuntos.length === 0) {
+        return "No se puede aprobar sin el oficio firmado adjunto";
+      }
+      return null;
+    },
     async efecto(ticket, req) {
       const aprobadoAt = new Date().toISOString();
       const { error } = await supabase.from("aprobaciones").upsert({
