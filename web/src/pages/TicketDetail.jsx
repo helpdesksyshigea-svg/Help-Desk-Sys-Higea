@@ -50,7 +50,7 @@ export function TicketDetail() {
       <div className="flex items-center justify-between">
         <div>
           <span className="font-mono text-xs text-[var(--color-muted)]">{ticket.code}</span>
-          <h2 className="text-xl font-light">Tiquete</h2>
+          <h2 className="text-xl font-light">Ticket</h2>
         </div>
         <StatusTag estado={ticket.estado} />
       </div>

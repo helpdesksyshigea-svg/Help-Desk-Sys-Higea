@@ -30,7 +30,7 @@ insert into roles (nombre, descripcion, es_sistema) values
 insert into rol_permisos (rol_id, permiso_id)
 select r.id, p.id from roles r, permisos p
 where r.nombre = 'admin'
-  and p.clave in ('usuarios.gestionar','roles.gestionar','config.editar','reportes.exportar','tickets.ver_todos');
+  and p.clave in ('usuarios.gestionar','roles.gestionar','config.editar','reportes.exportar','tickets.ver_todos','tickets.crear');
 
 insert into rol_permisos (rol_id, permiso_id)
 select r.id, p.id from roles r, permisos p

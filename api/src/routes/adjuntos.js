@@ -34,11 +34,11 @@ adjuntosRouter.post("/tickets/:id/adjuntos", upload.single("archivo"), async (re
     return res.status(400).json({ error: "Tipo de archivo no permitido (solo PDF, PNG, JPEG, WEBP)" });
   }
   if (!(await puedeVerTicket(req, ticketId))) {
-    return res.status(403).json({ error: "No tiene permiso sobre este tiquete" });
+    return res.status(403).json({ error: "No tiene permiso sobre este ticket" });
   }
 
   const { data: ticket } = await supabase.from("tickets").select("estado").eq("id", ticketId).single();
-  if (!ticket) return res.status(404).json({ error: "Tiquete no encontrado" });
+  if (!ticket) return res.status(404).json({ error: "Ticket no encontrado" });
 
   const storagePath = `${ticketId}/${randomUUID()}-${req.file.originalname}`;
   const { error: uploadError } = await supabase.storage
@@ -76,7 +76,7 @@ adjuntosRouter.post("/tickets/:id/adjuntos", upload.single("archivo"), async (re
 // ---------- listar ----------
 adjuntosRouter.get("/tickets/:id/adjuntos", async (req, res) => {
   if (!(await puedeVerTicket(req, req.params.id))) {
-    return res.status(403).json({ error: "No tiene permiso sobre este tiquete" });
+    return res.status(403).json({ error: "No tiene permiso sobre este ticket" });
   }
   const { data, error } = await supabase
     .from("ticket_adjuntos")
@@ -90,7 +90,7 @@ adjuntosRouter.get("/tickets/:id/adjuntos", async (req, res) => {
 // ---------- url firmada para ver/descargar ----------
 adjuntosRouter.get("/tickets/:id/adjuntos/:adjuntoId/url", async (req, res) => {
   if (!(await puedeVerTicket(req, req.params.id))) {
-    return res.status(403).json({ error: "No tiene permiso sobre este tiquete" });
+    return res.status(403).json({ error: "No tiene permiso sobre este ticket" });
   }
   const { data: adjunto, error } = await supabase
     .from("ticket_adjuntos")

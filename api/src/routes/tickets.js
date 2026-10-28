@@ -91,9 +91,9 @@ ticketsRouter.get("/tickets", async (req, res) => {
 // ---------- detalle ----------
 ticketsRouter.get("/tickets/:id", async (req, res) => {
   const ticket = await cargarTicketCompleto(req.params.id);
-  if (!ticket) return res.status(404).json({ error: "Tiquete no encontrado" });
+  if (!ticket) return res.status(404).json({ error: "Ticket no encontrado" });
   if (!req.user.permisos.has("tickets.ver_todos") && ticket.solicitante_id !== req.user.id) {
-    return res.status(403).json({ error: "No tiene permiso para ver este tiquete" });
+    return res.status(403).json({ error: "No tiene permiso para ver este ticket" });
   }
   res.json(ticket);
 });
@@ -106,12 +106,12 @@ async function transicion(
   { permiso, estadosValidos, nuevoEstado, tipoEvento, notaObligatoria, efecto, validar }
 ) {
   const ticket = await cargarTicketCompleto(req.params.id);
-  if (!ticket) return res.status(404).json({ error: "Tiquete no encontrado" });
+  if (!ticket) return res.status(404).json({ error: "Ticket no encontrado" });
   if (!req.user.permisos.has(permiso)) {
     return res.status(403).json({ error: "No tiene permiso para esta acción" });
   }
   if (!estadosValidos.includes(ticket.estado)) {
-    return res.status(409).json({ error: `El tiquete está en '${ticket.estado}', no se puede aplicar esta acción` });
+    return res.status(409).json({ error: `El ticket está en '${ticket.estado}', no se puede aplicar esta acción` });
   }
   const nota = req.body?.nota?.trim();
   if (notaObligatoria && !nota) {
@@ -217,20 +217,20 @@ ticketsRouter.post("/tickets/:id/responder-info", (req, res) =>
 
 ticketsRouter.post("/tickets/:id/cerrar", async (req, res) => {
   const ticket = await cargarTicketCompleto(req.params.id);
-  if (!ticket) return res.status(404).json({ error: "Tiquete no encontrado" });
+  if (!ticket) return res.status(404).json({ error: "Ticket no encontrado" });
   if (!req.user.permisos.has("tickets.cerrar")) {
     return res.status(403).json({ error: "No tiene permiso para esta acción" });
   }
   if (ticket.estado !== "en_proceso") {
-    return res.status(409).json({ error: `El tiquete está en '${ticket.estado}', no se puede cerrar` });
+    return res.status(409).json({ error: `El ticket está en '${ticket.estado}', no se puede cerrar` });
   }
   if (!ticket.aprobacion || hashItems(ticket.items) !== ticket.aprobacion.hash_items) {
     return res.status(409).json({
-      error: "Los registros del tiquete cambiaron después de la aprobación; requiere nueva aprobación antes de cerrarse",
+      error: "Los registros del ticket cambiaron después de la aprobación; requiere nueva aprobación antes de cerrarse",
     });
   }
   const nota = req.body?.nota?.trim();
-  if (!nota) return res.status(400).json({ error: "Cerrar un tiquete requiere una nota" });
+  if (!nota) return res.status(400).json({ error: "Cerrar un ticket requiere una nota" });
 
   const { error } = await supabase
     .from("tickets")

@@ -32,10 +32,10 @@ export function Inbox() {
   return (
     <div className="grid gap-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-light">Tiquetes</h2>
+        <h2 className="text-xl font-light">Tickets</h2>
         <RequirePermission permisos={["tickets.crear"]}>
           <Button variant="accent" onClick={() => navigate("/tickets/nuevo")}>
-            Nuevo tiquete
+            Nuevo ticket
           </Button>
         </RequirePermission>
       </div>
@@ -56,7 +56,7 @@ export function Inbox() {
         ))}
       </div>
 
-      {cargando && <p className="text-[var(--color-muted)]">Cargando tiquetes…</p>}
+      {cargando && <p className="text-[var(--color-muted)]">Cargando tickets…</p>}
 
       {error && (
         <Card className="text-sm text-[var(--color-muted)]">
@@ -65,7 +65,7 @@ export function Inbox() {
       )}
 
       {!cargando && !error && visibles.length === 0 && (
-        <Card className="text-center text-[var(--color-muted)]">Ningún tiquete en esta vista.</Card>
+        <Card className="text-center text-[var(--color-muted)]">Ningún ticket en esta vista.</Card>
       )}
 
       <div className="grid gap-3">
