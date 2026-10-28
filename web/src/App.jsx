@@ -1,0 +1,63 @@
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { AuthProvider, useAuth } from "./context/AuthContext";
+import { Layout } from "./components/Layout";
+import { RequirePermission } from "./components/RequirePermission";
+import { Login } from "./pages/Login";
+import { Inbox } from "./pages/Inbox";
+import { TicketDetail } from "./pages/TicketDetail";
+import { NewTicket } from "./pages/NewTicket";
+import { Admin } from "./pages/Admin";
+
+function Protegido({ children }) {
+  const { autenticado, cargando, error } = useAuth();
+  if (cargando) return <div className="flex min-h-screen items-center justify-center">Cargando…</div>;
+  if (!autenticado) return <Navigate to="/login" replace />;
+  if (error) {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-[var(--color-muted)]">
+        No se pudo cargar su perfil: {error}
+      </div>
+    );
+  }
+  return children;
+}
+
+function Rutas() {
+  return (
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      <Route
+        element={
+          <Protegido>
+            <Layout />
+          </Protegido>
+        }
+      >
+        <Route path="/" element={<Inbox />} />
+        <Route path="/tickets/nuevo" element={<NewTicket />} />
+        <Route path="/tickets/:id" element={<TicketDetail />} />
+        <Route
+          path="/admin"
+          element={
+            <RequirePermission
+              permisos={["usuarios.gestionar", "roles.gestionar"]}
+              fallback={<Navigate to="/" replace />}
+            >
+              <Admin />
+            </RequirePermission>
+          }
+        />
+      </Route>
+    </Routes>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <Rutas />
+      </AuthProvider>
+    </BrowserRouter>
+  );
+}
