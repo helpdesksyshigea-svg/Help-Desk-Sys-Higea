@@ -8,6 +8,15 @@ import { Button } from "../components/Button";
 import { StatusTag } from "../components/StatusTag";
 import { RequirePermission } from "../components/RequirePermission";
 
+const PRIORIDAD_LABEL = { alta: "Alta", normal: "Normal", baja: "Baja" };
+
+function hace(iso) {
+  const horas = (Date.now() - new Date(iso)) / 36e5;
+  if (horas < 1) return "hace minutos";
+  if (horas < 24) return `hace ${Math.floor(horas)} h`;
+  return `hace ${Math.floor(horas / 24)} d`;
+}
+
 export function Inbox() {
   const { perfil } = useAuth();
   const navigate = useNavigate();
@@ -18,8 +27,6 @@ export function Inbox() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    // TODO: backend aún no expone GET /tickets (Fase 1). Esta página ya queda
-    // lista para consumirlo en cuanto exista.
     apiFetch("/tickets")
       .then(setTickets)
       .catch((e) => setError(e.message))
@@ -60,7 +67,7 @@ export function Inbox() {
 
       {error && (
         <Card className="text-sm text-[var(--color-muted)]">
-          Aún no hay endpoint de tickets en el backend (Fase 1 pendiente). Error: {error}
+          No se pudo cargar la bandeja. Error: {error}
         </Card>
       )}
 
@@ -68,23 +75,38 @@ export function Inbox() {
         <Card className="text-center text-[var(--color-muted)]">Ningún ticket en esta vista.</Card>
       )}
 
-      <div className="grid gap-3">
-        {visibles.map((t) => (
-          <Card
-            key={t.id}
-            className="cursor-pointer hover:border-[var(--color-ink)]/30"
-            onClick={() => navigate(`/tickets/${t.id}`)}
-          >
-            <div className="flex items-center justify-between">
-              <span className="font-mono text-xs text-[var(--color-muted)]">{t.code}</span>
-              <StatusTag estado={t.estado} />
-            </div>
-            <p className="mt-2 font-medium">
-              {t.items?.map((i) => i.factura).filter(Boolean).join(", ") || "Sin factura"}
-            </p>
-          </Card>
-        ))}
-      </div>
+      {!cargando && !error && visibles.length > 0 && (
+        <div className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border)]">
+          <ul className="divide-y divide-[var(--color-border)]">
+            {visibles.map((t) => {
+              const titulo = t.items?.map((i) => i.factura).filter(Boolean).join(", ") || t.items?.[0]?.paciente || "Sin factura";
+              return (
+                <li
+                  key={t.id}
+                  onClick={() => navigate(`/tickets/${t.id}`)}
+                  className={`flex cursor-pointer items-center gap-4 px-4 py-3 text-sm hover:bg-[var(--color-surface)] ${
+                    t.vencido ? "border-l-4 border-l-[#b3362a]" : "border-l-4 border-l-transparent"
+                  }`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs text-[var(--color-muted)]">{t.code}</span>
+                      {t.vencido && (
+                        <span className="text-xs font-semibold uppercase tracking-wide text-[#b3362a]">Vencido</span>
+                      )}
+                    </div>
+                    <div className="truncate font-medium">{titulo}</div>
+                  </div>
+                  <span className="hidden shrink-0 text-xs text-[var(--color-muted)] sm:block">
+                    {PRIORIDAD_LABEL[t.prioridad] || t.prioridad} · {t.items?.length || 0} registro(s) · {hace(t.created_at)}
+                  </span>
+                  <StatusTag estado={t.estado} />
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

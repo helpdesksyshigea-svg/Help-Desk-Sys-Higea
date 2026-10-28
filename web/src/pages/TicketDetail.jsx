@@ -13,6 +13,7 @@ export function TicketDetail() {
   const navigate = useNavigate();
   const { perfil, tienePermiso } = useAuth();
   const [ticket, setTicket] = useState(null);
+  const [motivos, setMotivos] = useState({});
   const [error, setError] = useState(null);
   const [nota, setNota] = useState("");
   const [procesando, setProcesando] = useState(false);
@@ -28,6 +29,12 @@ export function TicketDetail() {
   useEffect(() => {
     cargar();
   }, [id]);
+
+  useEffect(() => {
+    apiFetch("/catalogos/motivos").then((data) => {
+      setMotivos(Object.fromEntries(data.map((m) => [m.clave, m.etiqueta])));
+    });
+  }, []);
 
   async function accion(ruta) {
     setProcesando(true);
@@ -95,18 +102,36 @@ export function TicketDetail() {
         </p>
       )}
 
-      <Card>
+      <Card className="overflow-x-auto">
         <h3 className="mb-3 text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">
-          Registros
+          Registros ({ticket.items.length})
         </h3>
-        <div className="grid gap-2">
-          {ticket.items.map((item) => (
-            <div key={item.id} className="rounded-[var(--radius-card)] border border-[var(--color-border)] p-3 text-sm">
-              <div className="font-medium">{item.factura || item.paciente || "Sin factura"}</div>
-              <div className="text-[var(--color-muted)]">{item.descripcion}</div>
-            </div>
-          ))}
-        </div>
+        <table className="w-full min-w-[640px] text-sm">
+          <thead>
+            <tr className="border-b border-[var(--color-border)] text-left text-xs uppercase tracking-wide text-[var(--color-muted)]">
+              <th className="pb-2 pr-3 font-semibold">Factura</th>
+              <th className="pb-2 pr-3 font-semibold">Paciente</th>
+              <th className="pb-2 pr-3 font-semibold">Documento</th>
+              <th className="pb-2 pr-3 font-semibold">{ticket.tipo === "elim_hc" ? "Folio HC" : "CUPS"}</th>
+              <th className="pb-2 pr-3 font-semibold">Fecha</th>
+              <th className="pb-2 pr-3 font-semibold">Motivo</th>
+              <th className="pb-2 font-semibold">Descripción</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ticket.items.map((item) => (
+              <tr key={item.id} className="border-b border-[var(--color-border)] last:border-0 align-top">
+                <td className="py-2 pr-3 font-mono text-xs">{item.factura || "—"}</td>
+                <td className="py-2 pr-3">{item.paciente || "—"}</td>
+                <td className="py-2 pr-3 font-mono text-xs">{item.documento || "—"}</td>
+                <td className="py-2 pr-3 font-mono text-xs">{item.cups || "—"}</td>
+                <td className="py-2 pr-3">{item.fecha || "—"}</td>
+                <td className="py-2 pr-3">{motivos[item.motivo] || item.motivo}</td>
+                <td className="py-2 text-[var(--color-muted)]">{item.descripcion || "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </Card>
 
       <Card>

@@ -155,33 +155,35 @@ function Usuarios() {
         </form>
       </Card>
 
-      <div className="grid gap-2">
-        {usuarios.map((u) => (
-          <Card key={u.id} className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="font-medium">{u.nombre}</div>
-              <div className="text-xs text-[var(--color-muted)]">
-                {u.email} {u.proveedor ? `· ${u.proveedor}` : ""} {!u.activo && "· Desactivado"}
+      <div className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border)]">
+        <ul className="divide-y divide-[var(--color-border)]">
+          {usuarios.map((u) => (
+            <li key={u.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+              <div className="min-w-0">
+                <div className="font-medium">{u.nombre}</div>
+                <div className="truncate text-xs text-[var(--color-muted)]">
+                  {u.email} {u.proveedor ? `· ${u.proveedor}` : ""} {!u.activo && "· Desactivado"}
+                </div>
               </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <select
-                value={u.roles?.id || ""}
-                onChange={(e) => cambiarRol(u.id, e.target.value)}
-                className="rounded-[var(--radius-input)] border border-[var(--color-border)] px-2 py-1 text-sm"
-              >
-                {roles.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {nombreLegible(r.nombre)}
-                  </option>
-                ))}
-              </select>
-              <Button variant={u.activo ? "danger" : "ghost"} onClick={() => alternarActivo(u)}>
-                {u.activo ? "Desactivar" : "Activar"}
-              </Button>
-            </div>
-          </Card>
-        ))}
+              <div className="flex items-center gap-2">
+                <select
+                  value={u.roles?.id || ""}
+                  onChange={(e) => cambiarRol(u.id, e.target.value)}
+                  className="rounded-[var(--radius-input)] border border-[var(--color-border)] px-2 py-1 text-sm"
+                >
+                  {roles.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {nombreLegible(r.nombre)}
+                    </option>
+                  ))}
+                </select>
+                <Button variant={u.activo ? "danger" : "ghost"} onClick={() => alternarActivo(u)}>
+                  {u.activo ? "Desactivar" : "Activar"}
+                </Button>
+              </div>
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   );
@@ -392,9 +394,10 @@ function Catalogo({ titulo, path }) {
         <Mensaje error={error} />
       </Card>
 
-      <div className="grid gap-2">
+      <div className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border)]">
+        <ul className="divide-y divide-[var(--color-border)]">
         {items.map((item) => (
-          <Card key={item.clave} className="flex items-center justify-between">
+          <li key={item.clave} className="flex items-center justify-between px-4 py-3">
             <div>
               <div className="font-medium">{item.etiqueta}</div>
               <div className="font-mono text-xs text-[var(--color-muted)]">{item.clave}</div>
@@ -402,8 +405,9 @@ function Catalogo({ titulo, path }) {
             <Button variant={item.activo ? "danger" : "ghost"} onClick={() => alternarActivo(item)}>
               {item.activo ? "Desactivar" : "Activar"}
             </Button>
-          </Card>
+          </li>
         ))}
+        </ul>
       </div>
     </div>
   );
@@ -427,9 +431,10 @@ function Sla() {
   }
 
   return (
-    <div className="grid gap-2">
+    <div className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border)]">
+      <ul className="divide-y divide-[var(--color-border)]">
       {config.map((c) => (
-        <Card key={c.prioridad} className="flex items-center justify-between gap-3">
+        <li key={c.prioridad} className="flex items-center justify-between gap-3 px-4 py-3">
           <span className="capitalize font-medium">{c.prioridad}</span>
           <div className="flex items-center gap-2">
             <input
@@ -441,8 +446,9 @@ function Sla() {
             />
             <span className="text-sm text-[var(--color-muted)]">días hábiles</span>
           </div>
-        </Card>
+        </li>
       ))}
+      </ul>
     </div>
   );
 }
@@ -500,18 +506,20 @@ function Festivos() {
         <Mensaje error={error} />
       </Card>
 
-      <div className="grid gap-2">
-        {festivos.map((f) => (
-          <Card key={f.fecha} className="flex items-center justify-between">
-            <div>
-              <div className="font-medium">{f.descripcion}</div>
-              <div className="font-mono text-xs text-[var(--color-muted)]">{f.fecha}</div>
-            </div>
-            <Button variant="danger" onClick={() => eliminar(f.fecha)}>
-              Quitar
-            </Button>
-          </Card>
-        ))}
+      <div className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border)]">
+        <ul className="divide-y divide-[var(--color-border)]">
+          {festivos.map((f) => (
+            <li key={f.fecha} className="flex items-center justify-between px-4 py-3">
+              <div>
+                <div className="font-medium">{f.descripcion}</div>
+                <div className="font-mono text-xs text-[var(--color-muted)]">{f.fecha}</div>
+              </div>
+              <Button variant="danger" onClick={() => eliminar(f.fecha)}>
+                Quitar
+              </Button>
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   );
