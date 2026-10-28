@@ -58,6 +58,7 @@ create table tickets (
   prioridad text not null references sla_config(prioridad),
   estado text not null default 'pendiente',
   solicitante_id uuid not null references usuarios(id),
+  firmante text not null, -- nombre de quien firma el oficio (puede diferir de quien radica)
   observacion text,
   created_at timestamptz not null default now(),
   enviado_at timestamptz,

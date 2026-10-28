@@ -6,6 +6,7 @@ import { Login } from "./pages/Login";
 import { Inbox } from "./pages/Inbox";
 import { TicketDetail } from "./pages/TicketDetail";
 import { NewTicket } from "./pages/NewTicket";
+import { EditTicket } from "./pages/EditTicket";
 import { Admin } from "./pages/Admin";
 
 function Protegido({ children }) {
@@ -42,6 +43,7 @@ function Rutas() {
         <Route path="/" element={<Inbox />} />
         <Route path="/tickets/nuevo" element={<NewTicket />} />
         <Route path="/tickets/:id" element={<TicketDetail />} />
+        <Route path="/tickets/:id/editar" element={<EditTicket />} />
         <Route
           path="/admin"
           element={

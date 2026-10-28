@@ -7,11 +7,12 @@ export async function apiFetch(path, options = {}) {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
 
+  const esFormData = options.body instanceof FormData;
   const res = await fetch(`${API_URL}${path}`, {
     cache: "no-store",
     ...options,
     headers: {
-      "Content-Type": "application/json",
+      ...(esFormData ? {} : { "Content-Type": "application/json" }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { apiFetch } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { Card } from "../components/Card";
@@ -10,7 +10,8 @@ import { RequirePermission } from "../components/RequirePermission";
 
 export function TicketDetail() {
   const { id } = useParams();
-  const { perfil } = useAuth();
+  const navigate = useNavigate();
+  const { perfil, tienePermiso } = useAuth();
   const [ticket, setTicket] = useState(null);
   const [error, setError] = useState(null);
   const [nota, setNota] = useState("");
@@ -55,6 +56,38 @@ export function TicketDetail() {
         <StatusTag estado={ticket.estado} />
       </div>
 
+      {(() => {
+        const esSolicitante = perfil.id === ticket.solicitante_id && tienePermiso("tickets.crear");
+        const puedeEditar =
+          (esSolicitante && ["pendiente", "devuelto"].includes(ticket.estado)) ||
+          (tienePermiso("tickets.aprobar") && ticket.estado === "devuelto");
+        if (!puedeEditar) return null;
+        return (
+          <Button variant="ghost" className="justify-self-start" onClick={() => navigate(`/tickets/${ticket.id}/editar`)}>
+            Corregir ticket
+          </Button>
+        );
+      })()}
+
+      <Card className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">Solicita</div>
+          <div>{ticket.firmante}</div>
+        </div>
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">Prioridad</div>
+          <div className="capitalize">{ticket.prioridad}</div>
+        </div>
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">Radicado</div>
+          <div>{new Date(ticket.created_at).toLocaleDateString("es-CO")}</div>
+        </div>
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">Aprobado</div>
+          <div>{ticket.aprobado_at ? new Date(ticket.aprobado_at).toLocaleDateString("es-CO") : "—"}</div>
+        </div>
+      </Card>
+
       {ticket.dueAt && (
         <p className={`text-sm ${ticket.vencido ? "text-[#b3362a]" : "text-[var(--color-muted)]"}`}>
           {ticket.vencido ? "Vencido desde" : "Vence"} el{" "}
@@ -77,7 +110,7 @@ export function TicketDetail() {
       </Card>
 
       <Card>
-        <Adjuntos ticketId={ticket.id} />
+        <Adjuntos ticketId={ticket.id} kindsPermitidos={["soporte", "evidencia"]} />
       </Card>
 
       <Card className="grid gap-3">

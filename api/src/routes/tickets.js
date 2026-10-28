@@ -1,11 +1,48 @@
 import { Router } from "express";
+import multer from "multer";
+import { randomUUID } from "crypto";
 import { supabase } from "../config/supabase.js";
 import { authenticate, requirePermission } from "../middleware/auth.js";
 import { hashItems } from "../lib/hash.js";
 import { calcularSla } from "../lib/sla.js";
 
+const BUCKET = "adjuntos";
+const TIPOS_OFICIO_PERMITIDOS = ["application/pdf", "image/png", "image/jpeg", "image/webp"];
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
+
 export const ticketsRouter = Router();
 ticketsRouter.use(authenticate);
+
+function validarItems(items, tipo) {
+  if (!Array.isArray(items) || items.length === 0) return "Debe incluir al menos un registro";
+  for (const item of items) {
+    if (!item.motivo) return "Cada registro requiere un motivo";
+    if (tipo !== "hc" && !item.factura?.trim()) return "Cada registro necesita su número de factura";
+  }
+  return null;
+}
+
+async function subirOficio(ticketId, archivo, subidoPor) {
+  if (!TIPOS_OFICIO_PERMITIDOS.includes(archivo.mimetype)) {
+    throw Object.assign(new Error("Tipo de archivo no permitido (solo PDF, PNG, JPEG, WEBP)"), { status: 400 });
+  }
+  const storagePath = `${ticketId}/${randomUUID()}-${archivo.originalname}`;
+  const { error: uploadError } = await supabase.storage
+    .from(BUCKET)
+    .upload(storagePath, archivo.buffer, { contentType: archivo.mimetype });
+  if (uploadError) throw uploadError;
+
+  const { error: dbError } = await supabase.from("ticket_adjuntos").insert({
+    ticket_id: ticketId,
+    storage_path: storagePath,
+    nombre_original: archivo.originalname,
+    tipo_mime: archivo.mimetype,
+    tamano_bytes: archivo.size,
+    kind: "oficio",
+    subido_por: subidoPor,
+  });
+  if (dbError) throw dbError;
+}
 
 function newCode() {
   const d = new Date();
@@ -42,13 +79,24 @@ async function cargarTicketCompleto(id) {
 }
 
 // ---------- crear ----------
-ticketsRouter.post("/tickets", requirePermission("tickets.crear"), async (req, res) => {
-  const { tipo, prioridad, observacion, items } = req.body;
-  if (!tipo || !prioridad || !Array.isArray(items) || items.length === 0) {
-    return res.status(400).json({ error: "Faltan campos obligatorios (tipo, prioridad, items)" });
+// multipart/form-data: campo "data" = JSON {tipo, prioridad, firmante, observacion, items},
+// campo "oficio" = archivo. El oficio firmado es obligatorio para radicar, igual que en el
+// flujo original en papel/correo: sin oficio no hay solicitud válida.
+ticketsRouter.post("/tickets", requirePermission("tickets.crear"), upload.single("oficio"), async (req, res) => {
+  let payload;
+  try {
+    payload = JSON.parse(req.body.data || "{}");
+  } catch {
+    return res.status(400).json({ error: "El campo 'data' debe ser JSON válido" });
   }
-  for (const item of items) {
-    if (!item.motivo) return res.status(400).json({ error: "Cada registro requiere un motivo" });
+  const { tipo, prioridad, firmante, observacion, items } = payload;
+  if (!tipo || !prioridad || !firmante?.trim()) {
+    return res.status(400).json({ error: "Faltan campos obligatorios (tipo, prioridad, firmante)" });
+  }
+  const errorItems = validarItems(items, tipo);
+  if (errorItems) return res.status(400).json({ error: errorItems });
+  if (!req.file) {
+    return res.status(400).json({ error: "Debe adjuntar el oficio firmado para radicar el ticket" });
   }
 
   const { data: ticket, error } = await supabase
@@ -59,6 +107,7 @@ ticketsRouter.post("/tickets", requirePermission("tickets.crear"), async (req, r
       prioridad,
       estado: "pendiente",
       solicitante_id: req.user.id,
+      firmante: firmante.trim(),
       observacion: observacion || null,
       enviado_at: new Date().toISOString(),
     })
@@ -71,8 +120,85 @@ ticketsRouter.post("/tickets", requirePermission("tickets.crear"), async (req, r
     .insert(items.map((item) => ({ ...item, ticket_id: ticket.id })));
   if (itemsError) return res.status(500).json({ error: itemsError.message });
 
+  try {
+    await subirOficio(ticket.id, req.file, req.user.id);
+  } catch (e) {
+    return res.status(e.status || 500).json({ error: e.message });
+  }
+
   await registrarEvento(ticket.id, "creado", null, "pendiente", req.user.id, observacion || null);
   res.status(201).json(await cargarTicketCompleto(ticket.id));
+});
+
+// ---------- editar (solo mientras está pendiente o devuelto) ----------
+// El solicitante corrige lo que la supervisora le pidió, o la supervisora corrige
+// directamente un ticket devuelto ("Corregir yo misma" del flujo original). En
+// ambos casos el ticket vuelve a 'pendiente' para pasar de nuevo por aprobación:
+// no existe un camino que salte la aprobación al editar.
+ticketsRouter.patch("/tickets/:id", upload.single("oficio"), async (req, res) => {
+  const ticket = await cargarTicketCompleto(req.params.id);
+  if (!ticket) return res.status(404).json({ error: "Ticket no encontrado" });
+
+  const esSolicitante = ticket.solicitante_id === req.user.id && req.user.permisos.has("tickets.crear");
+  const esSupervisora = req.user.permisos.has("tickets.aprobar");
+  if (!esSolicitante && !esSupervisora) {
+    return res.status(403).json({ error: "No tiene permiso para editar este ticket" });
+  }
+  if (!["pendiente", "devuelto"].includes(ticket.estado)) {
+    return res.status(409).json({ error: `El ticket está en '${ticket.estado}', no se puede editar` });
+  }
+
+  let payload;
+  try {
+    payload = JSON.parse(req.body.data || "{}");
+  } catch {
+    return res.status(400).json({ error: "El campo 'data' debe ser JSON válido" });
+  }
+  const { tipo, prioridad, firmante, observacion, items } = payload;
+  if (!tipo || !prioridad || !firmante?.trim()) {
+    return res.status(400).json({ error: "Faltan campos obligatorios (tipo, prioridad, firmante)" });
+  }
+  const errorItems = validarItems(items, tipo);
+  if (errorItems) return res.status(400).json({ error: errorItems });
+
+  const { error: deleteError } = await supabase.from("ticket_items").delete().eq("ticket_id", ticket.id);
+  if (deleteError) return res.status(500).json({ error: deleteError.message });
+  const { error: insertError } = await supabase
+    .from("ticket_items")
+    .insert(items.map((item) => ({ ...item, ticket_id: ticket.id })));
+  if (insertError) return res.status(500).json({ error: insertError.message });
+
+  if (req.file) {
+    try {
+      await subirOficio(ticket.id, req.file, req.user.id);
+    } catch (e) {
+      return res.status(e.status || 500).json({ error: e.message });
+    }
+  }
+
+  const estadoAnterior = ticket.estado;
+  const { error } = await supabase
+    .from("tickets")
+    .update({
+      tipo,
+      prioridad,
+      firmante: firmante.trim(),
+      observacion: observacion || null,
+      estado: "pendiente",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", ticket.id);
+  if (error) return res.status(500).json({ error: error.message });
+
+  await registrarEvento(
+    ticket.id,
+    "editado",
+    estadoAnterior,
+    "pendiente",
+    req.user.id,
+    req.body.nota?.trim() || "Ticket corregido y reenviado a aprobación"
+  );
+  res.json(await cargarTicketCompleto(ticket.id));
 });
 
 // ---------- listar ----------
@@ -175,15 +301,9 @@ ticketsRouter.post("/tickets/:id/devolver", (req, res) =>
   })
 );
 
-ticketsRouter.post("/tickets/:id/reenviar", (req, res) =>
-  transicion(req, res, {
-    permiso: "tickets.crear",
-    estadosValidos: ["devuelto"],
-    nuevoEstado: "pendiente",
-    tipoEvento: "reenviado",
-    notaObligatoria: false,
-  })
-);
+// Nota: no existe un endpoint "reenviar sin cambios" — el original siempre pasa por el
+// formulario de edición al reenviar un ticket devuelto; PATCH /tickets/:id cubre ese caso
+// (incluso si el usuario no cambia ningún dato, el reenvío es un PATCH con los mismos valores).
 
 ticketsRouter.post("/tickets/:id/tomar", (req, res) =>
   transicion(req, res, {
@@ -249,5 +369,8 @@ ticketsRouter.post("/tickets/:id/reabrir", (req, res) =>
     nuevoEstado: "en_proceso",
     tipoEvento: "reabierto",
     notaObligatoria: true,
+    async efecto() {
+      return { cerrado_at: null };
+    },
   })
 );
