@@ -79,7 +79,9 @@ export function Inbox() {
               <span className="font-mono text-xs text-[var(--color-muted)]">{t.code}</span>
               <StatusTag estado={t.estado} />
             </div>
-            <p className="mt-2 font-medium">{t.resumen}</p>
+            <p className="mt-2 font-medium">
+              {t.items?.map((i) => i.factura).filter(Boolean).join(", ") || "Sin factura"}
+            </p>
           </Card>
         ))}
       </div>
