@@ -86,7 +86,7 @@ export function Inbox() {
   const visibles = useMemo(() => {
     const base = busqueda
       ? tickets.filter((t) => {
-          const texto = [t.code, t.solicitante?.nombre, ...(t.items?.flatMap((i) => [i.factura, i.paciente, i.documento]) || [])]
+          const texto = [t.code, t.firmante, ...(t.items?.flatMap((i) => [i.factura, i.paciente, i.documento]) || [])]
             .filter(Boolean)
             .join(" ")
             .toLowerCase();
@@ -212,9 +212,9 @@ export function Inbox() {
                     <td className="py-3 pr-3 align-top">
                       <div className="flex items-center gap-2">
                         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--color-ink)]/10 text-[10px] font-semibold text-[var(--color-ink)]">
-                          {iniciales(t.solicitante?.nombre)}
+                          {iniciales(t.firmante)}
                         </span>
-                        <span className="whitespace-nowrap text-xs text-[var(--color-muted)]">{t.solicitante?.nombre || "—"}</span>
+                        <span className="whitespace-nowrap text-xs text-[var(--color-muted)]">{t.firmante || "—"}</span>
                       </div>
                     </td>
                     <td className="py-3 pr-3 align-top text-xs text-[var(--color-muted)]">{ESPERANDO[t.estado] || ""}</td>
