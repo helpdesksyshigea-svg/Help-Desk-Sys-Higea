@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { Button } from "../components/Button";
-import { IconShield, IconClock, IconCheck } from "../components/icons";
 import { supabase } from "../lib/supabase";
 
 const inputClass =
@@ -38,90 +37,74 @@ export function Login() {
   }
 
   return (
-    <div className="grid min-h-screen lg:grid-cols-2">
-      {/* Panel de marca */}
-      <div className="relative hidden flex-col justify-between overflow-hidden bg-[var(--color-forest)] p-12 text-white lg:flex">
-        <div className="pointer-events-none absolute inset-0 opacity-[0.07]">
-          <div
-            className="absolute inset-0"
-            style={{
-              backgroundImage: "radial-gradient(circle, #ffffff 1px, transparent 1px)",
-              backgroundSize: "28px 28px",
-            }}
+    <div className="relative flex min-h-screen flex-col items-center justify-center bg-[var(--color-canvas)] px-6 py-16">
+      <img
+        src="/branding/logo-hospital-orito-sm.png"
+        alt="E.S.E. Hospital Orito"
+        className="mb-10 h-20 w-auto sm:h-24"
+      />
+
+      <form
+        onSubmit={onSubmit}
+        className="w-full max-w-sm rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-10 shadow-[0_1px_2px_rgba(17,17,13,0.04),0_24px_48px_rgba(17,17,13,0.06)]"
+      >
+        <div className="mb-7 flex items-center gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--color-forest)]">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6l-8-3Z" />
+            </svg>
+          </div>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-muted)]">E.S.E. Hospital Orito</p>
+            <p className="text-base font-semibold leading-tight">Mesa de ayuda SYS HIGEA</p>
+          </div>
+        </div>
+
+        <h2 className="mb-1 text-xl font-semibold">Ingresar</h2>
+        <p className="mb-6 text-sm text-[var(--color-muted)]">Use el correo institucional que le fue invitado.</p>
+
+        <label className="mb-4 block text-sm">
+          <span className="mb-1.5 block font-medium">Correo institucional</span>
+          <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} />
+        </label>
+
+        <label className="mb-5 block text-sm">
+          <span className="mb-1.5 block font-medium">Contraseña</span>
+          <input
+            type="password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className={inputClass}
           />
-        </div>
+        </label>
 
-        <div className="relative">
-          <img src="/branding/logo-hospital-orito-sm.png" alt="E.S.E. Hospital Orito" className="mb-6 h-14 w-auto rounded-md bg-white px-3 py-2" />
-          <h1 className="mt-2 text-3xl font-light leading-tight text-white">
-            Mesa de ayuda
-            <br />
-            SYS HIGEA
-          </h1>
-        </div>
+        {error && (
+          <p className="mb-4 rounded-[var(--radius-input)] bg-[#f8e0dc] px-3 py-2 text-sm text-[#b3362a]">{error}</p>
+        )}
+        {recuperado && (
+          <p className="mb-4 rounded-[var(--radius-input)] bg-[var(--color-accent)]/20 px-3 py-2 text-sm">
+            Si ese correo tiene una cuenta, le enviamos un enlace para definir una nueva contraseña.
+          </p>
+        )}
 
-        <div className="relative grid gap-5">
-          <div className="flex items-start gap-3 text-sm text-white/80">
-            <IconShield size={18} className="mt-0.5 shrink-0 text-[var(--color-accent)]" />
-            <span>Aprobación obligatoria y oficio firmado antes de que un dato llegue al proveedor externo.</span>
-          </div>
-          <div className="flex items-start gap-3 text-sm text-white/80">
-            <IconClock size={18} className="mt-0.5 shrink-0 text-[var(--color-accent)]" />
-            <span>Plazos de respuesta medidos en días hábiles colombianos, con festivos ya cargados.</span>
-          </div>
-          <div className="flex items-start gap-3 text-sm text-white/80">
-            <IconCheck size={18} className="mt-0.5 shrink-0 text-[var(--color-accent)]" />
-            <span>Historial de cada caso, imposible de editar o borrar una vez registrado.</span>
-          </div>
-        </div>
-      </div>
+        <Button variant="accent" type="submit" disabled={cargando} className="w-full justify-center">
+          {cargando ? "Ingresando…" : "Ingresar"}
+        </Button>
 
-      {/* Formulario */}
-      <div className="flex items-center justify-center bg-[var(--color-canvas)] px-6 py-16">
-        <form onSubmit={onSubmit} className="w-full max-w-sm">
-          <img src="/branding/logo-hospital-orito-sm.png" alt="E.S.E. Hospital Orito" className="mb-6 h-10 w-auto lg:hidden" />
-          <h2 className="mb-1 text-2xl font-semibold">Ingresar</h2>
-          <p className="mb-8 text-sm text-[var(--color-muted)]">Use el correo institucional que le fue invitado.</p>
-
-          <label className="mb-4 block text-sm">
-            <span className="mb-1.5 block font-medium">Correo institucional</span>
-            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} />
-          </label>
-
-          <label className="mb-5 block text-sm">
-            <span className="mb-1.5 block font-medium">Contraseña</span>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className={inputClass}
-            />
-          </label>
-
-          {error && (
-            <p className="mb-4 rounded-[var(--radius-input)] bg-[#f8e0dc] px-3 py-2 text-sm text-[#b3362a]">{error}</p>
-          )}
-          {recuperado && (
-            <p className="mb-4 rounded-[var(--radius-input)] bg-[var(--color-accent)]/20 px-3 py-2 text-sm">
-              Si ese correo tiene una cuenta, le enviamos un enlace para definir una nueva contraseña.
-            </p>
-          )}
-
-          <Button variant="accent" type="submit" disabled={cargando} className="w-full justify-center">
-            {cargando ? "Ingresando…" : "Ingresar"}
-          </Button>
-
+        <div className="mt-4 text-center">
           <button
             type="button"
             onClick={onRecuperar}
             disabled={recuperando}
-            className="mt-4 text-sm text-[var(--color-muted)] underline-offset-2 hover:text-[var(--color-ink)] hover:underline"
+            className="text-sm text-[var(--color-muted)] underline-offset-2 hover:text-[var(--color-ink)] hover:underline"
           >
             {recuperando ? "Enviando…" : "¿Olvidó su contraseña?"}
           </button>
-        </form>
-      </div>
+        </div>
+      </form>
+
+      <p className="mt-8 text-xs text-[var(--color-muted)]">Aprobación obligatoria · Oficio firmado · Historial permanente</p>
     </div>
   );
 }
