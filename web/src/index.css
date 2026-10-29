@@ -11,8 +11,11 @@
 
   --color-ink: #11110d;
   --color-muted: #6b6d63;
-  --color-canvas: #ffffff;
-  --color-surface: #f5f5f2;
+  /* Invertido respecto al doc Zendesk a propósito: esta es una herramienta de
+     trabajo densa en datos (Linear/Notion), no una landing page. La página
+     lleva el tono cálido y las tarjetas quedan blancas para separarse de ella. */
+  --color-canvas: #f5f5f2;
+  --color-surface: #ffffff;
   --color-border: #e2e2dc;
   --color-accent: #d1f470;
   --color-accent-ink: #11110d;
