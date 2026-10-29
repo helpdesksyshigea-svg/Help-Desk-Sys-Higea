@@ -8,10 +8,18 @@ let transporter = null;
 function getTransporter() {
   if (transporter) return transporter;
   if (!process.env.SMTP_USER || !process.env.SMTP_PASS) return null;
+  // Puerto 587 (STARTTLS) en vez de 465 (SSL directo): algunos hosts bloquean
+  // uno de los dos puertos salientes pero no el otro. Configurable por si hay
+  // que volver a 465 sin tocar código.
+  const port = Number(process.env.SMTP_PORT || 587);
   transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST || "smtp.gmail.com",
-    port: Number(process.env.SMTP_PORT || 465),
-    secure: true,
+    port,
+    secure: port === 465,
+    requireTLS: port !== 465,
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+    socketTimeout: 15000,
     // Gmail muestra las contraseñas de aplicación agrupadas en bloques de 4
     // caracteres separados por espacios para que sean fáciles de leer, pero la
     // contraseña real no los lleva. Se quitan acá por si alguien la pegó tal
@@ -29,6 +37,7 @@ export async function enviarCorreo(destinatarios, asunto, textoPlano) {
     console.warn(`[correo] SMTP no configurado, se omite: "${asunto}" -> ${correos.join(", ")}`);
     return;
   }
+  console.log(`[correo] intentando enviar "${asunto}" -> ${correos.join(", ")} (puerto ${process.env.SMTP_PORT || 587})`);
   try {
     await t.sendMail({
       from: `"Mesa de ayuda SYS HIGEA" <${process.env.SMTP_USER}>`,
@@ -36,6 +45,7 @@ export async function enviarCorreo(destinatarios, asunto, textoPlano) {
       subject: asunto,
       text: textoPlano,
     });
+    console.log(`[correo] enviado OK: "${asunto}"`);
   } catch (e) {
     // Un correo que falla nunca debe revertir ni bloquear la transición del ticket.
     console.error(`[correo] error enviando "${asunto}":`, e.message);
