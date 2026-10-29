@@ -907,6 +907,7 @@ function Almacenamiento() {
   if (!datos) return error ? <Mensaje error={error} /> : <p className="text-[var(--color-muted)]">Cargando…</p>;
 
   const pctStorage = (datos.storage.bytes / datos.storage.limite) * 100;
+  const pctBaseDatos = datos.baseDatos.bytes != null ? (datos.baseDatos.bytes / datos.baseDatos.limite) * 100 : null;
 
   return (
     <div className="grid gap-4">
@@ -928,12 +929,24 @@ function Almacenamiento() {
       <Card className="grid gap-3">
         {error && <Mensaje error={error} />}
         <h3 className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">
-          Filas por tabla (base de datos)
+          Base de datos
         </h3>
-        <p className="text-xs text-[var(--color-muted)]">
-          Supabase no expone el tamaño exacto en bytes de la base por API; el conteo de filas es la señal disponible para
-          saber si se acerca el momento de limpiar. El límite del plan gratuito es {kb(datos.baseDatos.limite)}.
-        </p>
+        {pctBaseDatos != null ? (
+          <div className="grid gap-2">
+            <div className="flex items-baseline justify-between text-sm">
+              <span>{kb(datos.baseDatos.bytes)} usados</span>
+              <span className="text-[var(--color-muted)]">de {kb(datos.baseDatos.limite)}</span>
+            </div>
+            <Barra porcentaje={pctBaseDatos} />
+            <span className="text-xs text-[var(--color-muted)]">{pctBaseDatos.toFixed(2)}% del límite</span>
+          </div>
+        ) : (
+          <p className="text-xs text-[var(--color-muted)]">
+            No se pudo leer el tamaño real de la base de datos (falta correr la migración 0010 en Supabase). El límite del
+            plan gratuito es {kb(datos.baseDatos.limite)}.
+          </p>
+        )}
+        <p className="text-xs text-[var(--color-muted)]">Filas por tabla, para ver qué está creciendo:</p>
         <div className="grid gap-1.5 sm:grid-cols-2">
           {Object.entries(datos.conteos).map(([tabla, n]) => (
             <div key={tabla} className="flex items-center justify-between rounded-[var(--radius-input)] border border-[var(--color-border)] px-3 py-1.5 text-sm">

@@ -3,7 +3,7 @@ import { conManejoAsync } from "../lib/asyncRouter.js";
 import { supabase } from "../config/supabase.js";
 import { authenticate, requirePermission } from "../middleware/auth.js";
 import { limpiarTicketsAntiguos } from "../lib/limpieza.js";
-import { medirStorage } from "../lib/almacenamiento.js";
+import { medirStorage, medirBaseDatos, LIMITE_DB_BYTES } from "../lib/almacenamiento.js";
 
 export const adminRouter = conManejoAsync(Router());
 adminRouter.use(authenticate);
@@ -38,7 +38,6 @@ async function siguienteCodigoInterno() {
 
 // ======================= Almacenamiento =======================
 
-const LIMITE_DB_BYTES = 500 * 1024 * 1024; // 500 MB, plan gratuito de Supabase
 const TABLAS = [
   "tickets",
   "ticket_items",
@@ -68,6 +67,15 @@ adminRouter.get("/admin/almacenamiento", requirePermission("config.editar"), asy
     return res.status(500).json({ error: `No se pudo leer el almacenamiento: ${e.message}` });
   }
 
+  // Requiere la migración 0010 (función SQL tamano_base_datos). Si todavía no
+  // se corrió, se muestra solo el conteo de filas en vez de romper la pantalla.
+  let baseDatos = { limite: LIMITE_DB_BYTES, bytes: null };
+  try {
+    baseDatos = await medirBaseDatos();
+  } catch (e) {
+    console.warn("[admin] no se pudo medir el tamaño real de la base de datos:", e.message);
+  }
+
   const { data: configRow, error: configError } = await supabase
     .from("config_sistema")
     .select("valor")
@@ -81,7 +89,7 @@ adminRouter.get("/admin/almacenamiento", requirePermission("config.editar"), asy
   res.json({
     conteos,
     storage,
-    baseDatos: { limite: LIMITE_DB_BYTES }, // Supabase no expone el tamaño real por API; los conteos de filas son la señal disponible.
+    baseDatos,
     diasRetencionCierre: Number(configRow?.valor ?? 90),
   });
 });
