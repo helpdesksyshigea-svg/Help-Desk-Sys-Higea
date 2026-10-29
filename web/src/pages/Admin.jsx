@@ -298,7 +298,7 @@ function Usuarios() {
       </Card>
 
       <div className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border)]">
-        <div className="hidden grid-cols-[1fr_88px_180px_150px] items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)] sm:grid">
+        <div className="hidden grid-cols-[1fr_88px_160px_170px] items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)] sm:grid">
           <span>Usuario</span>
           <span className="text-center">Código</span>
           <span>Rol</span>
@@ -308,7 +308,7 @@ function Usuarios() {
           {usuarios.map((u) => (
             <li
               key={u.id}
-              className="grid grid-cols-1 items-center gap-2 px-4 py-3 sm:grid-cols-[1fr_88px_180px_150px] sm:gap-3"
+              className="grid grid-cols-1 items-center gap-2 px-4 py-3 sm:grid-cols-[1fr_88px_160px_170px] sm:gap-3"
             >
               <div className="min-w-0">
                 <CampoEditable
@@ -361,7 +361,7 @@ function Usuarios() {
                   </option>
                 ))}
               </select>
-              <div className="flex flex-wrap items-center justify-end gap-1">
+              <div className="flex flex-nowrap items-center justify-end gap-1">
                 <Button variant={u.activo ? "danger" : "ghost"} onClick={() => alternarActivo(u)} title={u.activo ? "Desactivar" : "Activar"}>
                   {u.activo ? <IconClose size={14} /> : <IconCheck size={14} />}
                 </Button>
