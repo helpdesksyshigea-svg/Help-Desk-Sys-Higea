@@ -21,6 +21,8 @@ insert into tipos_solicitud (clave, etiqueta) values
   ('otro_ajuste', 'Otro ajuste en el sistema')
 on conflict (clave) do nothing;
 
+update tipos_solicitud set requiere_factura = false where clave = 'elim_hc';
+
 insert into motivos (clave, etiqueta) values
   ('arl_vencida', 'Autorización ARL/EPS vencida'),
   ('doble_fact', 'Doble facturación'),

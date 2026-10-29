@@ -13,11 +13,16 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 
 export const ticketsRouter = Router();
 ticketsRouter.use(authenticate);
 
-function validarItems(items, tipo) {
+// La clave del tipo no dice nada por sí sola (la administradora la puede renombrar);
+// la pregunta "¿este tipo necesita factura?" se responde consultando el catálogo,
+// nunca comparando contra un string fijo como "hc".
+async function validarItems(items, tipo) {
   if (!Array.isArray(items) || items.length === 0) return "Debe incluir al menos un registro";
+  const { data: tipoRow } = await supabase.from("tipos_solicitud").select("requiere_factura").eq("clave", tipo).maybeSingle();
+  if (!tipoRow) return `Tipo de solicitud '${tipo}' no existe`;
   for (const item of items) {
     if (!item.motivo) return "Cada registro requiere un motivo";
-    if (tipo !== "hc" && !item.factura?.trim()) return "Cada registro necesita su número de factura";
+    if (tipoRow.requiere_factura && !item.factura?.trim()) return "Cada registro necesita su número de factura";
   }
   return null;
 }
@@ -97,7 +102,7 @@ ticketsRouter.post("/tickets", requirePermission("tickets.crear"), upload.single
   if (!tipo || !prioridad || !firmante?.trim()) {
     return res.status(400).json({ error: "Faltan campos obligatorios (tipo, prioridad, firmante)" });
   }
-  const errorItems = validarItems(items, tipo);
+  const errorItems = await validarItems(items, tipo);
   if (errorItems) return res.status(400).json({ error: errorItems });
   if (!req.file) {
     return res.status(400).json({ error: "Debe adjuntar el oficio firmado para radicar el ticket" });
@@ -162,7 +167,7 @@ ticketsRouter.patch("/tickets/:id", upload.single("oficio"), async (req, res) =>
   if (!tipo || !prioridad || !firmante?.trim()) {
     return res.status(400).json({ error: "Faltan campos obligatorios (tipo, prioridad, firmante)" });
   }
-  const errorItems = validarItems(items, tipo);
+  const errorItems = await validarItems(items, tipo);
   if (errorItems) return res.status(400).json({ error: errorItems });
 
   const { error: deleteError } = await supabase.from("ticket_items").delete().eq("ticket_id", ticket.id);
@@ -205,6 +210,21 @@ ticketsRouter.patch("/tickets/:id", upload.single("oficio"), async (req, res) =>
   res.json(await cargarTicketCompleto(ticket.id));
 });
 
+// Estados que existen antes de que la supervisora apruebe. Un rol que ve "todos" los
+// tickets pero no puede aprobarlos (ej. SYS HIGEA) no debe poder leerlos en este tramo,
+// ni siquiera llamando la API directo: la UI los oculta con filtros, pero eso no es
+// una regla de seguridad. Minimización de datos real, no solo de presentación.
+const ESTADOS_PRE_APROBACION = ["pendiente", "devuelto"];
+
+function puedeVerEstadosPreAprobacion(user) {
+  return user.permisos.has("tickets.aprobar") || user.permisos.has("tickets.devolver");
+}
+
+function filtrarVisibles(tickets, user) {
+  if (puedeVerEstadosPreAprobacion(user)) return tickets;
+  return tickets.filter((t) => !ESTADOS_PRE_APROBACION.includes(t.estado));
+}
+
 // ---------- listar ----------
 ticketsRouter.get("/tickets", async (req, res) => {
   let query = supabase.from("tickets").select("*").order("created_at", { ascending: false });
@@ -214,7 +234,8 @@ ticketsRouter.get("/tickets", async (req, res) => {
   const { data: tickets, error } = await query;
   if (error) return res.status(500).json({ error: error.message });
 
-  const completos = await Promise.all(tickets.map((t) => cargarTicketCompleto(t.id)));
+  const visibles = filtrarVisibles(tickets, req.user);
+  const completos = await Promise.all(visibles.map((t) => cargarTicketCompleto(t.id)));
   res.json(completos);
 });
 
@@ -223,6 +244,13 @@ ticketsRouter.get("/tickets/:id", async (req, res) => {
   const ticket = await cargarTicketCompleto(req.params.id);
   if (!ticket) return res.status(404).json({ error: "Ticket no encontrado" });
   if (!req.user.permisos.has("tickets.ver_todos") && ticket.solicitante_id !== req.user.id) {
+    return res.status(403).json({ error: "No tiene permiso para ver este ticket" });
+  }
+  if (
+    ticket.solicitante_id !== req.user.id &&
+    !puedeVerEstadosPreAprobacion(req.user) &&
+    ESTADOS_PRE_APROBACION.includes(ticket.estado)
+  ) {
     return res.status(403).json({ error: "No tiene permiso para ver este ticket" });
   }
   res.json(ticket);

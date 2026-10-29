@@ -11,6 +11,8 @@ insert into tipos_solicitud (clave, etiqueta) values
   ('elim_hc', 'Eliminación o anulación de historia clínica'),
   ('otro_ajuste', 'Otro ajuste en el sistema');
 
+update tipos_solicitud set requiere_factura = false where clave = 'elim_hc';
+
 insert into motivos (clave, etiqueta) values
   ('arl_vencida', 'Autorización ARL/EPS vencida'),
   ('doble_fact', 'Doble facturación'),

@@ -52,7 +52,8 @@ create table sla_config (
 create table tipos_solicitud (
   clave text primary key,
   etiqueta text not null,
-  activo boolean not null default true
+  activo boolean not null default true,
+  requiere_factura boolean not null default true -- false para historias clínicas: no tienen número de factura
 );
 
 create table motivos (
