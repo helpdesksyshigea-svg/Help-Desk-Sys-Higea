@@ -95,9 +95,9 @@ export function Sidebar() {
             const Icono = ICONOS[clave] || IconClock;
             return (
               <NavLink key={clave} to={`/?filtro=${clave}`} className={() => itemClass(filtroActivo === clave)}>
-                <span className="flex min-w-0 items-center gap-2">
+                <span className="flex min-w-0 flex-1 items-center gap-2">
                   <Icono size={14} className="shrink-0" />
-                  <span className="truncate">{etiqueta}</span>
+                  <span className="min-w-0 flex-1 truncate">{etiqueta}</span>
                 </span>
                 <span className="shrink-0 text-xs opacity-70">{tickets.filter(fn).length}</span>
               </NavLink>
