@@ -11,6 +11,13 @@ export async function authenticate(req, res, next) {
   if (!token) return res.status(401).json({ error: "Falta el token de autenticación" });
 
   const { data: authData, error: authError } = await supabase.auth.getUser(token);
+  // Un fallo de red/5xx hacia Supabase Auth no significa que el token sea
+  // inválido: responder 401 ahí haría que el frontend cierre la sesión del
+  // usuario por un problema transitorio.
+  if (authError?.name === "AuthRetryableFetchError") {
+    console.error("[auth] Supabase Auth no disponible validando token:", authError.message);
+    return res.status(503).json({ error: "El servicio de autenticación no está disponible, intente de nuevo" });
+  }
   if (authError || !authData?.user) {
     return res.status(401).json({ error: "Token inválido o expirado" });
   }
@@ -21,7 +28,14 @@ export async function authenticate(req, res, next) {
     .eq("id", authData.user.id)
     .single();
 
-  if (usuarioError || !usuario) {
+  // PGRST116 = ninguna fila: el usuario de Auth no existe en `usuarios`. Cualquier
+  // otro error es un fallo de la consulta (red, BD) y no debe presentarse como
+  // "no registrado", porque el usuario sí lo está.
+  if (usuarioError && usuarioError.code !== "PGRST116") {
+    console.error(`[auth] error cargando usuario ${authData.user.id}:`, usuarioError.message);
+    return res.status(500).json({ error: "No se pudo cargar el usuario, intente de nuevo" });
+  }
+  if (!usuario) {
     return res.status(403).json({ error: "El usuario no está registrado en el sistema" });
   }
   if (!usuario.activo) {
@@ -34,6 +48,7 @@ export async function authenticate(req, res, next) {
     .eq("rol_id", usuario.roles.id);
 
   if (permisosError) {
+    console.error(`[auth] error cargando permisos del rol ${usuario.roles.id}:`, permisosError.message);
     return res.status(500).json({ error: "No se pudieron resolver los permisos" });
   }
 

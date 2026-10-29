@@ -36,11 +36,14 @@ export function TicketForm({ modo, inicial, onSubmit, submitLabel }) {
   }
 
   useEffect(() => {
-    apiFetch("/catalogos/tipos").then((data) => {
-      setTipos(data);
-      if (!inicial?.tipo && data[0]) setTipo(data[0].clave);
-    });
-    apiFetch("/catalogos/motivos").then(setMotivos);
+    Promise.all([apiFetch("/catalogos/tipos"), apiFetch("/catalogos/motivos")])
+      .then(([tiposData, motivosData]) => {
+        const tiposSeguros = Array.isArray(tiposData) ? tiposData : [];
+        setTipos(tiposSeguros);
+        setMotivos(Array.isArray(motivosData) ? motivosData : []);
+        if (!inicial?.tipo && tiposSeguros[0]) setTipo(tiposSeguros[0].clave);
+      })
+      .catch((e) => setError(`No se pudieron cargar los catálogos. ${e.message}`));
   }, []);
 
   function actualizarItem(i, campo, valor) {

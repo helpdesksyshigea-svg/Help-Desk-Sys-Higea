@@ -1,3 +1,4 @@
+import { Component } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { hashInicial } from "./lib/inviteHash.js";
 import { AuthProvider, useAuth } from "./context/AuthContext";
@@ -19,6 +20,32 @@ import { SetPassword } from "./pages/SetPassword";
 // valor capturado en inviteHash.js (importado de primero en main.jsx) en vez
 // de leer window.location.hash acá, que para este punto ya estaría vacío.
 const esEnlaceDeContrasenaInicial = /type=invite|type=recovery/.test(hashInicial);
+
+class ErrorBoundary extends Component {
+  state = { error: false };
+
+  static getDerivedStateFromError() {
+    return { error: true };
+  }
+
+  componentDidCatch(error) {
+    console.error("Error no controlado al mostrar la aplicación:", error);
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-[var(--color-canvas)] px-6 text-center">
+          <div>
+            <h1 className="text-lg font-semibold">No se pudo mostrar esta pantalla</h1>
+            <p className="mt-2 text-sm text-[var(--color-muted)]">Actualice la página. Si el problema continúa, contacte al administrador.</p>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 function Protegido({ children }) {
   const { autenticado, cargando, error } = useAuth();
@@ -79,7 +106,9 @@ export default function App() {
     <BrowserRouter>
       <ToastProvider>
         <AuthProvider>
-          <Rutas />
+          <ErrorBoundary>
+            <Rutas />
+          </ErrorBoundary>
         </AuthProvider>
       </ToastProvider>
     </BrowserRouter>

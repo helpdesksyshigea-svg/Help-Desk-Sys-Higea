@@ -19,9 +19,14 @@ export function Login() {
     e.preventDefault();
     setCargando(true);
     setError(null);
-    const { error } = await iniciarSesion(email, password);
-    if (error) setError("Correo o contraseña incorrectos.");
-    setCargando(false);
+    try {
+      const { error } = await iniciarSesion(email, password);
+      if (error) setError("Correo o contraseña incorrectos.");
+    } catch {
+      setError("No se pudo iniciar sesión. Verifique su conexión e inténtelo de nuevo.");
+    } finally {
+      setCargando(false);
+    }
   }
 
   async function onRecuperar() {
@@ -31,9 +36,15 @@ export function Login() {
     }
     setError(null);
     setRecuperando(true);
-    await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: window.location.origin });
-    setRecuperando(false);
-    setRecuperado(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: window.location.origin });
+      if (error) throw error;
+      setRecuperado(true);
+    } catch {
+      setError("No se pudo enviar el enlace. Verifique su conexión e inténtelo de nuevo.");
+    } finally {
+      setRecuperando(false);
+    }
   }
 
   return (

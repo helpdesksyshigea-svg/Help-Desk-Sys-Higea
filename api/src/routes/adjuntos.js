@@ -1,10 +1,11 @@
 import { Router } from "express";
+import { conManejoAsync } from "../lib/asyncRouter.js";
 import multer from "multer";
 import { randomUUID } from "crypto";
 import { supabase } from "../config/supabase.js";
 import { authenticate } from "../middleware/auth.js";
 
-export const adjuntosRouter = Router();
+export const adjuntosRouter = conManejoAsync(Router());
 adjuntosRouter.use(authenticate);
 
 const BUCKET = "adjuntos";
@@ -18,7 +19,10 @@ const upload = multer({
 
 async function puedeVerTicket(req, ticketId) {
   if (req.user.permisos.has("tickets.ver_todos")) return true;
-  const { data } = await supabase.from("tickets").select("solicitante_id").eq("id", ticketId).single();
+  const { data, error } = await supabase.from("tickets").select("solicitante_id").eq("id", ticketId).maybeSingle();
+  // 22P02 = id que no es uuid: equivale a "no existe". Otro error es un fallo real
+  // y no debe presentarse como "no tiene permiso".
+  if (error && error.code !== "22P02") throw new Error(`verificando acceso al ticket ${ticketId}: ${error.message}`);
   return data?.solicitante_id === req.user.id;
 }
 
@@ -37,14 +41,20 @@ adjuntosRouter.post("/tickets/:id/adjuntos", upload.single("archivo"), async (re
     return res.status(403).json({ error: "No tiene permiso sobre este ticket" });
   }
 
-  const { data: ticket } = await supabase.from("tickets").select("estado").eq("id", ticketId).single();
+  const { data: ticket, error: ticketError } = await supabase.from("tickets").select("estado").eq("id", ticketId).maybeSingle();
+  if (ticketError && ticketError.code !== "22P02") {
+    throw new Error(`cargando ticket ${ticketId}: ${ticketError.message}`);
+  }
   if (!ticket) return res.status(404).json({ error: "Ticket no encontrado" });
 
   const storagePath = `${ticketId}/${randomUUID()}-${req.file.originalname}`;
   const { error: uploadError } = await supabase.storage
     .from(BUCKET)
     .upload(storagePath, req.file.buffer, { contentType: req.file.mimetype });
-  if (uploadError) return res.status(500).json({ error: uploadError.message });
+  if (uploadError) {
+    console.error(`[adjuntos] error subiendo ${storagePath} a Storage:`, uploadError.message);
+    return res.status(500).json({ error: uploadError.message });
+  }
 
   const { data: adjunto, error: dbError } = await supabase
     .from("ticket_adjuntos")
@@ -59,9 +69,18 @@ adjuntosRouter.post("/tickets/:id/adjuntos", upload.single("archivo"), async (re
     })
     .select()
     .single();
-  if (dbError) return res.status(500).json({ error: dbError.message });
+  if (dbError) {
+    console.error(`[adjuntos] error registrando adjunto ${storagePath}:`, dbError.message);
+    // Sin la fila en ticket_adjuntos el archivo queda huérfano en Storage
+    // (nadie lo lista ni lo limpia): se intenta retirar.
+    const { error: rmError } = await supabase.storage.from(BUCKET).remove([storagePath]);
+    if (rmError) console.error(`[adjuntos] no se pudo retirar el archivo huérfano ${storagePath}:`, rmError.message);
+    return res.status(500).json({ error: dbError.message });
+  }
 
-  await supabase.from("ticket_eventos").insert({
+  // El adjunto ya quedó guardado: si falla solo el registro en el historial se
+  // deja constancia en el log en vez de responder error por algo que sí se hizo.
+  const { error: eventoError } = await supabase.from("ticket_eventos").insert({
     ticket_id: ticketId,
     tipo_evento: "adjunto_subido",
     estado_anterior: ticket.estado,
@@ -69,6 +88,9 @@ adjuntosRouter.post("/tickets/:id/adjuntos", upload.single("archivo"), async (re
     por: req.user.id,
     texto: `Adjunto: ${req.file.originalname} (${kind})`,
   });
+  if (eventoError) {
+    console.error(`[adjuntos] adjunto ${adjunto.id} subido, pero falló el evento de historial:`, eventoError.message);
+  }
 
   res.status(201).json(adjunto);
 });

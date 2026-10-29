@@ -29,15 +29,17 @@ export function SetPassword() {
       return;
     }
     setGuardando(true);
-    const { error } = await supabase.auth.updateUser({ password });
-    setGuardando(false);
-    if (error) {
-      setError(error.message);
-      return;
+    try {
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) throw error;
+      setListo(true);
+      window.location.hash = "";
+      setTimeout(() => window.location.replace("/"), 1500);
+    } catch (e) {
+      setError(e.message || "No se pudo guardar la contraseña. Verifique su conexión e inténtelo de nuevo.");
+    } finally {
+      setGuardando(false);
     }
-    setListo(true);
-    window.location.hash = "";
-    setTimeout(() => window.location.replace("/"), 1500);
   }
 
   return (

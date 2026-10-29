@@ -77,7 +77,10 @@ export function Inbox() {
 
   useEffect(() => {
     apiFetch("/tickets")
-      .then(setTickets)
+      .then((data) => {
+        if (!Array.isArray(data)) throw new Error("La respuesta del servidor no tiene el formato esperado.");
+        setTickets(data);
+      })
       .catch((e) => setError(e.message))
       .finally(() => setCargando(false));
   }, []);

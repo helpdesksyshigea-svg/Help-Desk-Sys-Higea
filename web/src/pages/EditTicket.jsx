@@ -12,7 +12,10 @@ export function EditTicket() {
 
   useEffect(() => {
     apiFetch(`/tickets/${id}`)
-      .then(setTicket)
+      .then((data) => {
+        if (!data || typeof data !== "object") throw new Error("No se pudo cargar la información del ticket.");
+        setTicket(data);
+      })
       .catch((e) => setError(e.message));
   }, [id]);
 

@@ -1,9 +1,10 @@
 import { Router } from "express";
+import { conManejoAsync } from "../lib/asyncRouter.js";
 import { supabase } from "../config/supabase.js";
 import { authenticate, requirePermission } from "../middleware/auth.js";
 import { limpiarTicketsAntiguos } from "../lib/limpieza.js";
 
-export const adminRouter = Router();
+export const adminRouter = conManejoAsync(Router());
 adminRouter.use(authenticate);
 
 // Asigna el siguiente código interno de 3 dígitos libre (101, 102, ...), sin importar
@@ -12,20 +13,23 @@ adminRouter.use(authenticate);
 // Reintenta ante choque de unicidad por si dos invitaciones llegan al mismo tiempo.
 async function siguienteCodigoInterno() {
   for (let intento = 0; intento < 20; intento++) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("usuarios")
       .select("codigo_interno")
       .not("codigo_interno", "is", null)
       .order("codigo_interno", { ascending: false });
+    if (error) throw new Error(`consultando códigos internos: ${error.message}`);
     const maximo = (data || [])
       .map((u) => Number(u.codigo_interno))
       .filter((n) => Number.isInteger(n))
       .reduce((max, n) => Math.max(max, n), 100);
     const candidato = String(maximo + 1 + intento).padStart(3, "0");
-    const { count } = await supabase
+    const { count, error: countError } = await supabase
       .from("usuarios")
       .select("id", { count: "exact", head: true })
       .eq("codigo_interno", candidato);
+    // Con error, count es null y el candidato se daría por libre sin haberlo verificado.
+    if (countError) throw new Error(`verificando código interno ${candidato}: ${countError.message}`);
     if (!count) return candidato;
   }
   throw new Error("No se pudo asignar un código interno disponible");
@@ -48,22 +52,43 @@ const TABLAS = [
 adminRouter.get("/admin/almacenamiento", requirePermission("config.editar"), async (req, res) => {
   const conteos = {};
   for (const tabla of TABLAS) {
-    const { count } = await supabase.from(tabla).select("*", { count: "exact", head: true });
+    const { count, error } = await supabase.from(tabla).select("*", { count: "exact", head: true });
+    if (error) {
+      console.error(`[admin] error contando filas de ${tabla}:`, error.message);
+      return res.status(500).json({ error: `No se pudo contar ${tabla}: ${error.message}` });
+    }
     conteos[tabla] = count ?? 0;
   }
 
   let bytesStorage = 0;
   let archivosStorage = 0;
-  const { data: carpetas } = await supabase.storage.from("adjuntos").list("", { limit: 1000 });
+  // Sin estos chequeos, un fallo de Storage se mostraba como "0 bytes usados".
+  const { data: carpetas, error: listError } = await supabase.storage.from("adjuntos").list("", { limit: 1000 });
+  if (listError) {
+    console.error("[admin] error listando Storage:", listError.message);
+    return res.status(500).json({ error: `No se pudo leer el almacenamiento: ${listError.message}` });
+  }
   for (const carpeta of carpetas || []) {
-    const { data: archivos } = await supabase.storage.from("adjuntos").list(carpeta.name, { limit: 1000 });
+    const { data: archivos, error: carpetaError } = await supabase.storage.from("adjuntos").list(carpeta.name, { limit: 1000 });
+    if (carpetaError) {
+      console.error(`[admin] error listando Storage/${carpeta.name}:`, carpetaError.message);
+      return res.status(500).json({ error: `No se pudo leer el almacenamiento: ${carpetaError.message}` });
+    }
     for (const archivo of archivos || []) {
       bytesStorage += archivo.metadata?.size || 0;
       archivosStorage++;
     }
   }
 
-  const { data: configRow } = await supabase.from("config_sistema").select("valor").eq("clave", "dias_retencion_cierre").single();
+  const { data: configRow, error: configError } = await supabase
+    .from("config_sistema")
+    .select("valor")
+    .eq("clave", "dias_retencion_cierre")
+    .maybeSingle();
+  if (configError) {
+    console.error("[admin] error leyendo dias_retencion_cierre:", configError.message);
+    return res.status(500).json({ error: configError.message });
+  }
 
   res.json({
     conteos,
@@ -92,6 +117,7 @@ adminRouter.post("/admin/limpieza/ejecutar", requirePermission("config.editar"),
     const resultado = await limpiarTicketsAntiguos();
     res.json(resultado);
   } catch (e) {
+    console.error("[admin] error en limpieza manual:", e.message);
     res.status(500).json({ error: e.message });
   }
 });
@@ -120,7 +146,16 @@ adminRouter.post("/admin/usuarios", requirePermission("usuarios.gestionar"), asy
   });
   if (authError) return res.status(400).json({ error: `No se pudo invitar al usuario: ${authError.message}` });
 
-  const codigoInterno = await siguienteCodigoInterno();
+  // La invitación ya salió: si algo falla de aquí en adelante la cuenta de Auth
+  // existe sin fila en `usuarios`, así que se deja el id en el log para poder
+  // completarla o eliminarla a mano.
+  let codigoInterno;
+  try {
+    codigoInterno = await siguienteCodigoInterno();
+  } catch (e) {
+    console.error(`[admin] invitación enviada a ${email.trim()} (auth id ${invited.user.id}) pero falló el código interno:`, e.message);
+    return res.status(500).json({ error: `Se envió la invitación, pero no se pudo asignar el código interno: ${e.message}` });
+  }
 
   const { data: usuario, error } = await supabase
     .from("usuarios")
@@ -135,7 +170,10 @@ adminRouter.post("/admin/usuarios", requirePermission("usuarios.gestionar"), asy
     })
     .select("id, email, nombre, proveedor, codigo_interno, activo, created_at, roles(id, nombre)")
     .single();
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) {
+    console.error(`[admin] invitación enviada a ${email.trim()} (auth id ${invited.user.id}) pero falló el insert en usuarios:`, error.message);
+    return res.status(500).json({ error: error.message });
+  }
 
   res.status(201).json(usuario);
 });
@@ -148,7 +186,7 @@ adminRouter.patch("/admin/usuarios/:id", requirePermission("usuarios.gestionar")
   if (nombre !== undefined) patch.nombre = nombre;
   if (proveedor !== undefined) patch.proveedor = proveedor;
   if (email !== undefined) {
-    const valor = email.trim();
+    const valor = typeof email === "string" ? email.trim() : "";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valor)) {
       return res.status(400).json({ error: "El correo no tiene un formato válido" });
     }
@@ -187,7 +225,7 @@ adminRouter.patch("/admin/usuarios/:id", requirePermission("usuarios.gestionar")
 // nueva en ningún log.
 adminRouter.post("/admin/usuarios/:id/contrasena", requirePermission("usuarios.gestionar"), async (req, res) => {
   const password = req.body?.password;
-  if (!password || password.length < 8) {
+  if (typeof password !== "string" || password.length < 8) {
     return res.status(400).json({ error: "La contraseña debe tener al menos 8 caracteres" });
   }
   const { error } = await supabase.auth.admin.updateUserById(req.params.id, { password });
@@ -214,7 +252,10 @@ adminRouter.delete("/admin/usuarios/:id", requirePermission("usuarios.gestionar"
     return res.status(500).json({ error: error.message });
   }
   const { error: authError } = await supabase.auth.admin.deleteUser(req.params.id);
-  if (authError) return res.status(500).json({ error: `Usuario eliminado del sistema, pero no de la cuenta de acceso: ${authError.message}` });
+  if (authError) {
+    console.error(`[admin] usuario ${req.params.id} borrado de usuarios pero no de Auth:`, authError.message);
+    return res.status(500).json({ error: `Usuario eliminado del sistema, pero no de la cuenta de acceso: ${authError.message}` });
+  }
   res.json({ ok: true });
 });
 
@@ -230,7 +271,10 @@ adminRouter.get("/admin/roles", requirePermission("roles.gestionar"), async (req
   const { data: roles, error } = await supabase.from("roles").select("*").order("nombre");
   if (error) return res.status(500).json({ error: error.message });
 
-  const { data: rolPermisos } = await supabase.from("rol_permisos").select("rol_id, permisos(clave)");
+  // Sin este chequeo los roles se mostraban sin permisos, y guardarlos así desde
+  // la UI se los borraría de verdad.
+  const { data: rolPermisos, error: rpError } = await supabase.from("rol_permisos").select("rol_id, permisos(clave)");
+  if (rpError) return res.status(500).json({ error: rpError.message });
   const porRol = {};
   for (const rp of rolPermisos || []) {
     (porRol[rp.rol_id] ||= []).push(rp.permisos.clave);
@@ -250,7 +294,8 @@ adminRouter.post("/admin/roles", requirePermission("roles.gestionar"), async (re
   if (error) return res.status(500).json({ error: error.message });
 
   if (Array.isArray(permisos) && permisos.length) {
-    const { data: permisoRows } = await supabase.from("permisos").select("id, clave").in("clave", permisos);
+    const { data: permisoRows, error: pError } = await supabase.from("permisos").select("id, clave").in("clave", permisos);
+    if (pError) return res.status(500).json({ error: pError.message });
     const { error: rpError } = await supabase
       .from("rol_permisos")
       .insert(permisoRows.map((p) => ({ rol_id: rol.id, permiso_id: p.id })));
@@ -263,7 +308,8 @@ adminRouter.post("/admin/roles", requirePermission("roles.gestionar"), async (re
 // Reemplaza el nombre/descripción y el conjunto completo de permisos de un rol.
 // No se puede renombrar ni borrar un rol de sistema, pero sí ajustar sus permisos.
 adminRouter.patch("/admin/roles/:id", requirePermission("roles.gestionar"), async (req, res) => {
-  const { data: rol } = await supabase.from("roles").select("*").eq("id", req.params.id).single();
+  const { data: rol, error: rolError } = await supabase.from("roles").select("*").eq("id", req.params.id).maybeSingle();
+  if (rolError && rolError.code !== "22P02") return res.status(500).json({ error: rolError.message });
   if (!rol) return res.status(404).json({ error: "Rol no encontrado" });
 
   const { nombre, descripcion, permisos } = req.body;
@@ -271,20 +317,32 @@ adminRouter.patch("/admin/roles/:id", requirePermission("roles.gestionar"), asyn
     return res.status(409).json({ error: "No se puede renombrar un rol de sistema" });
   }
   if (nombre?.trim() || descripcion !== undefined) {
-    await supabase
+    const { error: updError } = await supabase
       .from("roles")
       .update({ ...(nombre?.trim() ? { nombre: nombre.trim() } : {}), ...(descripcion !== undefined ? { descripcion } : {}) })
       .eq("id", rol.id);
+    if (updError) return res.status(500).json({ error: updError.message });
   }
 
   if (Array.isArray(permisos)) {
-    await supabase.from("rol_permisos").delete().eq("rol_id", rol.id);
+    // Se resuelven los ids antes de borrar: si esta lectura falla, el rol conserva
+    // sus permisos en vez de quedar vacío.
+    let permisoRows = [];
     if (permisos.length) {
-      const { data: permisoRows } = await supabase.from("permisos").select("id, clave").in("clave", permisos);
+      const { data, error: pError } = await supabase.from("permisos").select("id, clave").in("clave", permisos);
+      if (pError) return res.status(500).json({ error: pError.message });
+      permisoRows = data || [];
+    }
+    const { error: delError } = await supabase.from("rol_permisos").delete().eq("rol_id", rol.id);
+    if (delError) return res.status(500).json({ error: delError.message });
+    if (permisoRows.length) {
       const { error: rpError } = await supabase
         .from("rol_permisos")
         .insert(permisoRows.map((p) => ({ rol_id: rol.id, permiso_id: p.id })));
-      if (rpError) return res.status(500).json({ error: rpError.message });
+      if (rpError) {
+        console.error(`[admin] permisos del rol ${rol.id} borrados pero falló reinsertarlos:`, rpError.message);
+        return res.status(500).json({ error: rpError.message });
+      }
     }
   }
 
@@ -325,7 +383,8 @@ function catalogoRouter(path, tabla, referencia) {
 
     if (nueva_clave?.trim() && nueva_clave.trim() !== claveActual) {
       const nueva = nueva_clave.trim();
-      const { data: existente } = await supabase.from(tabla).select("clave").eq("clave", nueva).maybeSingle();
+      const { data: existente, error: existeError } = await supabase.from(tabla).select("clave").eq("clave", nueva).maybeSingle();
+      if (existeError) return res.status(500).json({ error: existeError.message });
       if (existente) return res.status(409).json({ error: `Ya existe la clave '${nueva}'` });
 
       const { error: renameError } = await supabase.from(tabla).update({ clave: nueva }).eq("clave", claveActual);
@@ -335,7 +394,13 @@ function catalogoRouter(path, tabla, referencia) {
         .from(referencia.tabla)
         .update({ [referencia.columna]: nueva })
         .eq(referencia.columna, claveActual);
-      if (cascadeError) return res.status(500).json({ error: cascadeError.message });
+      if (cascadeError) {
+        console.error(
+          `[admin] clave '${claveActual}' renombrada a '${nueva}' en ${tabla}, pero falló la cascada a ${referencia.tabla}.${referencia.columna}:`,
+          cascadeError.message
+        );
+        return res.status(500).json({ error: cascadeError.message });
+      }
     }
 
     const patch = {};

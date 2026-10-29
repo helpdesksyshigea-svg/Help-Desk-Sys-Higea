@@ -1,10 +1,11 @@
 import { Router } from "express";
+import { conManejoAsync } from "../lib/asyncRouter.js";
 import { supabase } from "../config/supabase.js";
 import { authenticate } from "../middleware/auth.js";
 
 // Lectura de catálogos para cualquier usuario autenticado (no requiere permisos de
 // administración): el formulario de ticket necesita los tipos y motivos activos.
-export const catalogosRouter = Router();
+export const catalogosRouter = conManejoAsync(Router());
 catalogosRouter.use(authenticate);
 
 catalogosRouter.get("/catalogos/tipos", async (req, res) => {

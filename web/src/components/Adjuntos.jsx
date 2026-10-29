@@ -17,16 +17,21 @@ export function Adjuntos({ ticketId, kindsPermitidos = ["oficio", "soporte", "ev
   const inputs = useRef({});
 
   async function cargar() {
-    const { data } = await supabase.auth.getSession();
-    const token = data.session?.access_token;
+    const { data: sesion } = await supabase.auth.getSession();
+    const token = sesion.session?.access_token;
     const res = await fetch(`${API_URL}/tickets/${ticketId}/adjuntos`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (res.ok) setAdjuntos(await res.json());
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error || "No se pudieron cargar los documentos");
+    }
+    const data = await res.json();
+    setAdjuntos(Array.isArray(data) ? data : []);
   }
 
   useEffect(() => {
-    cargar();
+    cargar().catch((e) => setError(e.message));
   }, [ticketId]);
 
   async function subir(e) {
@@ -36,36 +41,47 @@ export function Adjuntos({ ticketId, kindsPermitidos = ["oficio", "soporte", "ev
     setSubiendo(kind);
     setError(null);
 
-    const { data } = await supabase.auth.getSession();
-    const token = data.session?.access_token;
-    const form = new FormData();
-    form.append("archivo", archivo);
-    form.append("kind", kind);
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      const form = new FormData();
+      form.append("archivo", archivo);
+      form.append("kind", kind);
 
-    const res = await fetch(`${API_URL}/tickets/${ticketId}/adjuntos`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: form,
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      setError(body.error || "No se pudo subir el archivo");
-    } else {
+      const res = await fetch(`${API_URL}/tickets/${ticketId}/adjuntos`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "No se pudo subir el archivo");
+      }
       await cargar();
+    } catch (e) {
+      setError(e.message || "No se pudo subir el archivo. Verifique su conexión e inténtelo de nuevo.");
+    } finally {
+      setSubiendo(null);
+      e.target.value = "";
     }
-    setSubiendo(null);
-    e.target.value = "";
   }
 
   async function abrir(adjuntoId) {
-    const { data } = await supabase.auth.getSession();
-    const token = data.session?.access_token;
-    const res = await fetch(`${API_URL}/tickets/${ticketId}/adjuntos/${adjuntoId}/url`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (res.ok) {
-      const { url } = await res.json();
-      window.open(url, "_blank", "noopener");
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      const res = await fetch(`${API_URL}/tickets/${ticketId}/adjuntos/${adjuntoId}/url`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "No se pudo abrir el documento");
+      }
+      const body = await res.json();
+      if (!body.url) throw new Error("No se pudo abrir el documento");
+      window.open(body.url, "_blank", "noopener");
+    } catch (e) {
+      setError(e.message || "No se pudo abrir el documento. Verifique su conexión e inténtelo de nuevo.");
     }
   }
 

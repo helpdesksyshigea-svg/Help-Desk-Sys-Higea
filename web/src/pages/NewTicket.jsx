@@ -7,6 +7,7 @@ export function NewTicket() {
 
   async function crear(form) {
     const ticket = await apiFetch("/tickets", { method: "POST", body: form });
+    if (!ticket?.id) throw new Error("El ticket se creó, pero no se recibió su número. Actualice la bandeja para consultarlo.");
     navigate(`/tickets/${ticket.id}`);
   }
 

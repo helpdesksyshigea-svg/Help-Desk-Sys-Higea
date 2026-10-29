@@ -1,7 +1,8 @@
 import { Router } from "express";
+import { conManejoAsync } from "../lib/asyncRouter.js";
 import { authenticate } from "../middleware/auth.js";
 
-export const meRouter = Router();
+export const meRouter = conManejoAsync(Router());
 
 // El frontend llama esto al iniciar sesión para construir la UI
 // a partir de los permisos reales, no de un rol hardcodeado en el cliente.

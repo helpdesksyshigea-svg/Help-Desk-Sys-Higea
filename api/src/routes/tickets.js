@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { conManejoAsync } from "../lib/asyncRouter.js";
 import multer from "multer";
 import { randomUUID } from "crypto";
 import { supabase } from "../config/supabase.js";
@@ -12,7 +13,7 @@ const BUCKET = "adjuntos";
 const TIPOS_OFICIO_PERMITIDOS = ["application/pdf", "image/png", "image/jpeg", "image/webp"];
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 
-export const ticketsRouter = Router();
+export const ticketsRouter = conManejoAsync(Router());
 ticketsRouter.use(authenticate);
 
 // La clave del tipo no dice nada por sí sola (la administradora la puede renombrar);
@@ -28,7 +29,9 @@ const FORMATO_FACTURA = /^[A-Za-z0-9-]{4,20}$/;
 
 async function validarItems(items, tipo) {
   if (!Array.isArray(items) || items.length === 0) return "Debe incluir al menos un registro";
-  const { data: tipoRow } = await supabase.from("tipos_solicitud").select("requiere_factura").eq("clave", tipo).maybeSingle();
+  const { data: tipoRow, error } = await supabase.from("tipos_solicitud").select("requiere_factura").eq("clave", tipo).maybeSingle();
+  // Sin este chequeo, un fallo de la consulta se reportaba como "tipo no existe" (400).
+  if (error) throw new Error(`consultando tipo de solicitud '${tipo}': ${error.message}`);
   if (!tipoRow) return `Tipo de solicitud '${tipo}' no existe`;
   for (const item of items) {
     if (!item.motivo) return "Cada registro requiere un motivo";
@@ -113,15 +116,27 @@ async function cargarTicketCompleto(id) {
     .select("*, solicitante:usuarios!tickets_solicitante_id_fkey(nombre, email), asignado:usuarios!tickets_asignado_a_fkey(id, nombre)")
     .eq("id", id)
     .single();
-  if (error || !ticket) return null;
-  const { data: items } = await supabase.from("ticket_items").select("*").eq("ticket_id", id);
-  const { data: eventos } = await supabase
+  // PGRST116 = no existe; 22P02 = id con formato inválido (no es uuid). Ambos son
+  // un 404 legítimo. Cualquier otro error es un fallo real de la consulta.
+  if (error && error.code !== "PGRST116" && error.code !== "22P02") {
+    throw new Error(`cargando ticket ${id}: ${error.message}`);
+  }
+  if (!ticket) return null;
+  // Estos errores no se pueden ignorar: con items vacíos por un fallo de lectura,
+  // aprobar guardaría el hash de una lista vacía y cerrar rechazaría el ticket
+  // diciendo que los registros cambiaron.
+  const { data: items, error: itemsError } = await supabase.from("ticket_items").select("*").eq("ticket_id", id);
+  if (itemsError) throw new Error(`cargando items del ticket ${id}: ${itemsError.message}`);
+  const { data: eventos, error: eventosError } = await supabase
     .from("ticket_eventos")
     .select("*")
     .eq("ticket_id", id)
     .order("created_at", { ascending: true });
-  const { data: aprobacion } = await supabase.from("aprobaciones").select("*").eq("ticket_id", id).maybeSingle();
-  const { data: slaConfig } = await supabase.from("sla_config").select("*").eq("prioridad", ticket.prioridad).single();
+  if (eventosError) throw new Error(`cargando eventos del ticket ${id}: ${eventosError.message}`);
+  const { data: aprobacion, error: aprobacionError } = await supabase.from("aprobaciones").select("*").eq("ticket_id", id).maybeSingle();
+  if (aprobacionError) throw new Error(`cargando aprobación del ticket ${id}: ${aprobacionError.message}`);
+  const { data: slaConfig, error: slaError } = await supabase.from("sla_config").select("*").eq("prioridad", ticket.prioridad).maybeSingle();
+  if (slaError) throw new Error(`cargando SLA '${ticket.prioridad}': ${slaError.message}`);
   const sla = await calcularSla(ticket, eventos || [], slaConfig?.dias_habiles ?? 2);
   return { ...ticket, items: items || [], eventos: eventos || [], aprobacion: aprobacion || null, ...sla };
 }
@@ -167,17 +182,22 @@ ticketsRouter.post("/tickets", requirePermission("tickets.crear"), upload.single
       req.user.codigo_interno,
     );
   } catch (e) {
+    console.error(`[tickets] error insertando ticket de ${req.user.id}:`, e.message);
     return res.status(500).json({ error: e.message });
   }
 
   const { error: itemsError } = await supabase
     .from("ticket_items")
     .insert(items.map((item) => ({ ...item, ticket_id: ticket.id })));
-  if (itemsError) return res.status(500).json({ error: itemsError.message });
+  if (itemsError) {
+    console.error(`[tickets] error insertando items del ticket ${ticket.code}:`, itemsError.message);
+    return res.status(500).json({ error: itemsError.message });
+  }
 
   try {
     await subirOficio(ticket.id, req.file, req.user.id);
   } catch (e) {
+    if (!e.status) console.error(`[tickets] error subiendo oficio del ticket ${ticket.code}:`, e.message);
     return res.status(e.status || 500).json({ error: e.message });
   }
 
@@ -229,6 +249,7 @@ ticketsRouter.patch("/tickets/:id", upload.single("oficio"), async (req, res) =>
     try {
       await subirOficio(ticket.id, req.file, req.user.id);
     } catch (e) {
+      if (!e.status) console.error(`[tickets] error subiendo oficio del ticket ${ticket.code}:`, e.message);
       return res.status(e.status || 500).json({ error: e.message });
     }
   }
@@ -371,11 +392,12 @@ ticketsRouter.post("/tickets/:id/aprobar", (req, res) =>
     tipoEvento: "aprobado",
     notaObligatoria: false,
     async validar(ticket) {
-      const { data: adjuntos } = await supabase
+      const { data: adjuntos, error } = await supabase
         .from("ticket_adjuntos")
         .select("id")
         .eq("ticket_id", ticket.id)
         .eq("kind", "oficio");
+      if (error) throw new Error(`consultando oficio del ticket ${ticket.code}: ${error.message}`);
       if (!adjuntos || adjuntos.length === 0) {
         return "No se puede aprobar sin el oficio firmado adjunto";
       }

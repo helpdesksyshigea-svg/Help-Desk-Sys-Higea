@@ -56,7 +56,9 @@ export function TicketDetail() {
 
   async function cargar() {
     try {
-      setTicket(await apiFetch(`/tickets/${id}`));
+      const data = await apiFetch(`/tickets/${id}`);
+      if (!data || typeof data !== "object") throw new Error("No se pudo cargar la información del ticket.");
+      setTicket(data);
     } catch (e) {
       setError(e.message);
     }
@@ -67,9 +69,9 @@ export function TicketDetail() {
   }, [id]);
 
   useEffect(() => {
-    apiFetch("/catalogos/motivos").then((data) => {
-      setMotivos(Object.fromEntries(data.map((m) => [m.clave, m.etiqueta])));
-    });
+    apiFetch("/catalogos/motivos")
+      .then((data) => setMotivos(Object.fromEntries((Array.isArray(data) ? data : []).map((m) => [m.clave, m.etiqueta]))))
+      .catch((e) => setError(`No se pudieron cargar los motivos. ${e.message}`));
   }, []);
 
   async function accion(def) {
@@ -108,7 +110,9 @@ export function TicketDetail() {
     (esSolicitante && ["pendiente", "devuelto"].includes(ticket.estado)) ||
     (tienePermiso("tickets.aprobar") && ticket.estado === "devuelto");
 
-  const asunto = ticket.items?.map((i) => i.factura).filter(Boolean).join(", ") || ticket.items?.[0]?.paciente || "";
+  const items = Array.isArray(ticket.items) ? ticket.items : [];
+  const eventos = Array.isArray(ticket.eventos) ? ticket.eventos : [];
+  const asunto = items.map((i) => i.factura).filter(Boolean).join(", ") || items[0]?.paciente || "";
 
   return (
     <div className="grid gap-6">
@@ -196,7 +200,7 @@ export function TicketDetail() {
 
       <Card className="overflow-x-auto">
         <h3 className="mb-3 text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">
-          Registros ({ticket.items.length})
+          Registros ({items.length})
         </h3>
         <table className="w-full min-w-[640px] text-sm">
           <thead>
@@ -212,7 +216,7 @@ export function TicketDetail() {
             </tr>
           </thead>
           <tbody>
-            {ticket.items.map((item, i) => (
+            {items.map((item, i) => (
               <tr key={item.id} className="border-b border-[var(--color-border)] last:border-0 align-top">
                 <td className="py-2 pr-3 text-[var(--color-muted)]">{i + 1}</td>
                 <td className="py-2 pr-3 text-xs">{item.factura || "—"}</td>
@@ -242,8 +246,8 @@ export function TicketDetail() {
         <Card className="grid gap-4">
           <h3 className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">Historial</h3>
           <ol className="grid gap-4">
-            {ticket.eventos.map((ev, i) => {
-              const esUltimo = i === ticket.eventos.length - 1;
+            {eventos.map((ev, i) => {
+              const esUltimo = i === eventos.length - 1;
               const enCurso = esUltimo && ticket.estado !== "cerrado";
               return (
               <li key={ev.id} className="grid grid-cols-[20px_1fr] gap-3">

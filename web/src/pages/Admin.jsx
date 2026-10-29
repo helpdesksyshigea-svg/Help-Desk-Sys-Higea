@@ -158,12 +158,17 @@ function Usuarios() {
   const [ok, setOk] = useState(null);
   const [enviando, setEnviando] = useState(false);
   const [cambiandoPassId, setCambiandoPassId] = useState(null);
+  const { exito, fallo } = useToast();
 
   async function cargar() {
-    const [u, r] = await Promise.all([apiFetch("/admin/usuarios"), apiFetch("/admin/roles")]);
-    setUsuarios(u);
-    setRoles(r);
-    if (!rolId && r[0]) setRolId(r[0].id);
+    try {
+      const [u, r] = await Promise.all([apiFetch("/admin/usuarios"), apiFetch("/admin/roles")]);
+      setUsuarios(Array.isArray(u) ? u : []);
+      setRoles(Array.isArray(r) ? r : []);
+      if (!rolId && r?.[0]) setRolId(r[0].id);
+    } catch (e) {
+      fallo(`No se pudieron cargar los usuarios. ${e.message}`);
+    }
   }
   useEffect(() => {
     cargar();
@@ -190,8 +195,6 @@ function Usuarios() {
       setEnviando(false);
     }
   }
-
-  const { exito, fallo } = useToast();
 
   async function cambiarRol(id, rol_id) {
     try {
@@ -392,9 +395,13 @@ function Roles() {
   const [enviando, setEnviando] = useState(false);
 
   async function cargar() {
-    const [r, p] = await Promise.all([apiFetch("/admin/roles"), apiFetch("/admin/permisos")]);
-    setRoles(r);
-    setPermisos(p);
+    try {
+      const [r, p] = await Promise.all([apiFetch("/admin/roles"), apiFetch("/admin/permisos")]);
+      setRoles(Array.isArray(r) ? r : []);
+      setPermisos(Array.isArray(p) ? p : []);
+    } catch (e) {
+      setError(`No se pudieron cargar los roles. ${e.message}`);
+    }
   }
   useEffect(() => {
     cargar();
@@ -551,7 +558,12 @@ function Catalogo({ titulo, path }) {
   const [edicion, setEdicion] = useState({ clave: "", etiqueta: "" });
 
   async function cargar() {
-    setItems(await apiFetch(`/admin/${path}`));
+    try {
+      const data = await apiFetch(`/admin/${path}`);
+      setItems(Array.isArray(data) ? data : []);
+    } catch (e) {
+      setError(`No se pudieron cargar ${titulo.toLowerCase()}. ${e.message}`);
+    }
   }
   useEffect(() => {
     cargar();
@@ -681,17 +693,29 @@ function Catalogo({ titulo, path }) {
 
 function Sla() {
   const [config, setConfig] = useState([]);
+  const [error, setError] = useState(null);
+  const { fallo } = useToast();
 
   async function cargar() {
-    setConfig(await apiFetch("/admin/sla"));
+    try {
+      const data = await apiFetch("/admin/sla");
+      setConfig(Array.isArray(data) ? data : []);
+      setError(null);
+    } catch (e) {
+      setError(`No se pudo cargar la configuración de plazos. ${e.message}`);
+    }
   }
   useEffect(() => {
     cargar();
   }, []);
 
   async function guardar(prioridad, dias_habiles) {
-    await apiFetch(`/admin/sla/${prioridad}`, { method: "PATCH", body: JSON.stringify({ dias_habiles }) });
-    cargar();
+    try {
+      await apiFetch(`/admin/sla/${prioridad}`, { method: "PATCH", body: JSON.stringify({ dias_habiles }) });
+      await cargar();
+    } catch (e) {
+      fallo(e.message);
+    }
   }
 
   return (
@@ -700,6 +724,7 @@ function Sla() {
         <span>Prioridad</span>
         <span>Plazo</span>
       </div>
+      {error && <p className="p-4 text-sm text-[#b3362a]">{error}</p>}
       <ul className="divide-y divide-[var(--color-border)]">
       {config.map((c) => (
         <li key={c.prioridad} className="flex items-center justify-between gap-3 px-4 py-3">
@@ -731,9 +756,15 @@ function Festivos() {
   const [fecha, setFecha] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [error, setError] = useState(null);
+  const { fallo } = useToast();
 
   async function cargar() {
-    setFestivos(await apiFetch("/admin/festivos"));
+    try {
+      const data = await apiFetch("/admin/festivos");
+      setFestivos(Array.isArray(data) ? data : []);
+    } catch (e) {
+      setError(`No se pudieron cargar los festivos. ${e.message}`);
+    }
   }
   useEffect(() => {
     cargar();
@@ -753,8 +784,12 @@ function Festivos() {
   }
 
   async function eliminar(f) {
-    await apiFetch(`/admin/festivos/${f}`, { method: "DELETE" });
-    cargar();
+    try {
+      await apiFetch(`/admin/festivos/${f}`, { method: "DELETE" });
+      await cargar();
+    } catch (e) {
+      fallo(e.message);
+    }
   }
 
   return (
@@ -827,11 +862,17 @@ function Almacenamiento() {
   const [datos, setDatos] = useState(null);
   const [dias, setDias] = useState("");
   const [limpiando, setLimpiando] = useState(false);
+  const [error, setError] = useState(null);
 
   async function cargar() {
-    const r = await apiFetch("/admin/almacenamiento");
-    setDatos(r);
-    setDias(String(r.diasRetencionCierre));
+    try {
+      const r = await apiFetch("/admin/almacenamiento");
+      setDatos(r);
+      setDias(String(r.diasRetencionCierre));
+      setError(null);
+    } catch (e) {
+      setError(`No se pudo cargar el almacenamiento. ${e.message}`);
+    }
   }
   useEffect(() => {
     cargar();
@@ -863,13 +904,14 @@ function Almacenamiento() {
     }
   }
 
-  if (!datos) return <p className="text-[var(--color-muted)]">Cargando…</p>;
+  if (!datos) return error ? <Mensaje error={error} /> : <p className="text-[var(--color-muted)]">Cargando…</p>;
 
   const pctStorage = (datos.storage.bytes / datos.storage.limite) * 100;
 
   return (
     <div className="grid gap-4">
       <Card className="grid gap-5">
+        {error && <Mensaje error={error} />}
         <h3 className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">
           Almacenamiento de archivos (plan gratuito Supabase)
         </h3>
@@ -884,6 +926,7 @@ function Almacenamiento() {
       </Card>
 
       <Card className="grid gap-3">
+        {error && <Mensaje error={error} />}
         <h3 className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">
           Filas por tabla (base de datos)
         </h3>
@@ -902,6 +945,7 @@ function Almacenamiento() {
       </Card>
 
       <Card className="grid gap-3">
+        {error && <Mensaje error={error} />}
         <h3 className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">
           Archivado automático de tickets cerrados
         </h3>

@@ -44,8 +44,10 @@ export function Sidebar() {
   useEffect(() => {
     function cargar() {
       apiFetch("/tickets")
-        .then(setTickets)
-        .catch(() => {});
+        .then((data) => {
+          if (Array.isArray(data)) setTickets(data);
+        })
+        .catch((e) => console.error("No se pudo actualizar el contador de tickets:", e));
     }
     cargar();
     window.addEventListener("tickets-changed", cargar);
