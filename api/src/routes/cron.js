@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { conManejoAsync } from "../lib/asyncRouter.js";
 import { limpiarTicketsAntiguos } from "../lib/limpieza.js";
+import { verificarAlertaAlmacenamiento } from "../lib/almacenamiento.js";
 
 export const cronRouter = conManejoAsync(Router());
 
@@ -11,11 +12,16 @@ cronRouter.post("/cron/limpiar-tickets", async (req, res) => {
   if (!process.env.CRON_SECRET || secreto !== process.env.CRON_SECRET) {
     return res.status(401).json({ error: "No autorizado" });
   }
+  const resultado = await limpiarTicketsAntiguos();
+
+  // La alerta de almacenamiento no debe tumbar la limpieza si falla: se
+  // intenta después de que la limpieza (que puede liberar espacio) ya corrió.
+  let almacenamiento = null;
   try {
-    const resultado = await limpiarTicketsAntiguos();
-    res.json(resultado);
+    almacenamiento = await verificarAlertaAlmacenamiento();
   } catch (e) {
-    console.error("[cron] error en limpiar-tickets:", e.message);
-    res.status(500).json({ error: e.message });
+    console.error("[cron] error verificando alerta de almacenamiento:", e.message);
   }
+
+  res.json({ ...resultado, almacenamiento });
 });

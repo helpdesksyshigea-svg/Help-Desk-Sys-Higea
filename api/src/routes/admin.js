@@ -3,6 +3,7 @@ import { conManejoAsync } from "../lib/asyncRouter.js";
 import { supabase } from "../config/supabase.js";
 import { authenticate, requirePermission } from "../middleware/auth.js";
 import { limpiarTicketsAntiguos } from "../lib/limpieza.js";
+import { medirStorage } from "../lib/almacenamiento.js";
 
 export const adminRouter = conManejoAsync(Router());
 adminRouter.use(authenticate);
@@ -38,7 +39,6 @@ async function siguienteCodigoInterno() {
 // ======================= Almacenamiento =======================
 
 const LIMITE_DB_BYTES = 500 * 1024 * 1024; // 500 MB, plan gratuito de Supabase
-const LIMITE_STORAGE_BYTES = 1024 * 1024 * 1024; // 1 GB, plan gratuito de Supabase
 const TABLAS = [
   "tickets",
   "ticket_items",
@@ -60,24 +60,12 @@ adminRouter.get("/admin/almacenamiento", requirePermission("config.editar"), asy
     conteos[tabla] = count ?? 0;
   }
 
-  let bytesStorage = 0;
-  let archivosStorage = 0;
-  // Sin estos chequeos, un fallo de Storage se mostraba como "0 bytes usados".
-  const { data: carpetas, error: listError } = await supabase.storage.from("adjuntos").list("", { limit: 1000 });
-  if (listError) {
-    console.error("[admin] error listando Storage:", listError.message);
-    return res.status(500).json({ error: `No se pudo leer el almacenamiento: ${listError.message}` });
-  }
-  for (const carpeta of carpetas || []) {
-    const { data: archivos, error: carpetaError } = await supabase.storage.from("adjuntos").list(carpeta.name, { limit: 1000 });
-    if (carpetaError) {
-      console.error(`[admin] error listando Storage/${carpeta.name}:`, carpetaError.message);
-      return res.status(500).json({ error: `No se pudo leer el almacenamiento: ${carpetaError.message}` });
-    }
-    for (const archivo of archivos || []) {
-      bytesStorage += archivo.metadata?.size || 0;
-      archivosStorage++;
-    }
+  let storage;
+  try {
+    storage = await medirStorage();
+  } catch (e) {
+    console.error("[admin] error midiendo Storage:", e.message);
+    return res.status(500).json({ error: `No se pudo leer el almacenamiento: ${e.message}` });
   }
 
   const { data: configRow, error: configError } = await supabase
@@ -92,7 +80,7 @@ adminRouter.get("/admin/almacenamiento", requirePermission("config.editar"), asy
 
   res.json({
     conteos,
-    storage: { bytes: bytesStorage, archivos: archivosStorage, limite: LIMITE_STORAGE_BYTES },
+    storage,
     baseDatos: { limite: LIMITE_DB_BYTES }, // Supabase no expone el tamaño real por API; los conteos de filas son la señal disponible.
     diasRetencionCierre: Number(configRow?.valor ?? 90),
   });

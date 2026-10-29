@@ -34,7 +34,7 @@ export async function enviarCorreo(destinatarios, asunto, textoPlano) {
   }
 }
 
-async function correosConPermiso(clavePermiso) {
+export async function correosConPermiso(clavePermiso) {
   const { data: permiso, error: e1 } = await supabase.from("permisos").select("id").eq("clave", clavePermiso).single();
   if (e1) throw new Error(`consultando permiso '${clavePermiso}': ${e1.message}`);
   if (!permiso) return [];

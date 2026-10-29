@@ -22,11 +22,14 @@ function IndicadorAlmacenamiento() {
   }, []);
   if (!datos) return null;
   const pct = (datos.storage.bytes / datos.storage.limite) * 100;
+  const alerta = pct >= 75;
   return (
     <NavLink
       to="/admin?tab=almacenamiento"
-      className="flex items-center gap-2 rounded-[var(--radius-button)] px-3 py-2 text-xs text-[var(--color-muted)] hover:bg-[var(--color-ink)]/[0.05] hover:text-[var(--color-ink)]"
-      title={`Almacenamiento: ${kb(datos.storage.bytes)} de ${kb(datos.storage.limite)}`}
+      className={`flex items-center gap-2 rounded-[var(--radius-button)] px-3 py-2 text-xs hover:bg-[var(--color-ink)]/[0.05] ${
+        alerta ? "font-medium text-[#b3362a] hover:text-[#b3362a]" : "text-[var(--color-muted)] hover:text-[var(--color-ink)]"
+      }`}
+      title={`Almacenamiento: ${kb(datos.storage.bytes)} de ${kb(datos.storage.limite)}${alerta ? " — por encima del 75%" : ""}`}
     >
       <IconDatabase size={14} className="shrink-0" />
       <span>Almacenamiento {pct < 0.01 ? "< 0.01" : pct.toFixed(2)}%</span>
