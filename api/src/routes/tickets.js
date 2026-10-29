@@ -430,6 +430,29 @@ ticketsRouter.post("/tickets/:id/tomar", (req, res) =>
   })
 );
 
+// El agente asignado puede soltar el caso sin cerrarlo ni pedir información:
+// vuelve a "aprobado" (deshace el tomar) para que cualquier agente de SYS
+// HIGEA, incluido el mismo, pueda tomarlo de nuevo. aprobado_at no se toca,
+// así que el plazo sigue contando desde la aprobación original, no se reinicia.
+ticketsRouter.post("/tickets/:id/liberar", (req, res) =>
+  transicion(req, res, {
+    permiso: "tickets.tomar",
+    estadosValidos: ["en_proceso"],
+    nuevoEstado: "aprobado",
+    tipoEvento: "liberado",
+    notaObligatoria: false,
+    async validar(ticket, req) {
+      if (ticket.asignado_a !== req.user.id) {
+        return "Solo el agente asignado puede liberar este ticket";
+      }
+      return null;
+    },
+    async efecto() {
+      return { asignado_a: null };
+    },
+  })
+);
+
 ticketsRouter.post("/tickets/:id/pedir-info", (req, res) =>
   transicion(req, res, {
     permiso: "tickets.pedir_info",

@@ -24,6 +24,7 @@ const ACCIONES = [
   { ruta: "pedir-info", permiso: "tickets.pedir_info", estados: ["en_proceso"], label: "Pedir información", icon: IconInfo, variant: "ghost", notaObligatoria: true, exito: "Se solicitó información al facturador", requiereAsignado: true },
   { ruta: "responder-info", permiso: "tickets.responder_info", estados: ["requiere_info"], label: "Responder a SYS HIGEA", icon: IconSend, variant: "ghost", notaObligatoria: true, exito: "Respuesta enviada a SYS HIGEA" },
   { ruta: "cerrar", permiso: "tickets.cerrar", estados: ["en_proceso"], label: "Reportar realizado y cerrar", icon: IconCheck, variant: "accent", notaObligatoria: true, exito: "Ticket cerrado", requiereAsignado: true },
+  { ruta: "liberar", permiso: "tickets.tomar", estados: ["en_proceso"], label: "Liberar caso", icon: IconReturn, variant: "ghost", notaObligatoria: false, exito: "Caso liberado", soloAsignado: true },
   { ruta: "reabrir", permiso: "tickets.reabrir", estados: ["cerrado"], label: "Reabrir", icon: IconReturn, variant: "danger", notaObligatoria: true, exito: "Ticket reabierto" },
 ];
 
@@ -33,6 +34,7 @@ const EVENTO_LABEL = {
   devuelto: "Devuelto al facturador",
   editado: "Corregido y reenviado",
   tomado: "Caso tomado por SYS HIGEA",
+  liberado: "Caso liberado, vuelve a estar disponible",
   requiere_info: "SYS HIGEA solicitó información",
   respondido: "Facturación respondió",
   cerrado: "Cerrado",
@@ -94,7 +96,11 @@ export function TicketDetail() {
   if (!ticket) return <p className="text-[var(--color-muted)]">Cargando…</p>;
 
   const tienePermisoAccion = ACCIONES.some((a) => tienePermiso(a.permiso));
-  const bloqueadoParaMi = (a) => a.requiereAsignado && ticket.asignado_a && ticket.asignado_a !== perfil.id;
+  const bloqueadoParaMi = (a) => {
+    if (a.requiereAsignado && ticket.asignado_a && ticket.asignado_a !== perfil.id) return true;
+    if (a.soloAsignado && ticket.asignado_a !== perfil.id) return true;
+    return false;
+  };
   const disponibles = ACCIONES.filter((a) => tienePermiso(a.permiso) && a.estados.includes(ticket.estado) && !bloqueadoParaMi(a));
 
   const esSolicitante = perfil.id === ticket.solicitante_id && tienePermiso("tickets.crear");
