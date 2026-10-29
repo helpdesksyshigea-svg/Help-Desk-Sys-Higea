@@ -348,6 +348,8 @@ function Catalogo({ titulo, path }) {
   const [clave, setClave] = useState("");
   const [etiqueta, setEtiqueta] = useState("");
   const [error, setError] = useState(null);
+  const [editando, setEditando] = useState(null); // clave del item en edición, o null
+  const [edicion, setEdicion] = useState({ clave: "", etiqueta: "" });
 
   async function cargar() {
     setItems(await apiFetch(`/admin/${path}`));
@@ -374,6 +376,26 @@ function Catalogo({ titulo, path }) {
     cargar();
   }
 
+  function empezarEdicion(item) {
+    setEditando(item.clave);
+    setEdicion({ clave: item.clave, etiqueta: item.etiqueta });
+    setError(null);
+  }
+
+  async function guardarEdicion(claveOriginal) {
+    setError(null);
+    try {
+      await apiFetch(`/admin/${path}/${claveOriginal}`, {
+        method: "PATCH",
+        body: JSON.stringify({ nueva_clave: edicion.clave, etiqueta: edicion.etiqueta }),
+      });
+      setEditando(null);
+      await cargar();
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
   return (
     <div className="grid gap-4">
       <Card className="grid gap-3">
@@ -396,19 +418,52 @@ function Catalogo({ titulo, path }) {
 
       <div className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border)]">
         <ul className="divide-y divide-[var(--color-border)]">
-        {items.map((item) => (
-          <li key={item.clave} className="flex items-center justify-between px-4 py-3">
-            <div>
-              <div className="font-medium">{item.etiqueta}</div>
-              <div className="font-mono text-xs text-[var(--color-muted)]">{item.clave}</div>
-            </div>
-            <Button variant={item.activo ? "danger" : "ghost"} onClick={() => alternarActivo(item)}>
-              {item.activo ? "Desactivar" : "Activar"}
-            </Button>
-          </li>
-        ))}
+        {items.map((item) =>
+          editando === item.clave ? (
+            <li key={item.clave} className="grid gap-2 px-4 py-3 sm:grid-cols-[160px_1fr_auto_auto] sm:items-end">
+              <label className="text-sm">
+                <span className="mb-1 block text-xs font-medium text-[var(--color-muted)]">Clave</span>
+                <input
+                  value={edicion.clave}
+                  onChange={(e) => setEdicion((p) => ({ ...p, clave: e.target.value }))}
+                  className={inputClass}
+                />
+              </label>
+              <label className="text-sm">
+                <span className="mb-1 block text-xs font-medium text-[var(--color-muted)]">Etiqueta</span>
+                <input
+                  value={edicion.etiqueta}
+                  onChange={(e) => setEdicion((p) => ({ ...p, etiqueta: e.target.value }))}
+                  className={inputClass}
+                />
+              </label>
+              <Button variant="accent" onClick={() => guardarEdicion(item.clave)}>
+                Guardar
+              </Button>
+              <Button variant="ghost" onClick={() => setEditando(null)}>
+                Cancelar
+              </Button>
+            </li>
+          ) : (
+            <li key={item.clave} className="flex items-center justify-between px-4 py-3">
+              <div>
+                <div className="font-medium">{item.etiqueta}</div>
+                <div className="font-mono text-xs text-[var(--color-muted)]">{item.clave}</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" onClick={() => empezarEdicion(item)}>
+                  Editar
+                </Button>
+                <Button variant={item.activo ? "danger" : "ghost"} onClick={() => alternarActivo(item)}>
+                  {item.activo ? "Desactivar" : "Activar"}
+                </Button>
+              </div>
+            </li>
+          )
+        )}
         </ul>
       </div>
+      <Mensaje error={error} />
     </div>
   );
 }

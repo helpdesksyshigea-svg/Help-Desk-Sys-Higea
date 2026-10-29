@@ -140,7 +140,9 @@ adminRouter.patch("/admin/roles/:id", requirePermission("roles.gestionar"), asyn
 
 // ======================= Catálogos: tipos de solicitud y motivos =======================
 
-function catalogoRouter(path, tabla) {
+// `referencia` describe dónde más vive la clave de este catálogo (la tabla/columna
+// de tickets que la usa), para poder renombrarla en cascada sin dejar tickets huérfanos.
+function catalogoRouter(path, tabla, referencia) {
   adminRouter.get(`/admin/${path}`, requirePermission("config.editar"), async (req, res) => {
     const { data, error } = await supabase.from(tabla).select("*").order("etiqueta");
     if (error) return res.status(500).json({ error: error.message });
@@ -162,19 +164,39 @@ function catalogoRouter(path, tabla) {
   });
 
   // Desactivar en vez de borrar: tickets históricos siguen referenciando la clave.
+  // Renombrar la clave (campo `nueva_clave`) actualiza en cascada los tickets que ya
+  // la usan, para que no queden huérfanos apuntando a una clave que ya no existe.
   adminRouter.patch(`/admin/${path}/:clave`, requirePermission("config.editar"), async (req, res) => {
-    const { etiqueta, activo } = req.body;
+    const { etiqueta, activo, nueva_clave } = req.body;
+    const claveActual = req.params.clave;
+
+    if (nueva_clave?.trim() && nueva_clave.trim() !== claveActual) {
+      const nueva = nueva_clave.trim();
+      const { data: existente } = await supabase.from(tabla).select("clave").eq("clave", nueva).maybeSingle();
+      if (existente) return res.status(409).json({ error: `Ya existe la clave '${nueva}'` });
+
+      const { error: renameError } = await supabase.from(tabla).update({ clave: nueva }).eq("clave", claveActual);
+      if (renameError) return res.status(500).json({ error: renameError.message });
+
+      const { error: cascadeError } = await supabase
+        .from(referencia.tabla)
+        .update({ [referencia.columna]: nueva })
+        .eq(referencia.columna, claveActual);
+      if (cascadeError) return res.status(500).json({ error: cascadeError.message });
+    }
+
     const patch = {};
     if (etiqueta !== undefined) patch.etiqueta = etiqueta;
     if (activo !== undefined) patch.activo = activo;
-    const { data, error } = await supabase.from(tabla).update(patch).eq("clave", req.params.clave).select().single();
+    const claveFinal = nueva_clave?.trim() || claveActual;
+    const { data, error } = await supabase.from(tabla).update(patch).eq("clave", claveFinal).select().single();
     if (error) return res.status(500).json({ error: error.message });
     res.json(data);
   });
 }
 
-catalogoRouter("tipos", "tipos_solicitud");
-catalogoRouter("motivos", "motivos");
+catalogoRouter("tipos", "tipos_solicitud", { tabla: "tickets", columna: "tipo" });
+catalogoRouter("motivos", "motivos", { tabla: "ticket_items", columna: "motivo" });
 
 // ======================= SLA =======================
 
