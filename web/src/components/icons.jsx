@@ -153,3 +153,10 @@ export const IconChart = (p) => (
     <path d="M3 20h18" />
   </Svg>
 );
+export const IconDashboard = (p) => (
+  <Svg {...p}>
+    <rect x="2" y="3" width="20" height="14" rx="2" />
+    <path d="M9 20h6M12 17v3" />
+    <path d="M9.5 13V9M13.5 13V6.5M17 13v-4" />
+  </Svg>
+);

@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { apiFetch } from "../lib/api";
 import { filtrosPorRol } from "../lib/filters";
 import { RequirePermission } from "./RequirePermission";
-import { IconInbox, IconChart, IconSettings, IconInfo, IconClock, IconCheck, IconAlert, IconDatabase, IconBook } from "./icons";
+import { IconInbox, IconDashboard, IconSettings, IconInfo, IconClock, IconCheck, IconAlert, IconDatabase, IconBook } from "./icons";
 
 const ICONOS = { accion: IconAlert, vencidos: IconClock, todos: IconCheck };
 
@@ -76,7 +76,7 @@ export function Sidebar() {
         <RequirePermission permisos={["reportes.ver_dashboard"]}>
           <NavLink to="/dashboard" className={({ isActive }) => itemClass(isActive)}>
             <span className="flex items-center gap-2">
-              <IconChart size={16} />
+              <IconDashboard size={16} />
               Dashboard ejecutivo
             </span>
           </NavLink>
