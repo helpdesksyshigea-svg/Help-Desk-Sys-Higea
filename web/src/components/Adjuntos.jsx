@@ -34,9 +34,7 @@ export function Adjuntos({ ticketId, kindsPermitidos = ["oficio", "soporte", "ev
     cargar().catch((e) => setError(e.message));
   }, [ticketId]);
 
-  async function subir(e) {
-    const archivo = e.target.files[0];
-    const kind = e.target.dataset.kind;
+  async function subirArchivo(archivo, kind) {
     if (!archivo) return;
     setSubiendo(kind);
     setError(null);
@@ -62,8 +60,25 @@ export function Adjuntos({ ticketId, kindsPermitidos = ["oficio", "soporte", "ev
       setError(e.message || "No se pudo subir el archivo. Verifique su conexión e inténtelo de nuevo.");
     } finally {
       setSubiendo(null);
-      e.target.value = "";
     }
+  }
+
+  function subir(e) {
+    const archivo = e.target.files[0];
+    const kind = e.target.dataset.kind;
+    subirArchivo(archivo, kind).finally(() => {
+      e.target.value = "";
+    });
+  }
+
+  function pegar(e) {
+    const imagen = [...(e.clipboardData?.items || [])].find((item) => item.type.startsWith("image/"));
+    if (!imagen || subiendo) return;
+    e.preventDefault();
+    const kindPegado = kindsPermitidos.includes("evidencia") ? "evidencia" : kindsPermitidos[0];
+    if (!kindPegado) return;
+    const archivo = imagen.getAsFile();
+    subirArchivo(archivo, kindPegado);
   }
 
   async function abrir(adjuntoId) {
@@ -86,7 +101,7 @@ export function Adjuntos({ ticketId, kindsPermitidos = ["oficio", "soporte", "ev
   }
 
   return (
-    <div className="grid gap-3">
+    <div className="grid gap-3 rounded-[var(--radius-card)] outline-none focus:ring-2 focus:ring-[var(--color-accent)]" tabIndex={0} onPaste={pegar}>
       <h3 className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">Documentos</h3>
 
       {adjuntos.length === 0 && <p className="text-sm text-[var(--color-muted)]">Sin documentos adjuntos.</p>}
@@ -135,7 +150,8 @@ export function Adjuntos({ ticketId, kindsPermitidos = ["oficio", "soporte", "ev
       {kindsPermitidos.includes("evidencia") && (
         <p className="text-xs text-[var(--color-muted)]">
           <strong className="font-medium text-[var(--color-ink)]">Obligatoria para cerrar:</strong> suba como "Evidencia SYS
-          HIGEA" un pantallazo del sistema de SYS HIGEA mostrando la solución aplicada.
+          HIGEA" un pantallazo del sistema de SYS HIGEA mostrando la solución aplicada. Puede pegarlo directamente con
+          Ctrl+V (o Cmd+V) sobre esta tarjeta, sin necesidad de guardarlo primero.
         </p>
       )}
 
