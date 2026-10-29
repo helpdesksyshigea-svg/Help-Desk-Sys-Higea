@@ -9,7 +9,7 @@ export const PRIORIDADES = { alta: "Alta (1 día hábil)", normal: "Normal (2 d�
 const ITEM_VACIO = { factura: "", paciente: "", documento: "", cups: "", descripcion: "", fecha: "", motivo: "" };
 
 const inputClass =
-  "w-full rounded-[var(--radius-input)] border border-[var(--color-ink)]/20 bg-[var(--color-ink)]/5 px-3 py-2 text-sm outline-none focus:border-[var(--color-ink)]";
+  "w-full rounded-[var(--radius-input)] border border-[var(--color-border)] bg-white/[0.02] px-3 py-2 text-sm outline-none focus:border-[var(--color-border-strong)]";
 
 /**
  * Formulario compartido para radicar (modo="crear") y corregir (modo="editar") un ticket.
@@ -142,7 +142,7 @@ export function TicketForm({ modo, inicial, onSubmit, submitLabel }) {
                   type="button"
                   onClick={() => quitarItem(i)}
                   aria-label="Quitar registro"
-                  className="rounded p-1 text-[var(--color-muted)] hover:bg-[#f8e0dc] hover:text-[#b3362a]"
+                  className="rounded p-1 text-[var(--color-muted)] hover:bg-[var(--color-danger-bg)] hover:text-[var(--color-danger)]"
                 >
                   <IconTrash size={15} />
                 </button>
@@ -275,7 +275,7 @@ export function TicketForm({ modo, inicial, onSubmit, submitLabel }) {
               role="button"
               tabIndex={0}
               className={`grid cursor-pointer place-items-center gap-2 rounded-[var(--radius-input)] border-2 border-dashed px-4 py-8 text-center transition-colors ${
-                arrastrando ? "border-[var(--color-ink)] bg-[var(--color-ink)]/[0.04]" : "border-[var(--color-ink)]/20"
+                arrastrando ? "border-[var(--color-ink)] bg-[var(--color-ink)]/[0.04]" : "border-[var(--color-border)]"
               }`}
             >
               <IconUpload size={22} className="text-[var(--color-muted)]" />
@@ -286,7 +286,7 @@ export function TicketForm({ modo, inicial, onSubmit, submitLabel }) {
         </Card>
       </div>
 
-      {error && <p className="text-sm text-[#b3362a]">{error}</p>}
+      {error && <p className="text-sm text-[var(--color-danger)]">{error}</p>}
 
       <div>
         <Button type="submit" variant="accent" disabled={enviando}>

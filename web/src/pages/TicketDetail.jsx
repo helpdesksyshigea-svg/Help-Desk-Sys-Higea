@@ -92,7 +92,7 @@ export function TicketDetail() {
     }
   }
 
-  if (error && !ticket) return <Card className="text-[#b3362a]">{error}</Card>;
+  if (error && !ticket) return <Card className="text-[var(--color-danger)]">{error}</Card>;
   if (!ticket) return <p className="text-[var(--color-muted)]">Cargando…</p>;
 
   const tienePermisoAccion = ACCIONES.some((a) => tienePermiso(a.permiso));
@@ -129,7 +129,7 @@ export function TicketDetail() {
           <div className="text-right text-xs text-[var(--color-muted)]">
             <div>Creado el {fmt(ticket.created_at)}</div>
             {ticket.dueAt && (
-              <div className={ticket.vencido ? "font-semibold text-[#b3362a]" : ""}>
+              <div className={ticket.vencido ? "font-semibold text-[var(--color-danger)]" : ""}>
                 {ticket.vencido ? "Vencido desde" : "Vence"} {fmt(ticket.dueAt)}
               </div>
             )}
@@ -153,7 +153,7 @@ export function TicketDetail() {
             <div className="flex items-center gap-1.5 capitalize">
               <span
                 className="h-2 w-2 rounded-full"
-                style={{ background: { alta: "#e02424", normal: "#f59e0b", baja: "#16a34a" }[ticket.prioridad] }}
+                style={{ background: { alta: "#eb5757", normal: "#02b8cc", baja: "#27a644" }[ticket.prioridad] }}
               />
               {ticket.prioridad}
             </div>
@@ -250,7 +250,7 @@ export function TicketDetail() {
         </Card>
       </div>
 
-      {error && <p className="text-sm text-[#b3362a]">{error}</p>}
+      {error && <p className="text-sm text-[var(--color-danger)]">{error}</p>}
 
       {tienePermisoAccion && disponibles.length === 0 && (
         <Card className="text-sm text-[var(--color-muted)]">
@@ -268,7 +268,7 @@ export function TicketDetail() {
               value={nota}
               onChange={(e) => setNota(e.target.value)}
               placeholder="Escribe una observación sobre el ticket…"
-              className="w-full rounded-[var(--radius-input)] border border-[var(--color-ink)]/20 bg-[var(--color-ink)]/5 px-3 py-2 outline-none focus:border-[var(--color-ink)]"
+              className="w-full rounded-[var(--radius-input)] border border-[var(--color-border)] bg-white/[0.02] px-3 py-2 outline-none focus:border-[var(--color-border-strong)]"
             />
           </label>
           <div className="flex flex-wrap gap-2">

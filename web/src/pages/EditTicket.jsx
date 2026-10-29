@@ -21,7 +21,7 @@ export function EditTicket() {
     navigate(`/tickets/${id}`);
   }
 
-  if (error) return <Card className="text-[#b3362a]">{error}</Card>;
+  if (error) return <Card className="text-[var(--color-danger)]">{error}</Card>;
   if (!ticket) return <p className="text-[var(--color-muted)]">Cargando…</p>;
 
   return (

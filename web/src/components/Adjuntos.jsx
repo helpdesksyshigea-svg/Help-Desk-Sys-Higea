@@ -85,7 +85,7 @@ export function Adjuntos({ ticketId, kindsPermitidos = ["oficio", "soporte", "ev
               >
                 <span
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded text-[10px] font-bold ${
-                    esPdf ? "bg-[#f8e0dc] text-[#b3362a]" : "bg-[var(--color-ink)]/10 text-[var(--color-muted)]"
+                    esPdf ? "bg-[var(--color-danger-bg)] text-[var(--color-danger)]" : "bg-[var(--color-ink)]/10 text-[var(--color-muted)]"
                   }`}
                 >
                   {esPdf ? "PDF" : "IMG"}
@@ -131,7 +131,7 @@ export function Adjuntos({ ticketId, kindsPermitidos = ["oficio", "soporte", "ev
               type="button"
               disabled={!!subiendo}
               onClick={() => inputs.current[kind]?.click()}
-              className="inline-flex items-center gap-2 rounded-[var(--radius-button)] border border-[var(--color-ink)]/20 px-3 py-1.5 text-sm font-medium text-[var(--color-ink)] hover:border-[var(--color-ink)]/40 disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-[var(--radius-button)] border border-[var(--color-border)] px-3 py-1.5 text-sm font-medium text-[var(--color-ink)] hover:border-[var(--color-ink)]/40 disabled:opacity-50"
             >
               {subiendo === kind ? "Subiendo…" : `Adjuntar ${ETIQUETAS_KIND[kind]}`}
             </button>
@@ -139,7 +139,7 @@ export function Adjuntos({ ticketId, kindsPermitidos = ["oficio", "soporte", "ev
         ))}
       </div>
 
-      {error && <p className="text-sm text-[#b3362a]">{error}</p>}
+      {error && <p className="text-sm text-[var(--color-danger)]">{error}</p>}
     </div>
   );
 }

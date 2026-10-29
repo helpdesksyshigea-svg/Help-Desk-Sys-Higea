@@ -1,42 +1,46 @@
 @import "tailwindcss";
 
 /*
-  Tokens adaptados de docs/DESIGN zendesk.md para la mesa de ayuda.
-  El lima es el único acento saturado: se reserva para la acción principal
-  (crear, aprobar). Los estados del ticket usan una paleta semáforo aparte,
-  deliberadamente más apagada, para no competir con el acento de acción.
+  Tokens adaptados de docs/DESIGN linear.md — sistema oscuro "midnight precision
+  instrument". El lima ácido es el único acento cromático de la interfaz, reservado
+  para la acción principal de cada pantalla. Los estados del ticket usan la paleta
+  de soporte limitada del doc (verde/rojo/violeta/lavanda/teal), nunca inventada.
 */
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
 
-  --color-ink: #11110d;
-  --color-muted: #6b6d63;
-  /* Invertido respecto al doc Zendesk a propósito: esta es una herramienta de
-     trabajo densa en datos (Linear/Notion), no una landing page. La página
-     lleva el tono cálido y las tarjetas quedan blancas para separarse de ella. */
-  --color-canvas: #f5f5f2;
-  --color-surface: #ffffff;
-  --color-border: #e2e2dc;
-  --color-accent: #d1f470;
-  --color-accent-ink: #11110d;
-  --color-forest: #203524;
+  --color-ink: #ffffff; /* Paper */
+  --color-muted: #8a8f98; /* Fog */
+  --color-faint: #62666d; /* Ash */
+  --color-canvas: #08090a; /* Void */
+  --color-surface: #0f1011; /* Carbon */
+  --color-elevated: #161718; /* Obsidian */
+  --color-border: #23252a; /* Graphite */
+  --color-border-strong: #383b3f; /* Smoke */
+  --color-accent: #e4f222; /* Acid Lime */
+  --color-accent-ink: #08090a;
 
-  --color-state-pendiente: #6a4fa0;
-  --color-state-pendiente-bg: #efe9f8;
-  --color-state-devuelto: #9a5b06;
-  --color-state-devuelto-bg: #fbeed6;
-  --color-state-aprobado: #3656a3;
-  --color-state-aprobado-bg: #e1e8f8;
-  --color-state-en_proceso: #9a5b06;
-  --color-state-en_proceso-bg: #fbeed6;
-  --color-state-requiere_info: #b3362a;
-  --color-state-requiere_info-bg: #f8e0dc;
-  --color-state-cerrado: #2c7536;
-  --color-state-cerrado-bg: #ddefdf;
+  --color-danger: #eb5757; /* Coral Red */
+  --color-danger-bg: rgba(235, 87, 87, 0.14);
+  --color-success: #27a644; /* Pulse Green */
+  --color-success-bg: rgba(39, 166, 68, 0.14);
 
-  --radius-card: 0px;
-  --radius-input: 12px;
-  --radius-button: 16px;
+  --color-state-pendiente: #8b5cf6; /* Lavender */
+  --color-state-pendiente-bg: rgba(139, 92, 246, 0.14);
+  --color-state-devuelto: #eb5757; /* Coral Red */
+  --color-state-devuelto-bg: rgba(235, 87, 87, 0.14);
+  --color-state-aprobado: #02b8cc; /* Signal Teal */
+  --color-state-aprobado-bg: rgba(2, 184, 204, 0.14);
+  --color-state-en_proceso: #6366f1; /* Iris Violet */
+  --color-state-en_proceso-bg: rgba(99, 102, 241, 0.14);
+  --color-state-requiere_info: #eb5757; /* Coral Red */
+  --color-state-requiere_info-bg: rgba(235, 87, 87, 0.14);
+  --color-state-cerrado: #27a644; /* Pulse Green */
+  --color-state-cerrado-bg: rgba(39, 166, 68, 0.14);
+
+  --radius-card: 12px;
+  --radius-input: 6px;
+  --radius-button: 6px;
   --radius-tag: 4px;
 }
 
@@ -44,5 +48,11 @@ body {
   background: var(--color-canvas);
   color: var(--color-ink);
   font-family: var(--font-sans);
-  letter-spacing: 0.054em;
+  letter-spacing: -0.011em;
+  font-feature-settings: "cv01" on, "ss03" on, "zero" on;
+}
+
+::selection {
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
 }
