@@ -58,11 +58,11 @@ export function Layout() {
               />
             </form>
             <div className="flex items-center gap-3">
+              <Avatar nombre={perfil?.nombre} />
               <div className="hidden text-right text-sm sm:block">
                 <div className="font-medium leading-tight">{perfil?.nombre}</div>
                 <div className="text-xs text-[var(--color-muted)]">{nombreLegible(perfil?.rol)}</div>
               </div>
-              <Avatar nombre={perfil?.nombre} />
               <Button variant="ghost" onClick={cerrarSesion}>
                 Salir
               </Button>
