@@ -291,7 +291,9 @@ function puedeVerEstadosPreAprobacion(user) {
 
 function filtrarVisibles(tickets, user) {
   if (puedeVerEstadosPreAprobacion(user)) return tickets;
-  return tickets.filter((t) => !ESTADOS_PRE_APROBACION.includes(t.estado));
+  // Quien radicó el ticket siempre puede verlo y hacerle seguimiento, sin
+  // importar el estado — la misma excepción que ya aplica GET /tickets/:id.
+  return tickets.filter((t) => !ESTADOS_PRE_APROBACION.includes(t.estado) || t.solicitante_id === user.id);
 }
 
 // ---------- listar ----------
