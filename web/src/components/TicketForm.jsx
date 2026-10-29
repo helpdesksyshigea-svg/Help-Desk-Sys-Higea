@@ -72,8 +72,16 @@ export function TicketForm({ modo, inicial, onSubmit, submitLabel }) {
       setError("Cada registro requiere el número de documento del paciente");
       return;
     }
+    if (items.some((item) => !/^\d{5,15}$/.test(item.documento.trim()))) {
+      setError("El documento debe contener solo números (5 a 15 dígitos)");
+      return;
+    }
     if (items.some((item) => !item.factura?.trim())) {
       setError("Cada registro requiere su número de factura");
+      return;
+    }
+    if (items.some((item) => !/^[A-Za-z0-9-]{4,20}$/.test(item.factura.trim()))) {
+      setError("La factura debe tener entre 4 y 20 caracteres alfanuméricos (se permiten guiones)");
       return;
     }
     if (items.some((item) => !item.cups?.trim())) {

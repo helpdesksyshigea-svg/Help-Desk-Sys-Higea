@@ -5,6 +5,8 @@ import { supabase } from "../config/supabase.js";
 import { authenticate, requirePermission } from "../middleware/auth.js";
 import { hashItems } from "../lib/hash.js";
 import { calcularSla } from "../lib/sla.js";
+import { construirExcelTickets } from "../lib/excel.js";
+import { notificarTransicion } from "../lib/correo.js";
 
 const BUCKET = "adjuntos";
 const TIPOS_OFICIO_PERMITIDOS = ["application/pdf", "image/png", "image/jpeg", "image/webp"];
@@ -16,6 +18,14 @@ ticketsRouter.use(authenticate);
 // La clave del tipo no dice nada por sí sola (la administradora la puede renombrar);
 // la pregunta "¿este tipo necesita factura?" se responde consultando el catálogo,
 // nunca comparando contra un string fijo como "hc".
+// Documento: solo dígitos (cédula/RC/TI), 5 a 15 caracteres. Factura: alfanumérico
+// con guiones opcionales (cubre prefijos tipo FEV-, CAP-, consecutivos puros, etc.),
+// 4 a 20 caracteres. No intentan validar contra el número real del paciente/la
+// factura (esto no se concilia con la historia clínica), solo rechazan basura obvia
+// como "x" o "123" sueltos.
+const FORMATO_DOCUMENTO = /^\d{5,15}$/;
+const FORMATO_FACTURA = /^[A-Za-z0-9-]{4,20}$/;
+
 async function validarItems(items, tipo) {
   if (!Array.isArray(items) || items.length === 0) return "Debe incluir al menos un registro";
   const { data: tipoRow } = await supabase.from("tipos_solicitud").select("requiere_factura").eq("clave", tipo).maybeSingle();
@@ -24,7 +34,9 @@ async function validarItems(items, tipo) {
     if (!item.motivo) return "Cada registro requiere un motivo";
     if (!item.paciente?.trim()) return "Cada registro requiere el nombre del paciente";
     if (!item.documento?.trim()) return "Cada registro requiere el número de documento del paciente";
+    if (!FORMATO_DOCUMENTO.test(item.documento.trim())) return "El documento debe contener solo números (5 a 15 dígitos)";
     if (!item.factura?.trim()) return "Cada registro requiere su número de factura";
+    if (!FORMATO_FACTURA.test(item.factura.trim())) return "La factura debe tener entre 4 y 20 caracteres alfanuméricos (se permiten guiones)";
     if (!item.cups?.trim()) return "Cada registro requiere el CUPS o folio";
     if (!item.fecha?.trim()) return "Cada registro requiere la fecha";
     if (!item.descripcion?.trim()) return "Cada registro requiere una descripción";
@@ -98,7 +110,7 @@ async function registrarEvento(ticketId, tipoEvento, estadoAnterior, estadoNuevo
 async function cargarTicketCompleto(id) {
   const { data: ticket, error } = await supabase
     .from("tickets")
-    .select("*, solicitante:usuarios!tickets_solicitante_id_fkey(nombre)")
+    .select("*, solicitante:usuarios!tickets_solicitante_id_fkey(nombre, email)")
     .eq("id", id)
     .single();
   if (error || !ticket) return null;
@@ -170,7 +182,9 @@ ticketsRouter.post("/tickets", requirePermission("tickets.crear"), upload.single
   }
 
   await registrarEvento(ticket.id, "creado", null, "pendiente", req.user.id, observacion || null);
-  res.status(201).json(await cargarTicketCompleto(ticket.id));
+  const completo = await cargarTicketCompleto(ticket.id);
+  notificarTransicion("creado", completo, req.user.email).catch(() => {});
+  res.status(201).json(completo);
 });
 
 // ---------- editar (solo mientras está pendiente o devuelto) ----------
@@ -273,6 +287,29 @@ ticketsRouter.get("/tickets", async (req, res) => {
   res.json(completos);
 });
 
+// ---------- exportar a Excel ----------
+// Mismo filtro de visibilidad que el listado (filtrarVisibles / ver_propios vs
+// ver_todos): el informe nunca muestra a alguien más de lo que ya podría ver en la app.
+ticketsRouter.get("/tickets/exportar", requirePermission("reportes.exportar"), async (req, res) => {
+  let query = supabase.from("tickets").select("*").order("created_at", { ascending: false });
+  if (!req.user.permisos.has("tickets.ver_todos")) {
+    query = query.eq("solicitante_id", req.user.id);
+  }
+  if (req.query.desde) query = query.gte("created_at", req.query.desde);
+  if (req.query.hasta) query = query.lte("created_at", req.query.hasta);
+
+  const { data: tickets, error } = await query;
+  if (error) return res.status(500).json({ error: error.message });
+
+  const visibles = filtrarVisibles(tickets, req.user);
+  const completos = await Promise.all(visibles.map((t) => cargarTicketCompleto(t.id)));
+
+  const buffer = await construirExcelTickets(completos);
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", `attachment; filename="tickets-${new Date().toISOString().slice(0, 10)}.xlsx"`);
+  res.send(Buffer.from(buffer));
+});
+
 // ---------- detalle ----------
 ticketsRouter.get("/tickets/:id", async (req, res) => {
   const ticket = await cargarTicketCompleto(req.params.id);
@@ -321,7 +358,9 @@ async function transicion(
   if (error) return res.status(500).json({ error: error.message });
 
   await registrarEvento(ticket.id, tipoEvento, ticket.estado, nuevoEstado, req.user.id, nota || null);
-  res.json(await cargarTicketCompleto(ticket.id));
+  const actualizado = await cargarTicketCompleto(ticket.id);
+  notificarTransicion(tipoEvento, actualizado, ticket.solicitante?.email).catch(() => {});
+  res.json(actualizado);
 }
 
 ticketsRouter.post("/tickets/:id/aprobar", (req, res) =>
@@ -425,7 +464,9 @@ ticketsRouter.post("/tickets/:id/cerrar", async (req, res) => {
   if (error) return res.status(500).json({ error: error.message });
 
   await registrarEvento(ticket.id, "cerrado", ticket.estado, "cerrado", req.user.id, nota);
-  res.json(await cargarTicketCompleto(ticket.id));
+  const actualizado = await cargarTicketCompleto(ticket.id);
+  notificarTransicion("cerrado", actualizado, ticket.solicitante?.email).catch(() => {});
+  res.json(actualizado);
 });
 
 ticketsRouter.post("/tickets/:id/reabrir", (req, res) =>

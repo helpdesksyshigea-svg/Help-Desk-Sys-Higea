@@ -7,8 +7,29 @@ import { Card } from "../components/Card";
 import { Button } from "../components/Button";
 import { StatusTag } from "../components/StatusTag";
 import { RequirePermission } from "../components/RequirePermission";
+import { useToast } from "../context/ToastContext";
 import { SkeletonRow } from "../components/Skeleton";
-import { IconInbox, IconPlus } from "../components/icons";
+import { IconInbox, IconPlus, IconDownload } from "../components/icons";
+import { supabase } from "../lib/supabase";
+
+const API_URL = import.meta.env.VITE_API_URL;
+
+async function exportarExcel() {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  const res = await fetch(`${API_URL}/tickets/exportar`, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || "No se pudo exportar");
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `tickets-${new Date().toISOString().slice(0, 10)}.xlsx`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 const PRIORIDAD_LABEL = { alta: "Alta", normal: "Normal", baja: "Baja" };
 const PRIORIDAD_COLOR = { alta: "#e02424", normal: "#f59e0b", baja: "#16a34a" };
@@ -40,6 +61,19 @@ export function Inbox() {
   const [tickets, setTickets] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
+  const [exportando, setExportando] = useState(false);
+  const { fallo } = useToast();
+
+  async function manejarExportar() {
+    setExportando(true);
+    try {
+      await exportarExcel();
+    } catch (e) {
+      fallo(e.message);
+    } finally {
+      setExportando(false);
+    }
+  }
 
   useEffect(() => {
     apiFetch("/tickets")
@@ -68,12 +102,20 @@ export function Inbox() {
     <div className="grid gap-6">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold tracking-tight">Tickets</h2>
-        <RequirePermission permisos={["tickets.crear"]}>
-          <Button variant="accent" onClick={() => navigate("/tickets/nuevo")}>
-            <IconPlus size={15} />
-            Nuevo ticket
-          </Button>
-        </RequirePermission>
+        <div className="flex items-center gap-2">
+          <RequirePermission permisos={["reportes.exportar"]}>
+            <Button variant="ghost" onClick={manejarExportar} disabled={exportando}>
+              <IconDownload size={15} />
+              {exportando ? "Exportando…" : "Exportar a Excel"}
+            </Button>
+          </RequirePermission>
+          <RequirePermission permisos={["tickets.crear"]}>
+            <Button variant="accent" onClick={() => navigate("/tickets/nuevo")}>
+              <IconPlus size={15} />
+              Nuevo ticket
+            </Button>
+          </RequirePermission>
+        </div>
       </div>
 
       {busqueda ? (
