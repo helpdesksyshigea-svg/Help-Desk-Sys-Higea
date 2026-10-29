@@ -33,3 +33,27 @@ export const FILTRO_DEFAULT = {
   higea_soporte: "por_atender",
   admin: "todos",
 };
+
+// "Esperando a quién" por estado — mismo texto para cualquier rol que mire el ticket.
+export const ESPERANDO = {
+  pendiente: "Esperando aprobación",
+  devuelto: "Esperando corrección de Facturación",
+  aprobado: "Esperando que HIGEA tome el caso",
+  en_proceso: "En gestión de HIGEA",
+  requiere_info: "Esperando respuesta de Facturación",
+  cerrado: "Cerrado",
+};
+
+// Un rol "necesita actuar" sobre un ticket si el estado actual es el que a ese
+// rol le toca mover. Los roles combinados (ej. supervisora_admin) heredan el
+// comportamiento del rol base cuyo nombre contienen.
+export function necesitaAccion(ticket, rol) {
+  const esSupervisora = rol?.includes("supervisora");
+  const esHigea = rol === "higea_soporte";
+  const esFacturador = rol === "facturador";
+  return (
+    (esSupervisora && ticket.estado === "pendiente") ||
+    (esHigea && ticket.estado === "aprobado") ||
+    (esFacturador && ["devuelto", "requiere_info"].includes(ticket.estado))
+  );
+}

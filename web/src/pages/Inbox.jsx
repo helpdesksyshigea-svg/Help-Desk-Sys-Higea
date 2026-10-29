@@ -2,13 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { apiFetch } from "../lib/api";
-import { FILTROS_POR_ROL, FILTRO_DEFAULT } from "../lib/filters";
+import { FILTROS_POR_ROL, FILTRO_DEFAULT, ESPERANDO, necesitaAccion } from "../lib/filters";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
 import { StatusTag } from "../components/StatusTag";
 import { RequirePermission } from "../components/RequirePermission";
 
 const PRIORIDAD_LABEL = { alta: "Alta", normal: "Normal", baja: "Baja" };
+const PRIORIDAD_COLOR = { alta: "#b3362a", normal: "#9a5b06", baja: "#2c7536" };
 
 function hace(iso) {
   const horas = (Date.now() - new Date(iso)) / 36e5;
@@ -80,6 +81,9 @@ export function Inbox() {
           <ul className="divide-y divide-[var(--color-border)]">
             {visibles.map((t) => {
               const titulo = t.items?.map((i) => i.factura).filter(Boolean).join(", ") || t.items?.[0]?.paciente || "Sin factura";
+              const ultimoEvento = t.eventos?.[t.eventos.length - 1];
+              const snippet = ultimoEvento?.texto || t.observacion || "Sin notas adicionales";
+              const destacado = necesitaAccion(t, perfil?.rol);
               return (
                 <li
                   key={t.id}
@@ -88,6 +92,11 @@ export function Inbox() {
                     t.vencido ? "border-l-4 border-l-[#b3362a]" : "border-l-4 border-l-transparent"
                   }`}
                 >
+                  <span
+                    title={`Prioridad ${PRIORIDAD_LABEL[t.prioridad] || t.prioridad}`}
+                    className="h-2 w-2 shrink-0 rounded-full"
+                    style={{ background: PRIORIDAD_COLOR[t.prioridad] || "var(--color-muted)" }}
+                  />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-xs text-[var(--color-muted)]">{t.code}</span>
@@ -95,10 +104,12 @@ export function Inbox() {
                         <span className="text-xs font-semibold uppercase tracking-wide text-[#b3362a]">Vencido</span>
                       )}
                     </div>
-                    <div className="truncate font-medium">{titulo}</div>
+                    <div className={`truncate ${destacado ? "font-semibold" : "font-medium"}`}>{titulo}</div>
+                    <div className="truncate text-xs text-[var(--color-muted)]">{snippet}</div>
                   </div>
-                  <span className="hidden shrink-0 text-xs text-[var(--color-muted)] sm:block">
-                    {PRIORIDAD_LABEL[t.prioridad] || t.prioridad} · {t.items?.length || 0} registro(s) · {hace(t.created_at)}
+                  <span className="hidden shrink-0 text-right text-xs text-[var(--color-muted)] sm:block">
+                    <div>{ESPERANDO[t.estado] || ""}</div>
+                    <div>{t.items?.length || 0} registro(s) · {hace(t.created_at)}</div>
                   </span>
                   <StatusTag estado={t.estado} />
                 </li>
