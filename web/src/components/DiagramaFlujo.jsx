@@ -212,13 +212,11 @@ const CONEXIONES = [
     a: "tomar",
     puntos: [
       [1125 + GUTTER, LANE_FACT],
-      [980 + GUTTER, LANE_FACT],
-      [980 + GUTTER, 390],
-      [700 + GUTTER, 390],
+      [700 + GUTTER, LANE_FACT],
       [700 + GUTTER, LANE_HIGEA - 32],
     ],
     etiqueta: "vuelve a gestión",
-    etiquetaPos: [990 + GUTTER, LANE_FACT - 10],
+    etiquetaPos: [900 + GUTTER, LANE_FACT - 10],
     excepcion: true,
   },
   { de: "gw_info", a: "reportar", puntos: [[980 + GUTTER, LANE_HIGEA + 42], [980 + GUTTER, LANE_HIGEA2 - 32]], etiqueta: "No" },
@@ -268,7 +266,7 @@ function Nodo({ n, activo, onClick }) {
     return (
       <g onClick={() => onClick(n)} className="cursor-pointer" style={sombra}>
         <circle cx={n.x} cy={n.y} r={19} fill={activo ? "var(--color-accent)" : c.relleno} stroke={c.borde} strokeWidth={n.tipo === "end" ? 3 : 1.75} />
-        <text x={n.x} y={n.y + 36} textAnchor="middle" fontSize="13" fontWeight={700} letterSpacing="0.01em" fill="var(--color-ink)">
+        <text x={n.x} y={n.y + 36} textAnchor="middle" fontSize="15" fontWeight={700} letterSpacing="0.01em" fill="var(--color-ink)">
           {n.label}
         </text>
       </g>
@@ -289,7 +287,7 @@ function Nodo({ n, activo, onClick }) {
           transform={`rotate(45 ${n.x} ${n.y})`}
         />
         {lineas.map((l, i) => (
-          <text key={i} x={n.x} y={n.y - (lineas.length - 1) * 6.5 + i * 13 + 4} textAnchor="middle" fontSize="12" fontWeight={700} fill="var(--color-ink)">
+          <text key={i} x={n.x} y={n.y - (lineas.length - 1) * 6.5 + i * 13 + 4} textAnchor="middle" fontSize="13.5" fontWeight={700} fill="var(--color-ink)">
             {l}
           </text>
         ))}
@@ -325,7 +323,7 @@ function Nodo({ n, activo, onClick }) {
         </g>
       )}
       {lineas.map((l, i) => (
-        <text key={i} x={n.x + 6} y={n.y - (lineas.length - 1) * 7 + i * 14 + 4} textAnchor="middle" fontSize="13" fontWeight={700} letterSpacing="0.005em" fill="var(--color-ink)">
+        <text key={i} x={n.x + 6} y={n.y - (lineas.length - 1) * 7 + i * 14 + 4} textAnchor="middle" fontSize="15" fontWeight={700} letterSpacing="0.005em" fill="var(--color-ink)">
           {l}
         </text>
       ))}
@@ -363,7 +361,7 @@ export function DiagramaFlujo() {
           ].map((l) => (
             <g key={l.label}>
               <rect x={0} y={l.y0} width={GUTTER - 20} height={l.y1 - l.y0} fill="#f4f4f4" stroke="#1a1a1a" strokeWidth={1} />
-              <text x={28} y={l.yc} textAnchor="middle" fontSize="14" fontWeight={700} letterSpacing="0.03em" fill="#1a1a1a" transform={`rotate(-90 28 ${l.yc})`}>
+              <text x={28} y={l.yc} textAnchor="middle" fontSize="16" fontWeight={700} letterSpacing="0.03em" fill="#1a1a1a" transform={`rotate(-90 28 ${l.yc})`}>
                 {l.label}
               </text>
               <line x1={0} y1={l.y1} x2={1620 + GUTTER} y2={l.y1} stroke="#1a1a1a" strokeWidth={1} />
@@ -380,7 +378,7 @@ export function DiagramaFlujo() {
                   (() => {
                     const [lx, ly] = c.etiquetaPos || [c.puntos[0][0] + 10, c.puntos[0][1] - 10];
                     return (
-                      <text x={lx} y={ly} fontSize="11.5" fontStyle="italic" fill="var(--color-muted)">
+                      <text x={lx} y={ly} fontSize="13" fontStyle="italic" fill="var(--color-muted)">
                         {c.etiqueta}
                       </text>
                     );
