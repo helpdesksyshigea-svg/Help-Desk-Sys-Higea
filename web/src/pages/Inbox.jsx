@@ -7,6 +7,8 @@ import { Card } from "../components/Card";
 import { Button } from "../components/Button";
 import { StatusTag } from "../components/StatusTag";
 import { RequirePermission } from "../components/RequirePermission";
+import { SkeletonRow } from "../components/Skeleton";
+import { IconInbox, IconPlus } from "../components/icons";
 
 const PRIORIDAD_LABEL = { alta: "Alta", normal: "Normal", baja: "Baja" };
 const PRIORIDAD_COLOR = { alta: "#e02424", normal: "#f59e0b", baja: "#16a34a" };
@@ -50,9 +52,10 @@ export function Inbox() {
   return (
     <div className="grid gap-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-light">Tickets</h2>
+        <h2 className="text-xl font-semibold tracking-tight">Tickets</h2>
         <RequirePermission permisos={["tickets.crear"]}>
           <Button variant="accent" onClick={() => navigate("/tickets/nuevo")}>
+            <IconPlus size={15} />
             Nuevo ticket
           </Button>
         </RequirePermission>
@@ -63,10 +66,10 @@ export function Inbox() {
           <button
             key={clave}
             onClick={() => setFiltroActivo(clave)}
-            className={`rounded-full border px-3 py-1.5 text-sm font-medium ${
+            className={`rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
               filtroActivo === clave
                 ? "border-[var(--color-ink)] bg-[var(--color-ink)] text-[var(--color-canvas)]"
-                : "border-[var(--color-border)] text-[var(--color-muted)]"
+                : "border-[var(--color-border)] text-[var(--color-muted)] hover:border-[var(--color-ink)]/40 hover:text-[var(--color-ink)]"
             }`}
           >
             {etiqueta} <span className="opacity-70">{tickets.filter(fn).length}</span>
@@ -74,14 +77,24 @@ export function Inbox() {
         ))}
       </div>
 
-      {cargando && <p className="text-[var(--color-muted)]">Cargando tickets…</p>}
+      {cargando && (
+        <div className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border)] divide-y divide-[var(--color-border)]">
+          <SkeletonRow />
+          <SkeletonRow />
+          <SkeletonRow />
+        </div>
+      )}
 
       {error && (
         <Card className="text-sm text-[var(--color-muted)]">No se pudo cargar la bandeja. Error: {error}</Card>
       )}
 
       {!cargando && !error && visibles.length === 0 && (
-        <Card className="text-center text-[var(--color-muted)]">Ningún ticket en esta vista.</Card>
+        <Card className="flex flex-col items-center gap-2 py-12 text-center">
+          <IconInbox size={28} className="text-[var(--color-muted)]" />
+          <p className="font-medium">Ningún ticket en esta vista</p>
+          <p className="text-sm text-[var(--color-muted)]">Prueba otro filtro, o espera a que algo necesite tu atención aquí.</p>
+        </Card>
       )}
 
       {!cargando && !error && visibles.length > 0 && (

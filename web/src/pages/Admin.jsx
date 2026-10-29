@@ -1,23 +1,11 @@
 import { Fragment, useEffect, useState } from "react";
 import { apiFetch } from "../lib/api";
+import { nombreLegible } from "../lib/roles";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
 
 const inputClass =
   "w-full rounded-[var(--radius-input)] border border-[var(--color-ink)]/20 bg-[var(--color-ink)]/5 px-3 py-2 text-sm outline-none focus:border-[var(--color-ink)]";
-
-// Nombres de rol legibles por cargo. Un rol nuevo creado desde el panel que no esté
-// aquí cae al formato "snake_case" -> "Title Case" como respaldo razonable.
-const ROL_LABELS = {
-  admin: "Administrador",
-  supervisora_facturacion: "Supervisora de Facturación",
-  supervisora_admin: "Supervisora / Administradora",
-  facturador: "Facturador",
-  higea_soporte: "Soporte Técnico (SYS HIGEA)",
-};
-function nombreLegible(nombre) {
-  return ROL_LABELS[nombre] || nombre.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-}
 
 const TABS = [
   { k: "usuarios", l: "Usuarios" },

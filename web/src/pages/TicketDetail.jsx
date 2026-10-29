@@ -7,6 +7,7 @@ import { Button } from "../components/Button";
 import { StatusTag } from "../components/StatusTag";
 import { Adjuntos } from "../components/Adjuntos";
 import { RequirePermission } from "../components/RequirePermission";
+import { IconArrowLeft, IconCheck, IconReturn, IconInbox, IconInfo, IconSend } from "../components/icons";
 
 const EVENTO_LABEL = {
   creado: "Ticket radicado",
@@ -89,9 +90,10 @@ export function TicketDetail() {
     <div className="grid gap-6">
       <button
         onClick={() => navigate("/")}
-        className="justify-self-start text-sm text-[var(--color-muted)] hover:text-[var(--color-ink)]"
+        className="inline-flex items-center gap-1.5 justify-self-start text-sm text-[var(--color-muted)] transition-colors hover:text-[var(--color-ink)]"
       >
-        ← Bandeja
+        <IconArrowLeft size={14} />
+        Bandeja
       </button>
 
       <Card className="grid gap-4">
@@ -208,6 +210,7 @@ export function TicketDetail() {
             <RequirePermission permisos={["tickets.aprobar"]}>
               {ticket.estado === "pendiente" && (
                 <Button variant="accent" disabled={procesando} onClick={() => accion("aprobar")}>
+                  <IconCheck size={15} />
                   Aprobar y enviar a HIGEA
                 </Button>
               )}
@@ -215,6 +218,7 @@ export function TicketDetail() {
             <RequirePermission permisos={["tickets.devolver"]}>
               {ticket.estado === "pendiente" && (
                 <Button variant="danger" disabled={procesando} onClick={() => accion("devolver")}>
+                  <IconReturn size={15} />
                   Devolver al facturador
                 </Button>
               )}
@@ -222,6 +226,7 @@ export function TicketDetail() {
             <RequirePermission permisos={["tickets.tomar"]}>
               {ticket.estado === "aprobado" && (
                 <Button variant="ghost" disabled={procesando} onClick={() => accion("tomar")}>
+                  <IconInbox size={15} />
                   Tomar caso
                 </Button>
               )}
@@ -229,6 +234,7 @@ export function TicketDetail() {
             <RequirePermission permisos={["tickets.pedir_info"]}>
               {ticket.estado === "en_proceso" && (
                 <Button variant="ghost" disabled={procesando} onClick={() => accion("pedir-info")}>
+                  <IconInfo size={15} />
                   Pedir información
                 </Button>
               )}
@@ -236,6 +242,7 @@ export function TicketDetail() {
             <RequirePermission permisos={["tickets.responder_info"]}>
               {ticket.estado === "requiere_info" && (
                 <Button variant="ghost" disabled={procesando} onClick={() => accion("responder-info")}>
+                  <IconSend size={15} />
                   Responder a HIGEA
                 </Button>
               )}
@@ -243,6 +250,7 @@ export function TicketDetail() {
             <RequirePermission permisos={["tickets.cerrar"]}>
               {ticket.estado === "en_proceso" && (
                 <Button variant="accent" disabled={procesando} onClick={() => accion("cerrar")}>
+                  <IconCheck size={15} />
                   Reportar realizado y cerrar
                 </Button>
               )}
@@ -250,6 +258,7 @@ export function TicketDetail() {
             <RequirePermission permisos={["tickets.reabrir"]}>
               {ticket.estado === "cerrado" && (
                 <Button variant="danger" disabled={procesando} onClick={() => accion("reabrir")}>
+                  <IconReturn size={15} />
                   Reabrir
                 </Button>
               )}

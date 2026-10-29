@@ -1,0 +1,96 @@
+// Set mínimo de iconos de línea (estilo Lucide/Feather), inline para no cargar una
+// librería completa. Todos heredan currentColor y aceptan className/size estándar.
+const base = {
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 1.75,
+  strokeLinecap: "round",
+  strokeLinejoin: "round",
+};
+
+function Svg({ children, size = 16, className }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={className} aria-hidden="true" {...base}>
+      {children}
+    </svg>
+  );
+}
+
+export const IconArrowLeft = (p) => (
+  <Svg {...p}>
+    <path d="M19 12H5M12 19l-7-7 7-7" />
+  </Svg>
+);
+export const IconPlus = (p) => (
+  <Svg {...p}>
+    <path d="M12 5v14M5 12h14" />
+  </Svg>
+);
+export const IconCheck = (p) => (
+  <Svg {...p}>
+    <path d="M20 6 9 17l-5-5" />
+  </Svg>
+);
+export const IconReturn = (p) => (
+  <Svg {...p}>
+    <path d="M9 14 4 9l5-5" />
+    <path d="M4 9h11a5 5 0 0 1 5 5v1" />
+  </Svg>
+);
+export const IconClock = (p) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 7v5l3 3" />
+  </Svg>
+);
+export const IconAlert = (p) => (
+  <Svg {...p}>
+    <path d="M10.3 3.9 2.3 18a1.5 1.5 0 0 0 1.3 2.3h16.8a1.5 1.5 0 0 0 1.3-2.3l-8-14.1a1.5 1.5 0 0 0-2.6 0Z" />
+    <path d="M12 9v4M12 17h.01" />
+  </Svg>
+);
+export const IconPaperclip = (p) => (
+  <Svg {...p}>
+    <path d="M21 11.5 12.4 20a4.5 4.5 0 0 1-6.4-6.4l8.1-8.1a3 3 0 0 1 4.2 4.2l-8.1 8.1a1.5 1.5 0 0 1-2.1-2.1l7.4-7.4" />
+  </Svg>
+);
+export const IconInbox = (p) => (
+  <Svg {...p}>
+    <path d="M22 12h-6l-2 3h-4l-2-3H2" />
+    <path d="M5.5 5h13l2.5 7v7a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-7l2.5-7Z" />
+  </Svg>
+);
+export const IconUser = (p) => (
+  <Svg {...p}>
+    <circle cx="12" cy="8" r="4" />
+    <path d="M4 20c0-4 4-6 8-6s8 2 8 6" />
+  </Svg>
+);
+export const IconSend = (p) => (
+  <Svg {...p}>
+    <path d="m3 11 18-8-8 18-2-8-8-2Z" />
+  </Svg>
+);
+export const IconInfo = (p) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 16v-5M12 8h.01" />
+  </Svg>
+);
+export const IconShield = (p) => (
+  <Svg {...p}>
+    <path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6l-8-3Z" />
+  </Svg>
+);
+export const IconUpload = (p) => (
+  <Svg {...p}>
+    <path d="M12 16V4M7 9l5-5 5 5" />
+    <path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" />
+  </Svg>
+);
+export const IconSettings = (p) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="3" />
+    <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" />
+  </Svg>
+);

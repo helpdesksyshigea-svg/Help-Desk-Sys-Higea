@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { Button } from "../components/Button";
+import { IconShield, IconClock, IconCheck } from "../components/icons";
+
+const inputClass =
+  "w-full rounded-[var(--radius-input)] border border-[var(--color-ink)]/20 bg-[var(--color-ink)]/[0.04] px-3.5 py-2.5 outline-none transition-colors focus:border-[var(--color-ink)] focus:bg-[var(--color-canvas)]";
 
 export function Login() {
   const { iniciarSesion } = useAuth();
@@ -19,41 +23,78 @@ export function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[var(--color-canvas)] px-6">
-      <form onSubmit={onSubmit} className="w-full max-w-sm">
-        <p className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">
-          E.S.E. Hospital Orito
-        </p>
-        <h1 className="mb-6 text-2xl font-light">Mesa de ayuda SYS HIGEA</h1>
-
-        <label className="mb-3 block text-sm">
-          <span className="mb-1 block font-medium">Correo institucional</span>
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-[var(--radius-input)] border border-[var(--color-ink)]/20 bg-[var(--color-ink)]/5 px-3 py-2 outline-none focus:border-[var(--color-ink)]"
+    <div className="grid min-h-screen lg:grid-cols-2">
+      {/* Panel de marca */}
+      <div className="relative hidden flex-col justify-between overflow-hidden bg-[var(--color-forest)] p-12 text-white lg:flex">
+        <div className="pointer-events-none absolute inset-0 opacity-[0.07]">
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundImage: "radial-gradient(circle, #ffffff 1px, transparent 1px)",
+              backgroundSize: "28px 28px",
+            }}
           />
-        </label>
+        </div>
 
-        <label className="mb-4 block text-sm">
-          <span className="mb-1 block font-medium">Contraseña</span>
-          <input
-            type="password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-[var(--radius-input)] border border-[var(--color-ink)]/20 bg-[var(--color-ink)]/5 px-3 py-2 outline-none focus:border-[var(--color-ink)]"
-          />
-        </label>
+        <div className="relative">
+          <p className="text-xs font-semibold uppercase tracking-[0.1em] text-white/60">E.S.E. Hospital Orito</p>
+          <h1 className="mt-2 text-3xl font-light leading-tight text-white">
+            Mesa de ayuda
+            <br />
+            SYS HIGEA
+          </h1>
+        </div>
 
-        {error && <p className="mb-4 text-sm text-[#b3362a]">{error}</p>}
+        <div className="relative grid gap-5">
+          <div className="flex items-start gap-3 text-sm text-white/80">
+            <IconShield size={18} className="mt-0.5 shrink-0 text-[var(--color-accent)]" />
+            <span>Aprobación obligatoria y oficio firmado antes de que un dato llegue al proveedor externo.</span>
+          </div>
+          <div className="flex items-start gap-3 text-sm text-white/80">
+            <IconClock size={18} className="mt-0.5 shrink-0 text-[var(--color-accent)]" />
+            <span>Plazos de respuesta medidos en días hábiles colombianos, con festivos ya cargados.</span>
+          </div>
+          <div className="flex items-start gap-3 text-sm text-white/80">
+            <IconCheck size={18} className="mt-0.5 shrink-0 text-[var(--color-accent)]" />
+            <span>Historial de cada caso, imposible de editar o borrar una vez registrado.</span>
+          </div>
+        </div>
+      </div>
 
-        <Button variant="accent" type="submit" disabled={cargando} className="w-full justify-center">
-          {cargando ? "Ingresando…" : "Ingresar"}
-        </Button>
-      </form>
+      {/* Formulario */}
+      <div className="flex items-center justify-center bg-[var(--color-canvas)] px-6 py-16">
+        <form onSubmit={onSubmit} className="w-full max-w-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)] lg:hidden">
+            E.S.E. Hospital Orito
+          </p>
+          <h2 className="mb-1 text-2xl font-semibold">Ingresar</h2>
+          <p className="mb-8 text-sm text-[var(--color-muted)]">Use el correo institucional que le fue invitado.</p>
+
+          <label className="mb-4 block text-sm">
+            <span className="mb-1.5 block font-medium">Correo institucional</span>
+            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} />
+          </label>
+
+          <label className="mb-5 block text-sm">
+            <span className="mb-1.5 block font-medium">Contraseña</span>
+            <input
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className={inputClass}
+            />
+          </label>
+
+          {error && (
+            <p className="mb-4 rounded-[var(--radius-input)] bg-[#f8e0dc] px-3 py-2 text-sm text-[#b3362a]">{error}</p>
+          )}
+
+          <Button variant="accent" type="submit" disabled={cargando} className="w-full justify-center">
+            {cargando ? "Ingresando…" : "Ingresar"}
+          </Button>
+        </form>
+      </div>
     </div>
   );
 }
