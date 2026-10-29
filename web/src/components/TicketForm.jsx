@@ -64,6 +64,14 @@ export function TicketForm({ modo, inicial, onSubmit, submitLabel }) {
       setError("Cada registro requiere un motivo");
       return;
     }
+    if (items.some((item) => !item.paciente?.trim())) {
+      setError("Cada registro requiere el nombre del paciente");
+      return;
+    }
+    if (items.some((item) => !item.documento?.trim())) {
+      setError("Cada registro requiere el número de documento del paciente");
+      return;
+    }
     if (modo === "crear" && !oficio) {
       setError("Debe adjuntar el oficio firmado para radicar");
       return;
@@ -163,6 +171,7 @@ export function TicketForm({ modo, inicial, onSubmit, submitLabel }) {
                   value={item.paciente || ""}
                   onChange={(e) => actualizarItem(i, "paciente", e.target.value)}
                   className={inputClass}
+                  required
                 />
               </label>
               <label className="text-sm">
@@ -171,6 +180,7 @@ export function TicketForm({ modo, inicial, onSubmit, submitLabel }) {
                   value={item.documento || ""}
                   onChange={(e) => actualizarItem(i, "documento", e.target.value)}
                   className={inputClass}
+                  required
                 />
               </label>
               <label className="text-sm">

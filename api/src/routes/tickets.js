@@ -22,6 +22,8 @@ async function validarItems(items, tipo) {
   if (!tipoRow) return `Tipo de solicitud '${tipo}' no existe`;
   for (const item of items) {
     if (!item.motivo) return "Cada registro requiere un motivo";
+    if (!item.paciente?.trim()) return "Cada registro requiere el nombre del paciente";
+    if (!item.documento?.trim()) return "Cada registro requiere el número de documento del paciente";
     if (tipoRow.requiere_factura && !item.factura?.trim()) return "Cada registro necesita su número de factura";
   }
   return null;
