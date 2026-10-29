@@ -4,9 +4,35 @@ import { useAuth } from "../context/AuthContext";
 import { apiFetch } from "../lib/api";
 import { FILTROS_POR_ROL } from "../lib/filters";
 import { RequirePermission } from "./RequirePermission";
-import { IconInbox, IconSettings, IconInfo, IconClock, IconCheck, IconAlert } from "./icons";
+import { IconInbox, IconSettings, IconInfo, IconClock, IconCheck, IconAlert, IconDatabase } from "./icons";
 
 const ICONOS = { accion: IconAlert, vencidos: IconClock, todos: IconCheck };
+
+function kb(bytes) {
+  if (bytes > 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  return Math.max(0, Math.round(bytes / 1024)) + " KB";
+}
+
+function IndicadorAlmacenamiento() {
+  const [datos, setDatos] = useState(null);
+  useEffect(() => {
+    apiFetch("/admin/almacenamiento")
+      .then(setDatos)
+      .catch(() => {});
+  }, []);
+  if (!datos) return null;
+  const pct = (datos.storage.bytes / datos.storage.limite) * 100;
+  return (
+    <NavLink
+      to="/admin?tab=almacenamiento"
+      className="flex items-center gap-2 rounded-[var(--radius-button)] px-3 py-2 text-xs text-[var(--color-muted)] hover:bg-[var(--color-ink)]/[0.05] hover:text-[var(--color-ink)]"
+      title={`Storage: ${kb(datos.storage.bytes)} de ${kb(datos.storage.limite)}`}
+    >
+      <IconDatabase size={14} className="shrink-0" />
+      <span>Storage {pct < 0.01 ? "< 0.01" : pct.toFixed(2)}%</span>
+    </NavLink>
+  );
+}
 
 export function Sidebar() {
   const { perfil } = useAuth();
@@ -64,6 +90,9 @@ export function Sidebar() {
       </div>
 
       <div className="mt-auto grid gap-0.5 border-t border-[var(--color-border)] pt-3">
+        <RequirePermission permisos={["config.editar"]}>
+          <IndicadorAlmacenamiento />
+        </RequirePermission>
         <RequirePermission permisos={["usuarios.gestionar", "roles.gestionar"]}>
           <NavLink to="/admin" className={({ isActive }) => itemClass(isActive)}>
             <span className="flex items-center gap-2">

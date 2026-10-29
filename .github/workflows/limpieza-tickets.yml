@@ -1,0 +1,17 @@
+name: Limpieza automática de tickets
+
+on:
+  schedule:
+    # 10:00 UTC = 5:00 a.m. hora Colombia
+    - cron: "0 10 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  limpiar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ejecutar limpieza de tickets cerrados vencidos
+        run: |
+          curl -sf -X POST "${{ secrets.API_URL }}/cron/limpiar-tickets" \
+            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json"

@@ -7,6 +7,7 @@ import { ticketsRouter } from "./routes/tickets.js";
 import { adjuntosRouter } from "./routes/adjuntos.js";
 import { adminRouter } from "./routes/admin.js";
 import { catalogosRouter } from "./routes/catalogos.js";
+import { cronRouter } from "./routes/cron.js";
 
 const app = express();
 
@@ -19,6 +20,7 @@ app.use(ticketsRouter);
 app.use(adjuntosRouter);
 app.use(adminRouter);
 app.use(catalogosRouter);
+app.use(cronRouter);
 
 const port = process.env.PORT || 4000;
 app.listen(port, () => {

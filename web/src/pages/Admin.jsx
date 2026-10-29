@@ -1,10 +1,11 @@
 import { Fragment, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { apiFetch } from "../lib/api";
 import { nombreLegible } from "../lib/roles";
 import { useToast } from "../context/ToastContext";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
-import { IconUser, IconShield, IconInbox, IconInfo, IconClock, IconSettings } from "../components/icons";
+import { IconUser, IconShield, IconInbox, IconInfo, IconClock, IconSettings, IconDatabase } from "../components/icons";
 
 const inputClass =
   "w-full rounded-[var(--radius-input)] border border-[var(--color-ink)]/20 bg-[var(--color-ink)]/5 px-3 py-2 text-sm outline-none focus:border-[var(--color-ink)]";
@@ -16,10 +17,12 @@ const TABS = [
   { k: "motivos", l: "Motivos", icon: IconInfo },
   { k: "sla", l: "Plazos SLA", icon: IconClock },
   { k: "festivos", l: "Festivos", icon: IconSettings },
+  { k: "almacenamiento", l: "Almacenamiento", icon: IconDatabase },
 ];
 
 export function Admin() {
-  const [tab, setTab] = useState("usuarios");
+  const [params] = useSearchParams();
+  const [tab, setTab] = useState(params.get("tab") || "usuarios");
   return (
     <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
       <aside className="h-fit overflow-hidden rounded-[var(--radius-card)] bg-[var(--color-ink)] p-3">
@@ -55,6 +58,7 @@ export function Admin() {
         {tab === "motivos" && <Catalogo titulo="Motivos" path="motivos" />}
         {tab === "sla" && <Sla />}
         {tab === "festivos" && <Festivos />}
+        {tab === "almacenamiento" && <Almacenamiento />}
       </div>
     </div>
   );
@@ -607,6 +611,142 @@ function Festivos() {
           ))}
         </ul>
       </div>
+    </div>
+  );
+}
+
+// ======================= Almacenamiento =======================
+
+function kb(bytes) {
+  if (bytes > 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(2) + " MB";
+  return Math.max(0, Math.round(bytes / 1024)) + " KB";
+}
+
+function Barra({ porcentaje }) {
+  const color = porcentaje > 80 ? "var(--color-danger)" : porcentaje > 50 ? "var(--color-state-devuelto)" : "var(--color-state-cerrado)";
+  return (
+    <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--color-ink)]/10">
+      <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, porcentaje)}%`, background: color }} />
+    </div>
+  );
+}
+
+const ETIQUETAS_TABLA = {
+  tickets: "Tickets",
+  ticket_items: "Registros de tickets",
+  ticket_adjuntos: "Adjuntos",
+  ticket_eventos: "Eventos de historial",
+  aprobaciones: "Aprobaciones",
+  usuarios: "Usuarios",
+  roles: "Roles",
+};
+
+function Almacenamiento() {
+  const { exito, fallo } = useToast();
+  const [datos, setDatos] = useState(null);
+  const [dias, setDias] = useState("");
+  const [limpiando, setLimpiando] = useState(false);
+
+  async function cargar() {
+    const r = await apiFetch("/admin/almacenamiento");
+    setDatos(r);
+    setDias(String(r.diasRetencionCierre));
+  }
+  useEffect(() => {
+    cargar();
+  }, []);
+
+  async function guardarDias(e) {
+    e.preventDefault();
+    try {
+      await apiFetch("/admin/config/dias_retencion_cierre", { method: "PATCH", body: JSON.stringify({ valor: dias }) });
+      exito("Plazo de retención actualizado");
+      cargar();
+    } catch (e) {
+      fallo(e.message);
+    }
+  }
+
+  async function limpiarAhora() {
+    if (!window.confirm(`Esto borra PERMANENTEMENTE y sin respaldo todo ticket cerrado hace más de ${dias} días. ¿Continuar?`)) return;
+    setLimpiando(true);
+    try {
+      const r = await apiFetch("/admin/limpieza/ejecutar", { method: "POST" });
+      exito(`${r.eliminados.length} ticket(s) eliminado(s) de ${r.evaluados} evaluado(s)`);
+      if (r.errores.length) fallo(`${r.errores.length} no se pudieron eliminar`);
+      cargar();
+    } catch (e) {
+      fallo(e.message);
+    } finally {
+      setLimpiando(false);
+    }
+  }
+
+  if (!datos) return <p className="text-[var(--color-muted)]">Cargando…</p>;
+
+  const pctStorage = (datos.storage.bytes / datos.storage.limite) * 100;
+
+  return (
+    <div className="grid gap-4">
+      <Card className="grid gap-5">
+        <h3 className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">
+          Storage de archivos (plan gratuito Supabase)
+        </h3>
+        <div className="grid gap-2">
+          <div className="flex items-baseline justify-between text-sm">
+            <span>{kb(datos.storage.bytes)} usados · {datos.storage.archivos} archivo(s)</span>
+            <span className="text-[var(--color-muted)]">de {kb(datos.storage.limite)}</span>
+          </div>
+          <Barra porcentaje={pctStorage} />
+          <span className="text-xs text-[var(--color-muted)]">{pctStorage.toFixed(3)}% del límite</span>
+        </div>
+      </Card>
+
+      <Card className="grid gap-3">
+        <h3 className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">
+          Filas por tabla (base de datos)
+        </h3>
+        <p className="text-xs text-[var(--color-muted)]">
+          Supabase no expone el tamaño exacto en bytes de la base por API; el conteo de filas es la señal disponible para
+          saber si se acerca el momento de limpiar. El límite del plan gratuito es {kb(datos.baseDatos.limite)}.
+        </p>
+        <div className="grid gap-1.5 sm:grid-cols-2">
+          {Object.entries(datos.conteos).map(([tabla, n]) => (
+            <div key={tabla} className="flex items-center justify-between rounded-[var(--radius-input)] border border-[var(--color-border)] px-3 py-1.5 text-sm">
+              <span>{ETIQUETAS_TABLA[tabla] || tabla}</span>
+              <span className="font-semibold">{n}</span>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <Card className="grid gap-3">
+        <h3 className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">
+          Limpieza automática de tickets cerrados
+        </h3>
+        <p className="text-sm text-[var(--color-muted)]">
+          Todos los días se borran permanentemente (sin respaldo) los tickets en estado "Cerrado" con más de este número de
+          días desde su cierre. Incluye su historial, registros y adjuntos.
+        </p>
+        <form onSubmit={guardarDias} className="flex flex-wrap items-end gap-2">
+          <label className="text-sm">
+            <span className="mb-1 block font-medium">Días de retención</span>
+            <input
+              type="number"
+              min="1"
+              value={dias}
+              onChange={(e) => setDias(e.target.value)}
+              className="w-28 rounded-[var(--radius-input)] border border-[var(--color-border)] px-3 py-2 text-sm"
+            />
+          </label>
+          <Button type="submit" variant="ghost">
+            Guardar
+          </Button>
+          <Button type="button" variant="danger" disabled={limpiando} onClick={limpiarAhora}>
+            {limpiando ? "Limpiando…" : "Limpiar ahora"}
+          </Button>
+        </form>
+      </Card>
     </div>
   );
 }

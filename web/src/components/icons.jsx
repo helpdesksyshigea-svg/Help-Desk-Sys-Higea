@@ -16,6 +16,13 @@ function Svg({ children, size = 16, className }) {
   );
 }
 
+export const IconDatabase = (p) => (
+  <Svg {...p}>
+    <ellipse cx="12" cy="5" rx="8" ry="3" />
+    <path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5" />
+    <path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" />
+  </Svg>
+);
 export const IconArrowLeft = (p) => (
   <Svg {...p}>
     <path d="M19 12H5M12 19l-7-7 7-7" />

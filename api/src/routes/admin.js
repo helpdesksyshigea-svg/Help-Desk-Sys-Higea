@@ -1,9 +1,75 @@
 import { Router } from "express";
 import { supabase } from "../config/supabase.js";
 import { authenticate, requirePermission } from "../middleware/auth.js";
+import { limpiarTicketsAntiguos } from "../lib/limpieza.js";
 
 export const adminRouter = Router();
 adminRouter.use(authenticate);
+
+// ======================= Almacenamiento =======================
+
+const LIMITE_DB_BYTES = 500 * 1024 * 1024; // 500 MB, plan gratuito de Supabase
+const LIMITE_STORAGE_BYTES = 1024 * 1024 * 1024; // 1 GB, plan gratuito de Supabase
+const TABLAS = [
+  "tickets",
+  "ticket_items",
+  "ticket_adjuntos",
+  "ticket_eventos",
+  "aprobaciones",
+  "usuarios",
+  "roles",
+];
+
+adminRouter.get("/admin/almacenamiento", requirePermission("config.editar"), async (req, res) => {
+  const conteos = {};
+  for (const tabla of TABLAS) {
+    const { count } = await supabase.from(tabla).select("*", { count: "exact", head: true });
+    conteos[tabla] = count ?? 0;
+  }
+
+  let bytesStorage = 0;
+  let archivosStorage = 0;
+  const { data: carpetas } = await supabase.storage.from("adjuntos").list("", { limit: 1000 });
+  for (const carpeta of carpetas || []) {
+    const { data: archivos } = await supabase.storage.from("adjuntos").list(carpeta.name, { limit: 1000 });
+    for (const archivo of archivos || []) {
+      bytesStorage += archivo.metadata?.size || 0;
+      archivosStorage++;
+    }
+  }
+
+  const { data: configRow } = await supabase.from("config_sistema").select("valor").eq("clave", "dias_retencion_cierre").single();
+
+  res.json({
+    conteos,
+    storage: { bytes: bytesStorage, archivos: archivosStorage, limite: LIMITE_STORAGE_BYTES },
+    baseDatos: { limite: LIMITE_DB_BYTES }, // Supabase no expone el tamaño real por API; los conteos de filas son la señal disponible.
+    diasRetencionCierre: Number(configRow?.valor ?? 90),
+  });
+});
+
+adminRouter.patch("/admin/config/dias_retencion_cierre", requirePermission("config.editar"), async (req, res) => {
+  const dias = Number(req.body.valor);
+  if (!Number.isInteger(dias) || dias < 1) {
+    return res.status(400).json({ error: "El valor debe ser un entero mayor a 0" });
+  }
+  const { error } = await supabase.from("config_sistema").update({ valor: String(dias) }).eq("clave", "dias_retencion_cierre");
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ ok: true, dias });
+});
+
+// Borrado permanente, sin respaldo, de tickets cerrados hace más del plazo
+// configurado. Solo lo puede disparar manualmente quien tiene config.editar;
+// la ejecución automática diaria llama a /cron/limpiar-tickets en su lugar,
+// protegida por un secreto compartido en vez de una sesión de usuario.
+adminRouter.post("/admin/limpieza/ejecutar", requirePermission("config.editar"), async (req, res) => {
+  try {
+    const resultado = await limpiarTicketsAntiguos();
+    res.json(resultado);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
 // ======================= Usuarios =======================
 
