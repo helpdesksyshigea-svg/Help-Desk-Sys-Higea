@@ -11,8 +11,7 @@ import { SkeletonRow } from "../components/Skeleton";
 import { IconInbox, IconPlus } from "../components/icons";
 
 const PRIORIDAD_LABEL = { alta: "Alta", normal: "Normal", baja: "Baja" };
-// Paleta de soporte de Linear: sin naranja/ámbar disponible, se usa teal para "normal".
-const PRIORIDAD_COLOR = { alta: "#eb5757", normal: "#02b8cc", baja: "#27a644" };
+const PRIORIDAD_COLOR = { alta: "#e02424", normal: "#f59e0b", baja: "#16a34a" };
 
 function hace(iso) {
   const horas = (Date.now() - new Date(iso)) / 36e5;
@@ -158,7 +157,7 @@ export function Inbox() {
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-[var(--color-muted)]">{t.code}</span>
                         {t.vencido && (
-                          <span className="rounded-[var(--radius-tag)] bg-[var(--color-danger-bg)] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--color-danger)]">
+                          <span className="rounded-[var(--radius-tag)] bg-[#f8e0dc] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#b3362a]">
                             Vencido
                           </span>
                         )}
@@ -179,7 +178,7 @@ export function Inbox() {
                     <td className="py-3 pr-3 align-top text-xs text-[var(--color-muted)]">{ESPERANDO[t.estado] || ""}</td>
                     <td className="py-3 pr-3 text-right align-top">
                       {sla ? (
-                        <span className={`text-xs ${sla.urgente ? "font-semibold text-[var(--color-danger)]" : "text-[var(--color-muted)]"}`}>
+                        <span className={`text-xs ${sla.urgente ? "font-semibold text-[#b3362a]" : "text-[var(--color-muted)]"}`}>
                           {sla.texto}
                         </span>
                       ) : (

@@ -7,7 +7,7 @@ import { Button } from "../components/Button";
 import { IconUser, IconShield, IconInbox, IconInfo, IconClock, IconSettings } from "../components/icons";
 
 const inputClass =
-  "w-full rounded-[var(--radius-input)] border border-[var(--color-border)] bg-white/[0.02] px-3 py-2 text-sm outline-none focus:border-[var(--color-border-strong)]";
+  "w-full rounded-[var(--radius-input)] border border-[var(--color-ink)]/20 bg-[var(--color-ink)]/5 px-3 py-2 text-sm outline-none focus:border-[var(--color-ink)]";
 
 const TABS = [
   { k: "usuarios", l: "Usuarios", icon: IconUser },
@@ -22,9 +22,9 @@ export function Admin() {
   const [tab, setTab] = useState("usuarios");
   return (
     <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
-      <aside className="h-fit overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-elevated)] p-3">
+      <aside className="h-fit overflow-hidden rounded-[var(--radius-card)] bg-[var(--color-ink)] p-3">
         <div className="mb-3 px-2 pt-1">
-          <p className="text-sm font-bold leading-tight text-[var(--color-ink)]">Mesa de ayuda</p>
+          <p className="text-sm font-bold leading-tight text-[var(--color-canvas)]">Mesa de ayuda</p>
           <p className="text-xs" style={{ color: "var(--color-accent)" }}>
             SYS HIGEA
           </p>
@@ -34,12 +34,11 @@ export function Admin() {
             <button
               key={t.k}
               onClick={() => setTab(t.k)}
-              className={`flex items-center gap-2 rounded-[var(--radius-button)] px-3 py-2 text-left text-sm transition-colors ${
+              className={`flex items-center gap-2 rounded-[var(--radius-button)] px-3 py-2 text-left text-sm font-medium transition-colors ${
                 tab === t.k
                   ? "bg-[var(--color-accent)] text-[var(--color-accent-ink)]"
-                  : "text-[var(--color-muted)] hover:bg-white/5 hover:text-[var(--color-ink)]"
+                  : "text-[var(--color-canvas)]/80 hover:bg-white/10"
               }`}
-              style={{ fontWeight: 510 }}
             >
               <t.icon size={15} />
               {t.l}
@@ -62,7 +61,7 @@ export function Admin() {
 }
 
 function Mensaje({ error, ok }) {
-  if (error) return <p className="text-sm text-[var(--color-danger)]">{error}</p>;
+  if (error) return <p className="text-sm text-[#b3362a]">{error}</p>;
   if (ok) return <p className="text-sm text-[var(--color-state-cerrado)]">{ok}</p>;
   return null;
 }

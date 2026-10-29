@@ -4,7 +4,7 @@ import { Button } from "../components/Button";
 import { IconShield, IconClock, IconCheck } from "../components/icons";
 
 const inputClass =
-  "w-full rounded-[var(--radius-input)] border border-[var(--color-border)] bg-white/[0.02] px-3.5 py-2.5 outline-none transition-colors focus:border-[var(--color-border-strong)] focus:bg-[var(--color-surface)]";
+  "w-full rounded-[var(--radius-input)] border border-[var(--color-ink)]/20 bg-[var(--color-ink)]/[0.04] px-3.5 py-2.5 outline-none transition-colors focus:border-[var(--color-ink)] focus:bg-[var(--color-canvas)]";
 
 export function Login() {
   const { iniciarSesion } = useAuth();
@@ -25,7 +25,7 @@ export function Login() {
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
       {/* Panel de marca */}
-      <div className="relative hidden flex-col justify-between overflow-hidden border-r border-[var(--color-border)] bg-[var(--color-elevated)] p-12 text-white lg:flex">
+      <div className="relative hidden flex-col justify-between overflow-hidden bg-[var(--color-forest)] p-12 text-white lg:flex">
         <div className="pointer-events-none absolute inset-0 opacity-[0.07]">
           <div
             className="absolute inset-0"
@@ -87,7 +87,7 @@ export function Login() {
           </label>
 
           {error && (
-            <p className="mb-4 rounded-[var(--radius-input)] bg-[var(--color-danger-bg)] px-3 py-2 text-sm text-[var(--color-danger)]">{error}</p>
+            <p className="mb-4 rounded-[var(--radius-input)] bg-[#f8e0dc] px-3 py-2 text-sm text-[#b3362a]">{error}</p>
           )}
 
           <Button variant="accent" type="submit" disabled={cargando} className="w-full justify-center">

@@ -23,7 +23,7 @@ export function ToastProvider({ children }) {
             className={`flex items-center gap-2 rounded-[var(--radius-button)] border px-4 py-2.5 text-sm font-medium shadow-[0_4px_12px_rgba(17,17,13,0.12)] ${
               t.tipo === "ok"
                 ? "border-[var(--color-state-cerrado)]/30 bg-[var(--color-state-cerrado-bg)] text-[var(--color-state-cerrado)]"
-                : "border-[var(--color-danger)]/30 bg-[var(--color-danger-bg)] text-[var(--color-danger)]"
+                : "border-[#b3362a]/30 bg-[#f8e0dc] text-[#b3362a]"
             }`}
           >
             {t.tipo === "ok" ? <IconCheck size={16} /> : <IconAlert size={16} />}
