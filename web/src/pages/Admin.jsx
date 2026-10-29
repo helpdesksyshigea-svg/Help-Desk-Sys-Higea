@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useState } from "react";
 import { apiFetch } from "../lib/api";
 import { nombreLegible } from "../lib/roles";
+import { useToast } from "../context/ToastContext";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
 
@@ -97,13 +98,25 @@ function Usuarios() {
     }
   }
 
+  const { exito, fallo } = useToast();
+
   async function cambiarRol(id, rol_id) {
-    await apiFetch(`/admin/usuarios/${id}`, { method: "PATCH", body: JSON.stringify({ rol_id }) });
-    cargar();
+    try {
+      await apiFetch(`/admin/usuarios/${id}`, { method: "PATCH", body: JSON.stringify({ rol_id }) });
+      exito("Rol actualizado");
+      cargar();
+    } catch (e) {
+      fallo(e.message);
+    }
   }
   async function alternarActivo(u) {
-    await apiFetch(`/admin/usuarios/${u.id}`, { method: "PATCH", body: JSON.stringify({ activo: !u.activo }) });
-    cargar();
+    try {
+      await apiFetch(`/admin/usuarios/${u.id}`, { method: "PATCH", body: JSON.stringify({ activo: !u.activo }) });
+      exito(u.activo ? `${u.nombre} desactivado` : `${u.nombre} activado`);
+      cargar();
+    } catch (e) {
+      fallo(e.message);
+    }
   }
 
   return (
@@ -201,12 +214,15 @@ function Roles() {
     setSeleccion((prev) => (prev.includes(clave) ? prev.filter((c) => c !== clave) : [...prev, clave]));
   }
 
+  const { exito, fallo } = useToast();
+
   async function crear(e) {
     e.preventDefault();
     setError(null);
     setEnviando(true);
     try {
       await apiFetch("/admin/roles", { method: "POST", body: JSON.stringify({ nombre, descripcion, permisos: seleccion }) });
+      exito(`Rol "${nombre}" creado`);
       setNombre("");
       setDescripcion("");
       setSeleccion([]);
@@ -223,7 +239,12 @@ function Roles() {
   async function togglePermisoRol(rol, clave) {
     const nuevos = rol.permisos.includes(clave) ? rol.permisos.filter((c) => c !== clave) : [...rol.permisos, clave];
     setRoles((prev) => prev.map((r) => (r.id === rol.id ? { ...r, permisos: nuevos } : r)));
-    await apiFetch(`/admin/roles/${rol.id}`, { method: "PATCH", body: JSON.stringify({ permisos: nuevos }) });
+    try {
+      await apiFetch(`/admin/roles/${rol.id}`, { method: "PATCH", body: JSON.stringify({ permisos: nuevos }) });
+    } catch (e) {
+      fallo(e.message);
+      cargar(); // revierte el checkbox si el servidor rechazó el cambio
+    }
   }
 
   const CATEGORIAS = {
@@ -346,11 +367,14 @@ function Catalogo({ titulo, path }) {
     cargar();
   }, []);
 
+  const { exito, fallo } = useToast();
+
   async function agregar(e) {
     e.preventDefault();
     setError(null);
     try {
       await apiFetch(`/admin/${path}`, { method: "POST", body: JSON.stringify({ clave, etiqueta }) });
+      exito(`"${etiqueta}" agregado`);
       setClave("");
       setEtiqueta("");
       await cargar();
@@ -360,8 +384,13 @@ function Catalogo({ titulo, path }) {
   }
 
   async function alternarActivo(item) {
-    await apiFetch(`/admin/${path}/${item.clave}`, { method: "PATCH", body: JSON.stringify({ activo: !item.activo }) });
-    cargar();
+    try {
+      await apiFetch(`/admin/${path}/${item.clave}`, { method: "PATCH", body: JSON.stringify({ activo: !item.activo }) });
+      exito(item.activo ? `"${item.etiqueta}" desactivado` : `"${item.etiqueta}" activado`);
+      cargar();
+    } catch (e) {
+      fallo(e.message);
+    }
   }
 
   function empezarEdicion(item) {
@@ -377,6 +406,7 @@ function Catalogo({ titulo, path }) {
         method: "PATCH",
         body: JSON.stringify({ nueva_clave: edicion.clave, etiqueta: edicion.etiqueta }),
       });
+      exito("Cambios guardados");
       setEditando(null);
       await cargar();
     } catch (e) {

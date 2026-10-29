@@ -3,7 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { nombreLegible } from "../lib/roles";
 import { RequirePermission } from "./RequirePermission";
 import { Button } from "./Button";
-import { IconInbox, IconSettings } from "./icons";
+import { IconInbox, IconSettings, IconInfo } from "./icons";
 
 const navLinkClass = ({ isActive }) =>
   `inline-flex items-center gap-1.5 rounded-[var(--radius-button)] px-3 py-1.5 text-sm font-medium transition-colors ${
@@ -38,6 +38,10 @@ export function Layout() {
             </RequirePermission>
           </nav>
           <div className="flex items-center gap-3">
+            <NavLink to="/ayuda" className={navLinkClass} title="Preguntas frecuentes">
+              <IconInfo size={15} />
+              <span className="hidden sm:inline">Ayuda</span>
+            </NavLink>
             <div className="hidden text-right text-sm sm:block">
               <div className="font-medium leading-tight">{perfil?.nombre}</div>
               <div className="text-xs text-[var(--color-muted)]">{nombreLegible(perfil?.rol)}</div>
