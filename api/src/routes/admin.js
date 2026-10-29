@@ -224,7 +224,13 @@ adminRouter.post("/admin/usuarios/:id/contrasena", requirePermission("usuarios.g
   if (typeof password !== "string" || password.length < 8) {
     return res.status(400).json({ error: "La contraseña debe tener al menos 8 caracteres" });
   }
-  const { error } = await supabase.auth.admin.updateUserById(req.params.id, { password });
+  // Si la cuenta nunca confirmó el correo de invitación (ej. se creó con un
+  // correo que no existe de verdad, o el correo nunca llegó), poner la
+  // contraseña a mano no bastaba: Supabase seguía rechazando el login con
+  // "correo no confirmado". La administradora que fija la contraseña
+  // manualmente ya está vouching por la identidad, así que esto también
+  // confirma la cuenta.
+  const { error } = await supabase.auth.admin.updateUserById(req.params.id, { password, email_confirm: true });
   if (error) return res.status(400).json({ error: error.message });
   res.json({ ok: true });
 });
