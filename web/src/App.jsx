@@ -11,6 +11,15 @@ import { EditTicket } from "./pages/EditTicket";
 import { Admin } from "./pages/Admin";
 import { Ayuda } from "./pages/Ayuda";
 import { Manual } from "./pages/Manual";
+import { SetPassword } from "./pages/SetPassword";
+
+// Supabase procesa el token de la URL (invitación o "olvidé mi contraseña") y
+// abre sesión automáticamente antes de que React alcance a renderizar nada;
+// sin esta comprobación, Protegido vería "ya autenticado" y mandaría
+// directo a la bandeja sin pedir nunca definir una contraseña.
+function esEnlaceDeContrasena() {
+  return /type=invite|type=recovery/.test(window.location.hash);
+}
 
 function Protegido({ children }) {
   const { autenticado, cargando, error } = useAuth();
@@ -33,6 +42,7 @@ function RutaLogin() {
 }
 
 function Rutas() {
+  if (esEnlaceDeContrasena()) return <SetPassword />;
   return (
     <Routes>
       <Route path="/login" element={<RutaLogin />} />

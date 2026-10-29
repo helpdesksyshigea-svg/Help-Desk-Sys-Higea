@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { Button } from "../components/Button";
 import { IconShield, IconClock, IconCheck } from "../components/icons";
+import { supabase } from "../lib/supabase";
 
 const inputClass =
   "w-full rounded-[var(--radius-input)] border border-[var(--color-ink)]/20 bg-[var(--color-ink)]/[0.04] px-3.5 py-2.5 outline-none transition-colors focus:border-[var(--color-ink)] focus:bg-[var(--color-canvas)]";
@@ -12,6 +13,8 @@ export function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
   const [cargando, setCargando] = useState(false);
+  const [recuperando, setRecuperando] = useState(false);
+  const [recuperado, setRecuperado] = useState(false);
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -20,6 +23,18 @@ export function Login() {
     const { error } = await iniciarSesion(email, password);
     if (error) setError("Correo o contraseña incorrectos.");
     setCargando(false);
+  }
+
+  async function onRecuperar() {
+    if (!email.trim()) {
+      setError("Escriba su correo arriba y luego pulse \"¿Olvidó su contraseña?\".");
+      return;
+    }
+    setError(null);
+    setRecuperando(true);
+    await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: window.location.origin });
+    setRecuperando(false);
+    setRecuperado(true);
   }
 
   return (
@@ -89,10 +104,24 @@ export function Login() {
           {error && (
             <p className="mb-4 rounded-[var(--radius-input)] bg-[#f8e0dc] px-3 py-2 text-sm text-[#b3362a]">{error}</p>
           )}
+          {recuperado && (
+            <p className="mb-4 rounded-[var(--radius-input)] bg-[var(--color-accent)]/20 px-3 py-2 text-sm">
+              Si ese correo tiene una cuenta, le enviamos un enlace para definir una nueva contraseña.
+            </p>
+          )}
 
           <Button variant="accent" type="submit" disabled={cargando} className="w-full justify-center">
             {cargando ? "Ingresando…" : "Ingresar"}
           </Button>
+
+          <button
+            type="button"
+            onClick={onRecuperar}
+            disabled={recuperando}
+            className="mt-4 text-sm text-[var(--color-muted)] underline-offset-2 hover:text-[var(--color-ink)] hover:underline"
+          >
+            {recuperando ? "Enviando…" : "¿Olvidó su contraseña?"}
+          </button>
         </form>
       </div>
     </div>
