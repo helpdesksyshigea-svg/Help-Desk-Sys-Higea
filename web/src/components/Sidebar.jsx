@@ -61,9 +61,12 @@ export function Sidebar() {
 
   return (
     <aside className="hidden w-60 shrink-0 border-r border-[var(--color-border)] bg-[var(--color-canvas)] px-3 py-4 md:flex md:flex-col md:gap-1">
-      <div className="mb-4 px-2">
-        <p className="text-base font-bold leading-tight">Mesa de ayuda</p>
-        <p className="text-xs text-[var(--color-muted)]">SYS HIGEA</p>
+      <div className="mb-4 flex items-center gap-2.5 px-2">
+        <img src="/branding/logo-hospital-orito-sm.png" alt="E.S.E. Hospital Orito" className="h-9 w-9 shrink-0 object-contain" />
+        <div>
+          <p className="text-base font-bold leading-tight">Mesa de ayuda</p>
+          <p className="text-xs text-[var(--color-muted)]">SYS HIGEA</p>
+        </div>
       </div>
 
       <NavLink to="/" end className={({ isActive }) => itemClass(isActive && !params.get("filtro"))}>
