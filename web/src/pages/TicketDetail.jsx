@@ -8,7 +8,13 @@ import { StatusTag } from "../components/StatusTag";
 import { Adjuntos } from "../components/Adjuntos";
 import { useToast } from "../context/ToastContext";
 import { ESPERANDO } from "../lib/filters";
-import { IconArrowLeft, IconCheck, IconReturn, IconInbox, IconInfo, IconSend } from "../components/icons";
+import { IconArrowLeft, IconCheck, IconReturn, IconInbox, IconInfo, IconSend, IconUser, IconClock, IconPaperclip } from "../components/icons";
+
+function iniciales(nombre) {
+  if (!nombre) return "?";
+  const partes = nombre.trim().split(/\s+/);
+  return ((partes[0]?.[0] || "") + (partes[1]?.[0] || "")).toUpperCase();
+}
 
 const ACCIONES = [
   { ruta: "aprobar", permiso: "tickets.aprobar", estados: ["pendiente"], label: "Aprobar y enviar a HIGEA", icon: IconCheck, variant: "accent", notaObligatoria: false, exito: "Ticket aprobado y enviado a HIGEA" },
@@ -97,6 +103,8 @@ export function TicketDetail() {
     (esSolicitante && ["pendiente", "devuelto"].includes(ticket.estado)) ||
     (tienePermiso("tickets.aprobar") && ticket.estado === "devuelto");
 
+  const asunto = ticket.items?.map((i) => i.factura).filter(Boolean).join(", ") || ticket.items?.[0]?.paciente || "";
+
   return (
     <div className="grid gap-6">
       <button
@@ -104,45 +112,67 @@ export function TicketDetail() {
         className="inline-flex items-center gap-1.5 justify-self-start text-sm text-[var(--color-muted)] transition-colors hover:text-[var(--color-ink)]"
       >
         <IconArrowLeft size={14} />
-        Bandeja
+        Mesa de ayuda SYS HIGEA
       </button>
 
       <Card className="grid gap-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <span className="font-mono text-xs text-[var(--color-muted)]">{ticket.code}</span>
-            <h2 className="text-xl font-semibold">{ticket.items?.map((i) => i.factura).filter(Boolean).join(", ") || "Ticket"}</h2>
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="font-mono text-2xl font-bold tracking-tight">{ticket.code}</h1>
+              <StatusTag estado={ticket.estado} />
+            </div>
+            {(asunto || ticket.observacion) && (
+              <p className="mt-1 text-sm text-[var(--color-muted)]">{asunto ? `Factura ${asunto}` : ""}{asunto && ticket.observacion ? " — " : ""}{ticket.observacion}</p>
+            )}
           </div>
-          <div className="flex flex-col items-end gap-1">
-            <StatusTag estado={ticket.estado} />
+          <div className="text-right text-xs text-[var(--color-muted)]">
+            <div>Creado el {fmt(ticket.created_at)}</div>
             {ticket.dueAt && (
-              <span className={`text-xs ${ticket.vencido ? "font-semibold text-[#b3362a]" : "text-[var(--color-muted)]"}`}>
+              <div className={ticket.vencido ? "font-semibold text-[#b3362a]" : ""}>
                 {ticket.vencido ? "Vencido desde" : "Vence"} {fmt(ticket.dueAt)}
-              </span>
+              </div>
             )}
           </div>
         </div>
 
-        <p className="text-sm text-[var(--color-muted)]">{ESPERANDO[ticket.estado]}</p>
-
-        <div className="grid grid-cols-2 gap-x-4 gap-y-3 border-t border-[var(--color-border)] pt-4 text-sm sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-4 border-t border-[var(--color-border)] pt-4 text-sm sm:grid-cols-4">
           <div>
-            <div className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">Solicita</div>
-            <div>{ticket.firmante}</div>
+            <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">
+              <IconUser size={13} /> Solicita
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--color-ink)]/10 text-[10px] font-semibold">
+                {iniciales(ticket.solicitante?.nombre)}
+              </span>
+              {ticket.firmante}
+            </div>
           </div>
           <div>
-            <div className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">Prioridad</div>
-            <div className="capitalize">{ticket.prioridad}</div>
+            <div className="mb-1.5 text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">Prioridad</div>
+            <div className="flex items-center gap-1.5 capitalize">
+              <span
+                className="h-2 w-2 rounded-full"
+                style={{ background: { alta: "#e02424", normal: "#f59e0b", baja: "#16a34a" }[ticket.prioridad] }}
+              />
+              {ticket.prioridad}
+            </div>
           </div>
           <div>
-            <div className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">Radicado</div>
+            <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">
+              <IconClock size={13} /> Radicado
+            </div>
             <div>{new Date(ticket.created_at).toLocaleDateString("es-CO")}</div>
           </div>
           <div>
-            <div className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">Aprobado</div>
-            <div>{ticket.aprobado_at ? new Date(ticket.aprobado_at).toLocaleDateString("es-CO") : "—"}</div>
+            <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">
+              <IconCheck size={13} /> Aprobado
+            </div>
+            <div>{ticket.aprobado_at ? new Date(ticket.aprobado_at).toLocaleDateString("es-CO") : "Sin aprobación aún"}</div>
           </div>
         </div>
+
+        <p className="text-sm text-[var(--color-muted)]">{ESPERANDO[ticket.estado]}</p>
 
         {puedeEditar && (
           <Button variant="ghost" className="justify-self-start" onClick={() => navigate(`/tickets/${ticket.id}/editar`)}>
@@ -158,6 +188,7 @@ export function TicketDetail() {
         <table className="w-full min-w-[640px] text-sm">
           <thead>
             <tr className="border-b border-[var(--color-border)] text-left text-xs uppercase tracking-wide text-[var(--color-muted)]">
+              <th className="w-8 pb-2 pr-3 font-semibold">#</th>
               <th className="pb-2 pr-3 font-semibold">Factura</th>
               <th className="pb-2 pr-3 font-semibold">Paciente</th>
               <th className="pb-2 pr-3 font-semibold">Documento</th>
@@ -168,8 +199,9 @@ export function TicketDetail() {
             </tr>
           </thead>
           <tbody>
-            {ticket.items.map((item) => (
+            {ticket.items.map((item, i) => (
               <tr key={item.id} className="border-b border-[var(--color-border)] last:border-0 align-top">
+                <td className="py-2 pr-3 text-[var(--color-muted)]">{i + 1}</td>
                 <td className="py-2 pr-3 font-mono text-xs">{item.factura || "—"}</td>
                 <td className="py-2 pr-3">{item.paciente || "—"}</td>
                 <td className="py-2 pr-3 font-mono text-xs">{item.documento || "—"}</td>
@@ -191,11 +223,18 @@ export function TicketDetail() {
         <Card className="grid gap-4">
           <h3 className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">Historial</h3>
           <ol className="grid gap-4">
-            {ticket.eventos.map((ev, i) => (
+            {ticket.eventos.map((ev, i) => {
+              const esUltimo = i === ticket.eventos.length - 1;
+              const enCurso = esUltimo && ticket.estado !== "cerrado";
+              return (
               <li key={ev.id} className="grid grid-cols-[20px_1fr] gap-3">
                 <div className="flex flex-col items-center">
-                  <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-[var(--color-ink)]" />
-                  {i < ticket.eventos.length - 1 && <span className="w-px flex-1 bg-[var(--color-border)]" />}
+                  <span
+                    className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${
+                      enCurso ? "border-2 border-[var(--color-ink)] bg-transparent" : "bg-[var(--color-state-cerrado)]"
+                    }`}
+                  />
+                  {!esUltimo && <span className="w-px flex-1 bg-[var(--color-border)]" />}
                 </div>
                 <div className="pb-1">
                   <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
@@ -205,7 +244,8 @@ export function TicketDetail() {
                   {ev.texto && <div className="mt-0.5 text-sm text-[var(--color-muted)]">{ev.texto}</div>}
                 </div>
               </li>
-            ))}
+              );
+            })}
           </ol>
         </Card>
       </div>
@@ -219,16 +259,18 @@ export function TicketDetail() {
       )}
 
       {disponibles.length > 0 && (
-        <Card className="grid gap-3">
-          <h3 className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">Acciones</h3>
-          {disponibles.some((a) => a.notaObligatoria) && (
-            <textarea
+        <Card className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <label className="flex-1 text-sm">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">
+              Nota {disponibles.some((a) => a.notaObligatoria) ? "(obligatoria según la acción)" : "(opcional)"}
+            </span>
+            <input
               value={nota}
               onChange={(e) => setNota(e.target.value)}
-              placeholder="Nota (obligatoria para devolver, pedir información, responder, cerrar o reabrir)"
+              placeholder="Escribe una observación sobre el ticket…"
               className="w-full rounded-[var(--radius-input)] border border-[var(--color-ink)]/20 bg-[var(--color-ink)]/5 px-3 py-2 outline-none focus:border-[var(--color-ink)]"
             />
-          )}
+          </label>
           <div className="flex flex-wrap gap-2">
             {disponibles.map((a) => (
               <Button key={a.ruta} variant={a.variant} disabled={!!procesando} onClick={() => accion(a)}>

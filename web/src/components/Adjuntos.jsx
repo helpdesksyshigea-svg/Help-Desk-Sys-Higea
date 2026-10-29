@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
+import { IconDownload } from "./icons";
 
 const API_URL = import.meta.env.VITE_API_URL;
 const ETIQUETAS_KIND = { oficio: "Oficio firmado", soporte: "Soporte", evidencia: "Evidencia HIGEA" };
@@ -101,6 +102,13 @@ export function Adjuntos({ ticketId, kindsPermitidos = ["oficio", "soporte", "ev
                     el {new Date(a.created_at).toLocaleDateString("es-CO", { day: "2-digit", month: "short" })}
                   </div>
                 </div>
+                <button
+                  onClick={() => abrir(a.id)}
+                  aria-label={`Descargar ${a.nombre_original}`}
+                  className="shrink-0 rounded p-1.5 text-[var(--color-muted)] hover:bg-[var(--color-ink)]/[0.06] hover:text-[var(--color-ink)]"
+                >
+                  <IconDownload size={16} />
+                </button>
               </li>
             );
           })}

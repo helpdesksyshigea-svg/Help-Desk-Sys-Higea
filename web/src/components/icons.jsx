@@ -55,6 +55,12 @@ export const IconSearch = (p) => (
     <path d="m21 21-4.3-4.3" />
   </Svg>
 );
+export const IconDownload = (p) => (
+  <Svg {...p}>
+    <path d="M12 4v12M7 11l5 5 5-5" />
+    <path d="M4 19h16" />
+  </Svg>
+);
 export const IconTrash = (p) => (
   <Svg {...p}>
     <path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2m2 0-1 13a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L6 7" />
