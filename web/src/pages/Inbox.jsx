@@ -9,7 +9,7 @@ import { StatusTag } from "../components/StatusTag";
 import { RequirePermission } from "../components/RequirePermission";
 
 const PRIORIDAD_LABEL = { alta: "Alta", normal: "Normal", baja: "Baja" };
-const PRIORIDAD_COLOR = { alta: "#c0392b", normal: "#b7791f", baja: "#5a6b5d" };
+const PRIORIDAD_COLOR = { alta: "#e02424", normal: "#f59e0b", baja: "#16a34a" };
 
 function hace(iso) {
   const horas = (Date.now() - new Date(iso)) / 36e5;
@@ -24,12 +24,8 @@ function iniciales(nombre) {
   return ((partes[0]?.[0] || "") + (partes[1]?.[0] || "")).toUpperCase();
 }
 
-function FlagIcon({ color }) {
-  return (
-    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-      <path d="M2 1v10M2 1.5h7l-2 2.5 2 2.5H2" stroke={color} strokeWidth="1.3" strokeLinejoin="round" />
-    </svg>
-  );
+function PrioridadDot({ color }) {
+  return <span className="block h-3 w-3 rounded-full" style={{ background: color }} aria-hidden="true" />;
 }
 
 export function Inbox() {
@@ -116,7 +112,7 @@ export function Inbox() {
                   >
                     <td className="py-3 pl-4 align-top">
                       <span title={`Prioridad ${PRIORIDAD_LABEL[t.prioridad] || t.prioridad}`}>
-                        <FlagIcon color={PRIORIDAD_COLOR[t.prioridad] || "var(--color-muted)"} />
+                        <PrioridadDot color={PRIORIDAD_COLOR[t.prioridad] || "var(--color-muted)"} />
                       </span>
                     </td>
                     <td className="max-w-xs py-3 pr-3 align-top">
