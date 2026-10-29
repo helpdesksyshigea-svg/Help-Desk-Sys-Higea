@@ -61,10 +61,10 @@ export function Sidebar() {
 
   return (
     <aside className="hidden w-60 shrink-0 border-r border-[var(--color-border)] bg-[var(--color-canvas)] px-3 py-4 md:flex md:flex-col md:gap-1">
-      <div className="mb-5 px-2">
-        <img src="/branding/logo-hospital-orito-sm.png" alt="E.S.E. Hospital Orito" className="mb-2 h-24 w-auto object-contain" />
-        <p className="text-base font-bold leading-tight">Mesa de ayuda</p>
-        <p className="text-xs text-[var(--color-muted)]">SYS HIGEA</p>
+      <div className="mb-5 -mx-3 -mt-4 px-3 pt-4">
+        <img src="/branding/logo-hospital-orito-sm.png" alt="E.S.E. Hospital Orito" className="mb-3 w-full object-contain" />
+        <p className="px-2 text-base font-bold leading-tight">Mesa de ayuda</p>
+        <p className="px-2 text-xs text-[var(--color-muted)]">SYS HIGEA</p>
       </div>
 
       <NavLink to="/" end className={({ isActive }) => itemClass(isActive && !params.get("filtro"))}>
