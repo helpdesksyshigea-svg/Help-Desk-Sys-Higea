@@ -91,7 +91,7 @@ export function Manual() {
       {seccion === "facturador" && (
         <div className="grid gap-4">
           <Card className="grid gap-3">
-            <Paso numero="1" titulo="Inicie sesión con su correo institucional">
+            <Paso numero="1" titulo="Inicie sesión con el correo con el que fue invitado">
               La pantalla de ingreso pide correo y contraseña. Si no tiene cuenta, pídale al administrador que lo invite.
             </Paso>
             <Captura src="/manual/01-login.jpg" alt="Pantalla de inicio de sesión" />

@@ -61,10 +61,10 @@ export function Login() {
         </div>
 
         <h2 className="mb-1 text-xl font-semibold">Ingresar</h2>
-        <p className="mb-6 text-sm text-[var(--color-muted)]">Use el correo institucional que le fue invitado.</p>
+        <p className="mb-6 text-sm text-[var(--color-muted)]">Use el correo con el que fue invitado.</p>
 
         <label className="mb-4 block text-sm">
-          <span className="mb-1.5 block font-medium">Correo institucional</span>
+          <span className="mb-1.5 block font-medium">Correo</span>
           <input
             type="email"
             name="email"
