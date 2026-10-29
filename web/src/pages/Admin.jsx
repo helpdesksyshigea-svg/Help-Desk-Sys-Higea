@@ -129,6 +129,16 @@ function Usuarios() {
       fallo(e.message);
     }
   }
+  async function guardarCodigoInterno(u, valor) {
+    try {
+      await apiFetch(`/admin/usuarios/${u.id}`, { method: "PATCH", body: JSON.stringify({ codigo_interno: valor || null }) });
+      exito("Código interno actualizado");
+      cargar();
+    } catch (e) {
+      fallo(e.message);
+      cargar();
+    }
+  }
 
   return (
     <div className="grid gap-4">
@@ -178,6 +188,24 @@ function Usuarios() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                <input
+                  key={u.id + (u.codigo_interno || "")}
+                  defaultValue={u.codigo_interno || ""}
+                  onBlur={(e) => {
+                    const valor = e.target.value.trim();
+                    if (valor === (u.codigo_interno || "")) return;
+                    if (valor && !/^\d{3}$/.test(valor)) {
+                      fallo("El código interno debe tener exactamente 3 dígitos (ej. 101)");
+                      e.target.value = u.codigo_interno || "";
+                      return;
+                    }
+                    guardarCodigoInterno(u, valor);
+                  }}
+                  placeholder="Código"
+                  title="Código interno (3 dígitos) usado en el número de ticket"
+                  maxLength={3}
+                  className="w-16 rounded-[var(--radius-input)] border border-[var(--color-border)] px-2 py-1 text-center text-sm"
+                />
                 <select
                   value={u.roles?.id || ""}
                   onChange={(e) => cambiarRol(u.id, e.target.value)}

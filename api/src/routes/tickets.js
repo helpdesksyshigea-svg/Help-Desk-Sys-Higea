@@ -54,14 +54,33 @@ async function subirOficio(ticketId, archivo, subidoPor) {
   if (dbError) throw dbError;
 }
 
-// Código 100% numérico y consecutivo: {año}{número}, ej. 20260001. El
-// incremento es atómico en la base de datos (siguiente_numero_ticket), así que
-// dos radicaciones simultáneas nunca reciben el mismo número.
-async function newCode() {
-  const anio = new Date().getFullYear();
-  const { data, error } = await supabase.rpc("siguiente_numero_ticket", { p_anio: anio });
-  if (error) throw error;
-  return `${anio}${String(data).padStart(4, "0")}`;
+// Código trazable: AAAAMMDDHHmm + código interno (3 dígitos) de quien radica,
+// ej. 202610282225101 = 28/oct/2026 10:25pm, facturador 101. Se arma con la
+// hora exacta del intento, así que si el mismo facturador radica dos tickets
+// en el mismo minuto el código choca contra la restricción unique de
+// tickets.code; en ese caso se reintenta (esperando a que cambie el minuto)
+// en vez de usar un contador separado.
+function codigoTicketAhora(codigoInterno) {
+  const d = new Date();
+  const p2 = (n) => String(n).padStart(2, "0");
+  const marca = `${d.getFullYear()}${p2(d.getMonth() + 1)}${p2(d.getDate())}${p2(d.getHours())}${p2(d.getMinutes())}`;
+  return `${marca}${codigoInterno}`;
+}
+
+async function insertarTicketConCodigoUnico(datosTicket, codigoInterno) {
+  const MAX_INTENTOS = 65; // cubre hasta ~65s de espera si el minuto está muy disputado
+  for (let intento = 0; intento < MAX_INTENTOS; intento++) {
+    const code = codigoTicketAhora(codigoInterno);
+    const { data, error } = await supabase
+      .from("tickets")
+      .insert({ ...datosTicket, code })
+      .select()
+      .single();
+    if (!error) return data;
+    if (error.code !== "23505") throw error;
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+  throw new Error("No se pudo generar un código de ticket único, intente de nuevo");
 }
 
 async function registrarEvento(ticketId, tipoEvento, estadoAnterior, estadoNuevo, por, texto) {
@@ -110,27 +129,34 @@ ticketsRouter.post("/tickets", requirePermission("tickets.crear"), upload.single
   if (!tipo || !prioridad || !firmante?.trim()) {
     return res.status(400).json({ error: "Faltan campos obligatorios (tipo, prioridad, firmante)" });
   }
+  if (!req.user.codigo_interno) {
+    return res
+      .status(400)
+      .json({ error: "Tu usuario no tiene código interno asignado. Pide al administrador que te lo asigne en Administración → Usuarios." });
+  }
   const errorItems = await validarItems(items, tipo);
   if (errorItems) return res.status(400).json({ error: errorItems });
   if (!req.file) {
     return res.status(400).json({ error: "Debe adjuntar el oficio firmado para radicar el ticket" });
   }
 
-  const { data: ticket, error } = await supabase
-    .from("tickets")
-    .insert({
-      code: await newCode(),
-      tipo,
-      prioridad,
-      estado: "pendiente",
-      solicitante_id: req.user.id,
-      firmante: firmante.trim(),
-      observacion: observacion || null,
-      enviado_at: new Date().toISOString(),
-    })
-    .select()
-    .single();
-  if (error) return res.status(500).json({ error: error.message });
+  let ticket;
+  try {
+    ticket = await insertarTicketConCodigoUnico(
+      {
+        tipo,
+        prioridad,
+        estado: "pendiente",
+        solicitante_id: req.user.id,
+        firmante: firmante.trim(),
+        observacion: observacion || null,
+        enviado_at: new Date().toISOString(),
+      },
+      req.user.codigo_interno,
+    );
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
 
   const { error: itemsError } = await supabase
     .from("ticket_items")

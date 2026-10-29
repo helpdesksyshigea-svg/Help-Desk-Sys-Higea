@@ -17,7 +17,7 @@ export async function authenticate(req, res, next) {
 
   const { data: usuario, error: usuarioError } = await supabase
     .from("usuarios")
-    .select("id, email, nombre, activo, proveedor, roles(id, nombre)")
+    .select("id, email, nombre, activo, proveedor, codigo_interno, roles(id, nombre)")
     .eq("id", authData.user.id)
     .single();
 
@@ -42,6 +42,7 @@ export async function authenticate(req, res, next) {
     email: usuario.email,
     nombre: usuario.nombre,
     proveedor: usuario.proveedor,
+    codigo_interno: usuario.codigo_interno,
     rol: usuario.roles.nombre,
     permisos: new Set(permisos.map((p) => p.permisos.clave)),
   };

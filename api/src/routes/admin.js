@@ -76,7 +76,7 @@ adminRouter.post("/admin/limpieza/ejecutar", requirePermission("config.editar"),
 adminRouter.get("/admin/usuarios", requirePermission("usuarios.gestionar"), async (req, res) => {
   const { data, error } = await supabase
     .from("usuarios")
-    .select("id, email, nombre, proveedor, activo, created_at, roles(id, nombre)")
+    .select("id, email, nombre, proveedor, codigo_interno, activo, created_at, roles(id, nombre)")
     .order("created_at", { ascending: false });
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
@@ -113,21 +113,31 @@ adminRouter.post("/admin/usuarios", requirePermission("usuarios.gestionar"), asy
 });
 
 adminRouter.patch("/admin/usuarios/:id", requirePermission("usuarios.gestionar"), async (req, res) => {
-  const { rol_id, activo, nombre, proveedor } = req.body;
+  const { rol_id, activo, nombre, proveedor, codigo_interno } = req.body;
   const patch = {};
   if (rol_id !== undefined) patch.rol_id = rol_id;
   if (activo !== undefined) patch.activo = activo;
   if (nombre !== undefined) patch.nombre = nombre;
   if (proveedor !== undefined) patch.proveedor = proveedor;
+  if (codigo_interno !== undefined) {
+    const valor = codigo_interno === null || codigo_interno === "" ? null : String(codigo_interno).trim();
+    if (valor !== null && !/^\d{3}$/.test(valor)) {
+      return res.status(400).json({ error: "El código interno debe tener exactamente 3 dígitos (ej. 101)" });
+    }
+    patch.codigo_interno = valor;
+  }
   patch.updated_at = new Date().toISOString();
 
   const { data, error } = await supabase
     .from("usuarios")
     .update(patch)
     .eq("id", req.params.id)
-    .select("id, email, nombre, proveedor, activo, created_at, roles(id, nombre)")
+    .select("id, email, nombre, proveedor, codigo_interno, activo, created_at, roles(id, nombre)")
     .single();
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) {
+    if (error.code === "23505") return res.status(409).json({ error: "Ese código interno ya lo tiene asignado otro usuario" });
+    return res.status(500).json({ error: error.message });
+  }
   res.json(data);
 });
 

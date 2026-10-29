@@ -143,7 +143,7 @@ export function TicketDetail() {
             </div>
             <div className="flex items-center gap-2">
               <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--color-ink)]/10 text-[10px] font-semibold">
-                {iniciales(ticket.solicitante?.nombre)}
+                {iniciales(ticket.firmante)}
               </span>
               {ticket.firmante}
             </div>

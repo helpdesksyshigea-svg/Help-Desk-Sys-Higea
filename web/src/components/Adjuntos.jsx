@@ -93,7 +93,7 @@ export function Adjuntos({ ticketId, kindsPermitidos = ["oficio", "soporte", "ev
                 <div className="min-w-0 flex-1">
                   <button
                     onClick={() => abrir(a.id)}
-                    className="truncate text-sm font-medium text-[var(--color-ink)] underline-offset-2 hover:underline"
+                    className="block w-full truncate text-left text-sm font-medium text-[var(--color-ink)] underline-offset-2 hover:underline"
                   >
                     {a.nombre_original}
                   </button>
