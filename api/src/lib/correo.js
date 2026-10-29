@@ -1,50 +1,32 @@
-import nodemailer from "nodemailer";
 import { supabase } from "../config/supabase.js";
 
-// Configuración perezosa: si SMTP_USER/SMTP_PASS no están puestos (ambiente local,
-// o antes de que el administrador configure la cuenta de Gmail), el envío simplemente
-// se omite en silencio — nunca debe tumbar una transición de ticket por un correo.
-let transporter = null;
-function getTransporter() {
-  if (transporter) return transporter;
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) return null;
-  // Puerto 587 (STARTTLS) en vez de 465 (SSL directo): algunos hosts bloquean
-  // uno de los dos puertos salientes pero no el otro. Configurable por si hay
-  // que volver a 465 sin tocar código.
-  const port = Number(process.env.SMTP_PORT || 587);
-  transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || "smtp.gmail.com",
-    port,
-    secure: port === 465,
-    requireTLS: port !== 465,
-    connectionTimeout: 15000,
-    greetingTimeout: 15000,
-    socketTimeout: 15000,
-    // Gmail muestra las contraseñas de aplicación agrupadas en bloques de 4
-    // caracteres separados por espacios para que sean fáciles de leer, pero la
-    // contraseña real no los lleva. Se quitan acá por si alguien la pegó tal
-    // como Google la muestra.
-    auth: { user: process.env.SMTP_USER?.trim(), pass: process.env.SMTP_PASS?.replace(/\s+/g, "") },
-  });
-  return transporter;
-}
+// Resend en vez de SMTP/Gmail: se descartó SMTP porque el plan gratuito de
+// Render reinicia el contenedor por inactividad y eso corta a medias la
+// conexión TCP persistente que SMTP necesita (confirmado en los logs: el
+// reinicio ocurrió justo durante el intento de conexión). Resend envía por
+// una sola petición HTTPS que se resuelve en menos de un segundo, sin
+// depender de mantener una conexión abierta.
+const RESEND_URL = "https://api.resend.com/emails";
+const REMITENTE = process.env.RESEND_FROM || "Mesa de ayuda SYS HIGEA <onboarding@resend.dev>";
 
 export async function enviarCorreo(destinatarios, asunto, textoPlano) {
   const correos = [...new Set((destinatarios || []).filter(Boolean))];
   if (!correos.length) return;
-  const t = getTransporter();
-  if (!t) {
-    console.warn(`[correo] SMTP no configurado, se omite: "${asunto}" -> ${correos.join(", ")}`);
+  if (!process.env.RESEND_API_KEY) {
+    console.warn(`[correo] RESEND_API_KEY no configurada, se omite: "${asunto}" -> ${correos.join(", ")}`);
     return;
   }
-  console.log(`[correo] intentando enviar "${asunto}" -> ${correos.join(", ")} (puerto ${process.env.SMTP_PORT || 587})`);
+  console.log(`[correo] intentando enviar "${asunto}" -> ${correos.join(", ")}`);
   try {
-    await t.sendMail({
-      from: `"Mesa de ayuda SYS HIGEA" <${process.env.SMTP_USER}>`,
-      to: correos,
-      subject: asunto,
-      text: textoPlano,
+    const res = await fetch(RESEND_URL, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: REMITENTE, to: correos, subject: asunto, text: textoPlano }),
     });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new Error(`Resend respondió ${res.status}: ${body}`);
+    }
     console.log(`[correo] enviado OK: "${asunto}"`);
   } catch (e) {
     // Un correo que falla nunca debe revertir ni bloquear la transición del ticket.
