@@ -110,7 +110,7 @@ export function Inbox() {
                     onClick={() => navigate(`/tickets/${t.id}`)}
                     className="cursor-pointer border-b border-[var(--color-border)] last:border-0 hover:bg-[var(--color-surface)]"
                   >
-                    <td className="py-3 pl-4 align-top">
+                    <td className="py-3 pl-4 align-middle">
                       <span title={`Prioridad ${PRIORIDAD_LABEL[t.prioridad] || t.prioridad}`}>
                         <PrioridadDot color={PRIORIDAD_COLOR[t.prioridad] || "var(--color-muted)"} />
                       </span>
