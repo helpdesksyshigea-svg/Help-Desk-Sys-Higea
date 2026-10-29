@@ -65,13 +65,23 @@ export function Login() {
 
         <label className="mb-4 block text-sm">
           <span className="mb-1.5 block font-medium">Correo institucional</span>
-          <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} />
+          <input
+            type="email"
+            name="email"
+            autoComplete="username"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className={inputClass}
+          />
         </label>
 
         <label className="mb-5 block text-sm">
           <span className="mb-1.5 block font-medium">Contraseña</span>
           <input
             type="password"
+            name="password"
+            autoComplete="current-password"
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}

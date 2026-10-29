@@ -58,6 +58,8 @@ export function SetPassword() {
               <span className="mb-1.5 block font-medium">Nueva contraseña</span>
               <input
                 type="password"
+                name="new-password"
+                autoComplete="new-password"
                 required
                 minLength={8}
                 value={password}
@@ -69,6 +71,8 @@ export function SetPassword() {
               <span className="mb-1.5 block font-medium">Confirmar contraseña</span>
               <input
                 type="password"
+                name="confirm-password"
+                autoComplete="new-password"
                 required
                 minLength={8}
                 value={confirmar}
