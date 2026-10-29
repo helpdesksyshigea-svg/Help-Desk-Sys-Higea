@@ -308,15 +308,24 @@ function Usuarios() {
           {usuarios.map((u) => (
             <li
               key={u.id}
-              className="grid grid-cols-1 items-center gap-2 px-4 py-3 sm:grid-cols-[1fr_88px_160px_170px] sm:gap-3"
+              className={`grid grid-cols-1 items-center gap-2 px-4 py-3 sm:grid-cols-[1fr_88px_160px_170px] sm:gap-3 ${
+                !u.activo ? "opacity-60" : ""
+              }`}
             >
               <div className="min-w-0">
-                <CampoEditable
-                  valor={u.nombre}
-                  className="font-medium"
-                  placeholder="Nombre"
-                  onGuardar={(v) => guardarCampo(u, "nombre", v, "Nombre")}
-                />
+                <div className="flex flex-wrap items-center gap-2">
+                  <CampoEditable
+                    valor={u.nombre}
+                    className="font-medium"
+                    placeholder="Nombre"
+                    onGuardar={(v) => guardarCampo(u, "nombre", v, "Nombre")}
+                  />
+                  {!u.activo && (
+                    <span className="rounded-[var(--radius-tag)] bg-[#f8e0dc] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.04em] text-[#b3362a]">
+                      Desactivado
+                    </span>
+                  )}
+                </div>
                 <div className="flex flex-wrap items-center gap-1 text-xs text-[var(--color-muted)]">
                   <CampoEditable
                     valor={u.email}
@@ -324,9 +333,7 @@ function Usuarios() {
                     placeholder="correo@ejemplo.com"
                     onGuardar={(v) => guardarCampo(u, "email", v, "Correo")}
                   />
-                  <span>
-                    {u.proveedor ? `· ${u.proveedor}` : ""} {!u.activo && "· Desactivado"}
-                  </span>
+                  {u.proveedor && <span>· {u.proveedor}</span>}
                 </div>
               </div>
               <span className="relative justify-self-center">
