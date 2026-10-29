@@ -52,7 +52,7 @@ export function Admin() {
       <div className="grid gap-6">
         {tab === "usuarios" && <Usuarios />}
         {tab === "roles" && <Roles />}
-        {tab === "tipos" && <Catalogo titulo="Tipos de solicitud" path="tipos" />}
+        {tab === "tipos" && <Catalogo titulo="Tipos de solicitud" path="tipos" camposConfigurables />}
         {tab === "motivos" && <Catalogo titulo="Motivos" path="motivos" />}
         {tab === "ingenieros" && <Catalogo titulo="Ingenieros SYS HIGEA" path="ingenieros" claveAutomatica permiteEliminar />}
         {tab === "sla" && <Sla />}
@@ -578,13 +578,44 @@ function slugificar(texto) {
   return `${base || "item"}_${sufijo}`;
 }
 
-function Catalogo({ titulo, path, claveAutomatica = false, permiteEliminar = false }) {
+const CAMPOS_REGISTRO = [
+  { key: "factura", label: "Factura" },
+  { key: "paciente", label: "Paciente" },
+  { key: "documento", label: "Documento" },
+  { key: "cups", label: "CUPS / folio" },
+  { key: "fecha", label: "Fecha" },
+  { key: "motivo", label: "Motivo" },
+  { key: "descripcion", label: "Descripción" },
+];
+const TODOS_LOS_CAMPOS = CAMPOS_REGISTRO.map((c) => c.key);
+
+function SelectorCampos({ seleccionados, onCambiar }) {
+  return (
+    <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+      {CAMPOS_REGISTRO.map((c) => (
+        <label key={c.key} className="flex items-center gap-1.5 text-xs">
+          <input
+            type="checkbox"
+            checked={seleccionados.includes(c.key)}
+            onChange={(e) =>
+              onCambiar(e.target.checked ? [...seleccionados, c.key] : seleccionados.filter((k) => k !== c.key))
+            }
+          />
+          {c.label}
+        </label>
+      ))}
+    </div>
+  );
+}
+
+function Catalogo({ titulo, path, claveAutomatica = false, permiteEliminar = false, camposConfigurables = false }) {
   const [items, setItems] = useState([]);
   const [clave, setClave] = useState("");
   const [etiqueta, setEtiqueta] = useState("");
+  const [campos, setCampos] = useState(TODOS_LOS_CAMPOS);
   const [error, setError] = useState(null);
   const [editando, setEditando] = useState(null); // clave del item en edición, o null
-  const [edicion, setEdicion] = useState({ clave: "", etiqueta: "" });
+  const [edicion, setEdicion] = useState({ clave: "", etiqueta: "", campos_obligatorios: TODOS_LOS_CAMPOS });
 
   async function cargar() {
     try {
@@ -605,10 +636,13 @@ function Catalogo({ titulo, path, claveAutomatica = false, permiteEliminar = fal
     setError(null);
     try {
       const claveFinal = claveAutomatica ? slugificar(etiqueta) : clave;
-      await apiFetch(`/admin/${path}`, { method: "POST", body: JSON.stringify({ clave: claveFinal, etiqueta }) });
+      const body = { clave: claveFinal, etiqueta };
+      if (camposConfigurables) body.campos_obligatorios = campos;
+      await apiFetch(`/admin/${path}`, { method: "POST", body: JSON.stringify(body) });
       exito(`"${etiqueta}" agregado`);
       setClave("");
       setEtiqueta("");
+      setCampos(TODOS_LOS_CAMPOS);
       await cargar();
     } catch (e) {
       setError(e.message);
@@ -638,17 +672,20 @@ function Catalogo({ titulo, path, claveAutomatica = false, permiteEliminar = fal
 
   function empezarEdicion(item) {
     setEditando(item.clave);
-    setEdicion({ clave: item.clave, etiqueta: item.etiqueta });
+    setEdicion({
+      clave: item.clave,
+      etiqueta: item.etiqueta,
+      campos_obligatorios: Array.isArray(item.campos_obligatorios) ? item.campos_obligatorios : TODOS_LOS_CAMPOS,
+    });
     setError(null);
   }
 
   async function guardarEdicion(claveOriginal) {
     setError(null);
     try {
-      await apiFetch(`/admin/${path}/${claveOriginal}`, {
-        method: "PATCH",
-        body: JSON.stringify({ nueva_clave: edicion.clave, etiqueta: edicion.etiqueta }),
-      });
+      const body = { nueva_clave: edicion.clave, etiqueta: edicion.etiqueta };
+      if (camposConfigurables) body.campos_obligatorios = edicion.campos_obligatorios;
+      await apiFetch(`/admin/${path}/${claveOriginal}`, { method: "PATCH", body: JSON.stringify(body) });
       exito("Cambios guardados");
       setEditando(null);
       await cargar();
@@ -680,6 +717,12 @@ function Catalogo({ titulo, path, claveAutomatica = false, permiteEliminar = fal
             Agregar
           </Button>
         </form>
+        {camposConfigurables && (
+          <div className="grid gap-1.5 border-t border-[var(--color-border)] pt-3">
+            <span className="text-xs font-medium text-[var(--color-muted)]">Campos obligatorios del registro</span>
+            <SelectorCampos seleccionados={campos} onCambiar={setCampos} />
+          </div>
+        )}
         <Mensaje error={error} />
       </Card>
 
@@ -722,12 +765,30 @@ function Catalogo({ titulo, path, claveAutomatica = false, permiteEliminar = fal
               <Button variant="ghost" onClick={() => setEditando(null)} title="Cancelar">
                 <IconClose size={14} />
               </Button>
+              {camposConfigurables && (
+                <div className={`grid gap-1.5 pt-1 ${claveAutomatica ? "col-span-3" : "col-span-4"}`}>
+                  <span className="text-xs font-medium text-[var(--color-muted)]">Campos obligatorios del registro</span>
+                  <SelectorCampos
+                    seleccionados={edicion.campos_obligatorios}
+                    onCambiar={(v) => setEdicion((p) => ({ ...p, campos_obligatorios: v }))}
+                  />
+                </div>
+              )}
             </li>
           ) : (
             <li key={item.clave} className="flex items-center justify-between px-4 py-3">
               <div>
                 <div className="font-medium">{item.etiqueta}</div>
                 {!claveAutomatica && <div className="text-xs text-[var(--color-muted)]">{item.clave}</div>}
+                {camposConfigurables && (
+                  <div className="mt-0.5 text-xs text-[var(--color-muted)]">
+                    {Array.isArray(item.campos_obligatorios) && item.campos_obligatorios.length < TODOS_LOS_CAMPOS.length
+                      ? `Opcionales: ${CAMPOS_REGISTRO.filter((c) => !item.campos_obligatorios.includes(c.key))
+                          .map((c) => c.label)
+                          .join(", ")}`
+                      : "Todos los campos obligatorios"}
+                  </div>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="ghost" onClick={() => empezarEdicion(item)} title="Editar">

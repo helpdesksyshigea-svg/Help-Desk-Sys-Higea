@@ -9,7 +9,11 @@ export const catalogosRouter = conManejoAsync(Router());
 catalogosRouter.use(authenticate);
 
 catalogosRouter.get("/catalogos/tipos", async (req, res) => {
-  const { data, error } = await supabase.from("tipos_solicitud").select("clave, etiqueta").eq("activo", true).order("etiqueta");
+  const { data, error } = await supabase
+    .from("tipos_solicitud")
+    .select("clave, etiqueta, campos_obligatorios")
+    .eq("activo", true)
+    .order("etiqueta");
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
 });

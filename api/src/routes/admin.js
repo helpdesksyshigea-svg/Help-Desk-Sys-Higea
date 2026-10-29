@@ -355,7 +355,7 @@ adminRouter.patch("/admin/roles/:id", requirePermission("roles.gestionar"), asyn
 
 // `referencia` describe dónde más vive la clave de este catálogo (la tabla/columna
 // de tickets que la usa), para poder renombrarla en cascada sin dejar tickets huérfanos.
-function catalogoRouter(path, tabla, referencia, { permiteEliminar = false } = {}) {
+function catalogoRouter(path, tabla, referencia, { permiteEliminar = false, camposExtra = [] } = {}) {
   adminRouter.get(`/admin/${path}`, requirePermission("config.editar"), async (req, res) => {
     const { data, error } = await supabase.from(tabla).select("*").order("etiqueta");
     if (error) return res.status(500).json({ error: error.message });
@@ -367,11 +367,11 @@ function catalogoRouter(path, tabla, referencia, { permiteEliminar = false } = {
     if (!clave?.trim() || !etiqueta?.trim()) {
       return res.status(400).json({ error: "Faltan clave y etiqueta" });
     }
-    const { data, error } = await supabase
-      .from(tabla)
-      .insert({ clave: clave.trim(), etiqueta: etiqueta.trim() })
-      .select()
-      .single();
+    const fila = { clave: clave.trim(), etiqueta: etiqueta.trim() };
+    for (const campo of camposExtra) {
+      if (req.body[campo] !== undefined) fila[campo] = req.body[campo];
+    }
+    const { data, error } = await supabase.from(tabla).insert(fila).select().single();
     if (error) return res.status(500).json({ error: error.message });
     res.status(201).json(data);
   });
@@ -408,6 +408,9 @@ function catalogoRouter(path, tabla, referencia, { permiteEliminar = false } = {
     const patch = {};
     if (etiqueta !== undefined) patch.etiqueta = etiqueta;
     if (activo !== undefined) patch.activo = activo;
+    for (const campo of camposExtra) {
+      if (req.body[campo] !== undefined) patch[campo] = req.body[campo];
+    }
     const claveFinal = nueva_clave?.trim() || claveActual;
     const { data, error } = await supabase.from(tabla).update(patch).eq("clave", claveFinal).select().single();
     if (error) return res.status(500).json({ error: error.message });
@@ -427,7 +430,7 @@ function catalogoRouter(path, tabla, referencia, { permiteEliminar = false } = {
   }
 }
 
-catalogoRouter("tipos", "tipos_solicitud", { tabla: "tickets", columna: "tipo" });
+catalogoRouter("tipos", "tipos_solicitud", { tabla: "tickets", columna: "tipo" }, { camposExtra: ["campos_obligatorios"] });
 catalogoRouter("motivos", "motivos", { tabla: "ticket_items", columna: "motivo" });
 catalogoRouter("ingenieros", "ingenieros_higea", { tabla: "tickets", columna: "agente_higea" }, { permiteEliminar: true });
 

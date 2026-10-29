@@ -27,22 +27,44 @@ ticketsRouter.use(authenticate);
 const FORMATO_DOCUMENTO = /^\d{5,15}$/;
 const FORMATO_FACTURA = /^[A-Za-z0-9-]{4,20}$/;
 
+const ETIQUETA_CAMPO = {
+  factura: "el número de factura",
+  paciente: "el nombre del paciente",
+  documento: "el número de documento del paciente",
+  cups: "el CUPS o folio",
+  fecha: "la fecha",
+  motivo: "un motivo",
+  descripcion: "una descripción",
+};
+
 async function validarItems(items, tipo) {
   if (!Array.isArray(items) || items.length === 0) return "Debe incluir al menos un registro";
-  const { data: tipoRow, error } = await supabase.from("tipos_solicitud").select("requiere_factura").eq("clave", tipo).maybeSingle();
+  const { data: tipoRow, error } = await supabase
+    .from("tipos_solicitud")
+    .select("campos_obligatorios")
+    .eq("clave", tipo)
+    .maybeSingle();
   // Sin este chequeo, un fallo de la consulta se reportaba como "tipo no existe" (400).
   if (error) throw new Error(`consultando tipo de solicitud '${tipo}': ${error.message}`);
   if (!tipoRow) return `Tipo de solicitud '${tipo}' no existe`;
+  // Cada tipo decide cuáles de los 7 campos son obligatorios (ej. historia
+  // clínica no tiene número de factura) — administrable en Administración →
+  // Tipos de solicitud. Un campo no marcado obligatorio igual se valida en
+  // formato si trae algo, solo no se exige que venga lleno.
+  const obligatorios = new Set(Array.isArray(tipoRow.campos_obligatorios) ? tipoRow.campos_obligatorios : []);
+
   for (const item of items) {
-    if (!item.motivo) return "Cada registro requiere un motivo";
-    if (!item.paciente?.trim()) return "Cada registro requiere el nombre del paciente";
-    if (!item.documento?.trim()) return "Cada registro requiere el número de documento del paciente";
-    if (!FORMATO_DOCUMENTO.test(item.documento.trim())) return "El documento debe contener solo números (5 a 15 dígitos)";
-    if (!item.factura?.trim()) return "Cada registro requiere su número de factura";
-    if (!FORMATO_FACTURA.test(item.factura.trim())) return "La factura debe tener entre 4 y 20 caracteres alfanuméricos (se permiten guiones)";
-    if (!item.cups?.trim()) return "Cada registro requiere el CUPS o folio";
-    if (!item.fecha?.trim()) return "Cada registro requiere la fecha";
-    if (!item.descripcion?.trim()) return "Cada registro requiere una descripción";
+    for (const campo of Object.keys(ETIQUETA_CAMPO)) {
+      if (obligatorios.has(campo) && !item[campo]?.toString().trim()) {
+        return `Cada registro requiere ${ETIQUETA_CAMPO[campo]}`;
+      }
+    }
+    if (item.documento?.trim() && !FORMATO_DOCUMENTO.test(item.documento.trim())) {
+      return "El documento debe contener solo números (5 a 15 dígitos)";
+    }
+    if (item.factura?.trim() && !FORMATO_FACTURA.test(item.factura.trim())) {
+      return "La factura debe tener entre 4 y 20 caracteres alfanuméricos (se permiten guiones)";
+    }
   }
   return null;
 }

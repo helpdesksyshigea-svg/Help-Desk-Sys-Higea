@@ -35,6 +35,22 @@ export function TicketForm({ modo, inicial, onSubmit, submitLabel }) {
     return bytes > 1048576 ? (bytes / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(bytes / 1024)) + " KB";
   }
 
+  const tipoActual = tipos.find((t) => t.clave === tipo);
+  const obligatorios = new Set(
+    Array.isArray(tipoActual?.campos_obligatorios)
+      ? tipoActual.campos_obligatorios
+      : ["factura", "paciente", "documento", "cups", "fecha", "motivo", "descripcion"],
+  );
+  const ETIQUETA_CAMPO = {
+    factura: "el número de factura",
+    paciente: "el nombre del paciente",
+    documento: "el número de documento del paciente",
+    cups: "el CUPS o folio",
+    fecha: "la fecha",
+    motivo: "un motivo",
+    descripcion: "una descripción",
+  };
+
   useEffect(() => {
     Promise.all([apiFetch("/catalogos/tipos"), apiFetch("/catalogos/motivos")])
       .then(([tiposData, motivosData]) => {
@@ -63,40 +79,18 @@ export function TicketForm({ modo, inicial, onSubmit, submitLabel }) {
       setError("Indique el nombre de quien firma el oficio");
       return;
     }
-    if (items.some((item) => !item.motivo)) {
-      setError("Cada registro requiere un motivo");
-      return;
+    for (const campo of obligatorios) {
+      if (items.some((item) => !item[campo]?.toString().trim())) {
+        setError(`Cada registro requiere ${ETIQUETA_CAMPO[campo]}`);
+        return;
+      }
     }
-    if (items.some((item) => !item.paciente?.trim())) {
-      setError("Cada registro requiere el nombre del paciente");
-      return;
-    }
-    if (items.some((item) => !item.documento?.trim())) {
-      setError("Cada registro requiere el número de documento del paciente");
-      return;
-    }
-    if (items.some((item) => !/^\d{5,15}$/.test(item.documento.trim()))) {
+    if (items.some((item) => item.documento?.trim() && !/^\d{5,15}$/.test(item.documento.trim()))) {
       setError("El documento debe contener solo números (5 a 15 dígitos)");
       return;
     }
-    if (items.some((item) => !item.factura?.trim())) {
-      setError("Cada registro requiere su número de factura");
-      return;
-    }
-    if (items.some((item) => !/^[A-Za-z0-9-]{4,20}$/.test(item.factura.trim()))) {
+    if (items.some((item) => item.factura?.trim() && !/^[A-Za-z0-9-]{4,20}$/.test(item.factura.trim()))) {
       setError("La factura debe tener entre 4 y 20 caracteres alfanuméricos (se permiten guiones)");
-      return;
-    }
-    if (items.some((item) => !item.cups?.trim())) {
-      setError("Cada registro requiere el CUPS o folio");
-      return;
-    }
-    if (items.some((item) => !item.fecha?.trim())) {
-      setError("Cada registro requiere la fecha");
-      return;
-    }
-    if (items.some((item) => !item.descripcion?.trim())) {
-      setError("Cada registro requiere una descripción");
       return;
     }
     if (modo === "crear" && !oficio) {
@@ -185,60 +179,60 @@ export function TicketForm({ modo, inicial, onSubmit, submitLabel }) {
             </div>
             <div className="grid gap-3 sm:grid-cols-4">
               <label className="text-sm">
-                <span className="mb-1 block font-medium">Factura</span>
+                <span className="mb-1 block font-medium">Factura{!obligatorios.has("factura") && " (opcional)"}</span>
                 <input
                   value={item.factura || ""}
                   onChange={(e) => actualizarItem(i, "factura", e.target.value)}
                   className={inputClass}
-                  required
+                  required={obligatorios.has("factura")}
                 />
               </label>
               <label className="text-sm">
-                <span className="mb-1 block font-medium">Paciente</span>
+                <span className="mb-1 block font-medium">Paciente{!obligatorios.has("paciente") && " (opcional)"}</span>
                 <input
                   value={item.paciente || ""}
                   onChange={(e) => actualizarItem(i, "paciente", e.target.value)}
                   className={inputClass}
-                  required
+                  required={obligatorios.has("paciente")}
                 />
               </label>
               <label className="text-sm">
-                <span className="mb-1 block font-medium">Documento</span>
+                <span className="mb-1 block font-medium">Documento{!obligatorios.has("documento") && " (opcional)"}</span>
                 <input
                   value={item.documento || ""}
                   onChange={(e) => actualizarItem(i, "documento", e.target.value)}
                   className={inputClass}
-                  required
+                  required={obligatorios.has("documento")}
                 />
               </label>
               <label className="text-sm">
-                <span className="mb-1 block font-medium">CUPS / folio</span>
+                <span className="mb-1 block font-medium">CUPS / folio{!obligatorios.has("cups") && " (opcional)"}</span>
                 <input
                   value={item.cups || ""}
                   onChange={(e) => actualizarItem(i, "cups", e.target.value)}
                   className={inputClass}
-                  required
+                  required={obligatorios.has("cups")}
                 />
               </label>
             </div>
             <div className="grid gap-3 sm:grid-cols-[160px_1fr_1fr]">
               <label className="text-sm">
-                <span className="mb-1 block font-medium">Fecha</span>
+                <span className="mb-1 block font-medium">Fecha{!obligatorios.has("fecha") && " (opcional)"}</span>
                 <input
                   type="date"
                   value={item.fecha || ""}
                   onChange={(e) => actualizarItem(i, "fecha", e.target.value)}
                   className={inputClass}
-                  required
+                  required={obligatorios.has("fecha")}
                 />
               </label>
               <label className="text-sm">
-                <span className="mb-1 block font-medium">Motivo</span>
+                <span className="mb-1 block font-medium">Motivo{!obligatorios.has("motivo") && " (opcional)"}</span>
                 <select
                   value={item.motivo || ""}
                   onChange={(e) => actualizarItem(i, "motivo", e.target.value)}
                   className={inputClass}
-                  required
+                  required={obligatorios.has("motivo")}
                 >
                   <option value="">Seleccione…</option>
                   {motivos.map((m) => (
@@ -249,12 +243,12 @@ export function TicketForm({ modo, inicial, onSubmit, submitLabel }) {
                 </select>
               </label>
               <label className="text-sm">
-                <span className="mb-1 block font-medium">Descripción</span>
+                <span className="mb-1 block font-medium">Descripción{!obligatorios.has("descripcion") && " (opcional)"}</span>
                 <input
                   value={item.descripcion || ""}
                   onChange={(e) => actualizarItem(i, "descripcion", e.target.value)}
                   className={inputClass}
-                  required
+                  required={obligatorios.has("descripcion")}
                 />
               </label>
             </div>
