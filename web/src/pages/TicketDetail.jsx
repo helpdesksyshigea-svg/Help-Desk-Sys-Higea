@@ -228,13 +228,13 @@ export function TicketDetail() {
               const enCurso = esUltimo && ticket.estado !== "cerrado";
               return (
               <li key={ev.id} className="grid grid-cols-[20px_1fr] gap-3">
-                <div className="flex flex-col items-center">
+                <div className="flex min-h-full flex-col items-center">
                   <span
-                    className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${
+                    className={`mt-1 h-3.5 w-3.5 shrink-0 rounded-full ${
                       enCurso ? "border-2 border-[var(--color-ink)] bg-transparent" : "bg-[var(--color-state-cerrado)]"
                     }`}
                   />
-                  {!esUltimo && <span className="w-px flex-1 bg-[var(--color-border)]" />}
+                  {!esUltimo && <span className="mt-1 w-0.5 flex-1 bg-[var(--color-ink)]/15" />}
                 </div>
                 <div className="pb-1">
                   <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
