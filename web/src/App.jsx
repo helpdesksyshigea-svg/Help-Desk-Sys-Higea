@@ -10,6 +10,7 @@ import { NewTicket } from "./pages/NewTicket";
 import { EditTicket } from "./pages/EditTicket";
 import { Admin } from "./pages/Admin";
 import { Ayuda } from "./pages/Ayuda";
+import { Manual } from "./pages/Manual";
 
 function Protegido({ children }) {
   const { autenticado, cargando, error } = useAuth();
@@ -47,6 +48,7 @@ function Rutas() {
         <Route path="/tickets/:id" element={<TicketDetail />} />
         <Route path="/tickets/:id/editar" element={<EditTicket />} />
         <Route path="/ayuda" element={<Ayuda />} />
+        <Route path="/manual" element={<Manual />} />
         <Route
           path="/admin"
           element={

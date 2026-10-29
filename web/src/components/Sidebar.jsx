@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { apiFetch } from "../lib/api";
 import { FILTROS_POR_ROL } from "../lib/filters";
 import { RequirePermission } from "./RequirePermission";
-import { IconInbox, IconSettings, IconInfo, IconClock, IconCheck, IconAlert, IconDatabase } from "./icons";
+import { IconInbox, IconSettings, IconInfo, IconClock, IconCheck, IconAlert, IconDatabase, IconBook } from "./icons";
 
 const ICONOS = { accion: IconAlert, vencidos: IconClock, todos: IconCheck };
 
@@ -101,6 +101,12 @@ export function Sidebar() {
             </span>
           </NavLink>
         </RequirePermission>
+        <NavLink to="/manual" className={({ isActive }) => itemClass(isActive)}>
+          <span className="flex items-center gap-2">
+            <IconBook size={16} />
+            Manual de usuario
+          </span>
+        </NavLink>
         <NavLink to="/ayuda" className={({ isActive }) => itemClass(isActive)}>
           <span className="flex items-center gap-2">
             <IconInfo size={16} />
