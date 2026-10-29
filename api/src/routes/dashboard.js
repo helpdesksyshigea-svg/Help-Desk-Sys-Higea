@@ -31,7 +31,13 @@ function contarPor(items, clave) {
 
 // ---------- resumen ----------
 dashboardRouter.get("/dashboard/resumen", requirePermission("reportes.ver_dashboard"), async (req, res) => {
-  const hasta = req.query.hasta || new Date().toISOString();
+  // El filtro de fecha del frontend es un <input type="date"> (solo
+  // YYYY-MM-DD, sin hora). Sin esto, "hasta=2026-10-29" se interpreta como
+  // 2026-10-29T00:00:00 y excluye cualquier ticket creado esa misma tarde —
+  // el rango debe cubrir el día completo, no solo su medianoche.
+  const SOLO_FECHA = /^\d{4}-\d{2}-\d{2}$/;
+  let hasta = req.query.hasta || new Date().toISOString();
+  if (SOLO_FECHA.test(hasta)) hasta = `${hasta}T23:59:59.999Z`;
   const desde = req.query.desde || new Date(new Date(hasta).getTime() - NOVENTA_DIAS_MS).toISOString();
 
   const { data: tickets, error: tErr } = await supabase
