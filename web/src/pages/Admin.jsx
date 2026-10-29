@@ -24,23 +24,18 @@ export function Admin() {
   const [params] = useSearchParams();
   const [tab, setTab] = useState(params.get("tab") || "usuarios");
   return (
-    <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
-      <aside className="h-fit overflow-hidden rounded-[var(--radius-card)] bg-[var(--color-ink)] p-3">
-        <div className="mb-3 px-2 pt-1">
-          <p className="text-sm font-bold leading-tight text-[var(--color-canvas)]">Mesa de ayuda</p>
-          <p className="text-xs" style={{ color: "var(--color-accent)" }}>
-            SYS HIGEA
-          </p>
-        </div>
-        <nav className="grid gap-0.5">
+    <div className="grid gap-6">
+      <div>
+        <h2 className="text-xl font-semibold tracking-tight">Administración</h2>
+        <nav className="mt-4 flex flex-wrap gap-1 border-b border-[var(--color-border)] pb-0">
           {TABS.map((t) => (
             <button
               key={t.k}
               onClick={() => setTab(t.k)}
-              className={`flex items-center gap-2 rounded-[var(--radius-button)] px-3 py-2 text-left text-sm font-medium transition-colors ${
+              className={`flex items-center gap-2 rounded-t-[var(--radius-button)] border-b-2 px-3 py-2 text-sm font-medium transition-colors ${
                 tab === t.k
-                  ? "bg-[var(--color-accent)] text-[var(--color-accent-ink)]"
-                  : "text-[var(--color-canvas)]/80 hover:bg-white/10"
+                  ? "border-[var(--color-ink)] text-[var(--color-ink)]"
+                  : "border-transparent text-[var(--color-muted)] hover:text-[var(--color-ink)]"
               }`}
             >
               <t.icon size={15} />
@@ -48,10 +43,9 @@ export function Admin() {
             </button>
           ))}
         </nav>
-      </aside>
+      </div>
 
       <div className="grid gap-6">
-        <h2 className="text-xl font-semibold tracking-tight">Administración</h2>
         {tab === "usuarios" && <Usuarios />}
         {tab === "roles" && <Roles />}
         {tab === "tipos" && <Catalogo titulo="Tipos de solicitud" path="tipos" />}
