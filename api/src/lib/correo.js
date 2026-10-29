@@ -53,12 +53,15 @@ export async function enviarCorreo(destinatarios, asunto, textoPlano) {
 }
 
 async function correosConPermiso(clavePermiso) {
-  const { data: permiso } = await supabase.from("permisos").select("id").eq("clave", clavePermiso).single();
+  const { data: permiso, error: e1 } = await supabase.from("permisos").select("id").eq("clave", clavePermiso).single();
+  if (e1) throw new Error(`consultando permiso '${clavePermiso}': ${e1.message}`);
   if (!permiso) return [];
-  const { data: roles } = await supabase.from("rol_permisos").select("rol_id").eq("permiso_id", permiso.id);
+  const { data: roles, error: e2 } = await supabase.from("rol_permisos").select("rol_id").eq("permiso_id", permiso.id);
+  if (e2) throw new Error(`consultando rol_permisos: ${e2.message}`);
   const rolIds = (roles || []).map((r) => r.rol_id);
   if (!rolIds.length) return [];
-  const { data: usuarios } = await supabase.from("usuarios").select("email, activo").in("rol_id", rolIds).eq("activo", true);
+  const { data: usuarios, error: e3 } = await supabase.from("usuarios").select("email, activo").in("rol_id", rolIds).eq("activo", true);
+  if (e3) throw new Error(`consultando usuarios: ${e3.message}`);
   return (usuarios || []).map((u) => u.email);
 }
 
@@ -76,20 +79,27 @@ const ASUNTOS = {
 // según quién necesita actuar o enterarse en cada estado, y nunca lanza: los
 // errores de correo se registran y se ignoran (ver enviarCorreo).
 export async function notificarTransicion(evento, ticket, solicitanteEmail) {
-  const asunto = ASUNTOS[evento]?.(ticket.code);
-  if (!asunto) return;
-  const cuerpo = `Ticket ${ticket.code} (${ticket.tipo}) — ${ticket.firmante}\n\nEstado actual: ${ticket.estado}\n\nIngresa a la Mesa de ayuda SYS HIGEA para ver el detalle.`;
+  try {
+    const asunto = ASUNTOS[evento]?.(ticket.code);
+    if (!asunto) return;
+    const cuerpo = `Ticket ${ticket.code} (${ticket.tipo}) — ${ticket.firmante}\n\nEstado actual: ${ticket.estado}\n\nIngresa a la Mesa de ayuda SYS HIGEA para ver el detalle.`;
 
-  let destinatarios = [];
-  if (evento === "creado") {
-    destinatarios = await correosConPermiso("tickets.aprobar");
-  } else if (evento === "aprobado" || evento === "reabierto") {
-    destinatarios = [...(await correosConPermiso("tickets.tomar")), solicitanteEmail];
-  } else if (evento === "devuelto" || evento === "requiere_info" || evento === "cerrado") {
-    destinatarios = [solicitanteEmail];
-  } else if (evento === "respondido") {
-    destinatarios = await correosConPermiso("tickets.cerrar");
+    let destinatarios = [];
+    if (evento === "creado") {
+      destinatarios = await correosConPermiso("tickets.aprobar");
+    } else if (evento === "aprobado" || evento === "reabierto") {
+      destinatarios = [...(await correosConPermiso("tickets.tomar")), solicitanteEmail];
+    } else if (evento === "devuelto" || evento === "requiere_info" || evento === "cerrado") {
+      destinatarios = [solicitanteEmail];
+    } else if (evento === "respondido") {
+      destinatarios = await correosConPermiso("tickets.cerrar");
+    }
+
+    await enviarCorreo(destinatarios, asunto, cuerpo);
+  } catch (e) {
+    // Resolver destinatarios (consultas a permisos/rol_permisos/usuarios) puede
+    // fallar por motivos ajenos al envío en sí; se registra en vez de perderse
+    // en silencio, pero tampoco debe tumbar la transición del ticket.
+    console.error(`[correo] error resolviendo destinatarios para "${evento}":`, e.message);
   }
-
-  await enviarCorreo(destinatarios, asunto, cuerpo);
 }
