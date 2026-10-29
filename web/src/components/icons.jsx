@@ -49,6 +49,17 @@ export const IconAlert = (p) => (
     <path d="M12 9v4M12 17h.01" />
   </Svg>
 );
+export const IconSearch = (p) => (
+  <Svg {...p}>
+    <circle cx="11" cy="11" r="7" />
+    <path d="m21 21-4.3-4.3" />
+  </Svg>
+);
+export const IconTrash = (p) => (
+  <Svg {...p}>
+    <path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2m2 0-1 13a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L6 7" />
+  </Svg>
+);
 export const IconPaperclip = (p) => (
   <Svg {...p}>
     <path d="M21 11.5 12.4 20a4.5 4.5 0 0 1-6.4-6.4l8.1-8.1a3 3 0 0 1 4.2 4.2l-8.1 8.1a1.5 1.5 0 0 1-2.1-2.1l7.4-7.4" />

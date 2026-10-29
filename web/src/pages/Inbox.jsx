@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { apiFetch } from "../lib/api";
 import { FILTROS_POR_ROL, FILTRO_DEFAULT, ESPERANDO, necesitaAccion, textoSla } from "../lib/filters";
@@ -33,8 +33,10 @@ function PrioridadDot({ color }) {
 export function Inbox() {
   const { perfil } = useAuth();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
   const filtros = FILTROS_POR_ROL[perfil?.rol] || FILTROS_POR_ROL.facturador;
-  const [filtroActivo, setFiltroActivo] = useState(FILTRO_DEFAULT[perfil?.rol] || filtros[0][0]);
+  const filtroActivo = params.get("filtro") || FILTRO_DEFAULT[perfil?.rol] || filtros[0][0];
+  const busqueda = (params.get("q") || "").trim().toLowerCase();
   const [tickets, setTickets] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
@@ -47,13 +49,20 @@ export function Inbox() {
   }, []);
 
   const [, , fn] = filtros.find(([k]) => k === filtroActivo) || filtros[0];
-  const visibles = useMemo(
-    () =>
-      tickets
-        .filter(fn)
-        .sort((a, b) => (b.vencido === a.vencido ? new Date(b.created_at) - new Date(a.created_at) : b.vencido ? 1 : -1)),
-    [tickets, fn]
-  );
+  const visibles = useMemo(() => {
+    const base = busqueda
+      ? tickets.filter((t) => {
+          const texto = [t.code, t.solicitante?.nombre, ...(t.items?.flatMap((i) => [i.factura, i.paciente, i.documento]) || [])]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
+          return texto.includes(busqueda);
+        })
+      : tickets.filter(fn);
+    return [...base].sort((a, b) =>
+      b.vencido === a.vencido ? new Date(b.created_at) - new Date(a.created_at) : b.vencido ? 1 : -1
+    );
+  }, [tickets, fn, busqueda]);
 
   return (
     <div className="grid gap-6">
@@ -67,21 +76,30 @@ export function Inbox() {
         </RequirePermission>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {filtros.map(([clave, etiqueta, fn]) => (
-          <button
-            key={clave}
-            onClick={() => setFiltroActivo(clave)}
-            className={`rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
-              filtroActivo === clave
-                ? "border-[var(--color-ink)] bg-[var(--color-ink)] text-[var(--color-canvas)]"
-                : "border-[var(--color-border)] text-[var(--color-muted)] hover:border-[var(--color-ink)]/40 hover:text-[var(--color-ink)]"
-            }`}
-          >
-            {etiqueta} <span className="opacity-70">{tickets.filter(fn).length}</span>
+      {busqueda ? (
+        <p className="text-sm text-[var(--color-muted)]">
+          Resultados para "<span className="font-medium text-[var(--color-ink)]">{busqueda}</span>" — {visibles.length} ticket(s).{" "}
+          <button onClick={() => navigate("/")} className="underline hover:text-[var(--color-ink)]">
+            Quitar búsqueda
           </button>
-        ))}
-      </div>
+        </p>
+      ) : (
+        <div className="flex flex-wrap gap-2 md:hidden">
+          {filtros.map(([clave, etiqueta, fn]) => (
+            <button
+              key={clave}
+              onClick={() => navigate(`/?filtro=${clave}`)}
+              className={`rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
+                filtroActivo === clave
+                  ? "border-[var(--color-ink)] bg-[var(--color-ink)] text-[var(--color-canvas)]"
+                  : "border-[var(--color-border)] text-[var(--color-muted)] hover:border-[var(--color-ink)]/40 hover:text-[var(--color-ink)]"
+              }`}
+            >
+              {etiqueta} <span className="opacity-70">{tickets.filter(fn).length}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {cargando && (
         <div className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border)] divide-y divide-[var(--color-border)]">

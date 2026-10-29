@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { apiFetch } from "../lib/api";
 import { Card } from "./Card";
 import { Button } from "./Button";
-import { IconUpload, IconPlus } from "./icons";
+import { IconUpload, IconPlus, IconTrash } from "./icons";
 
 export const PRIORIDADES = { alta: "Alta (1 día hábil)", normal: "Normal (2 días hábiles)", baja: "Baja (5 días hábiles)" };
 
@@ -28,6 +28,7 @@ export function TicketForm({ modo, inicial, onSubmit, submitLabel }) {
   const [oficio, setOficio] = useState(null);
   const [error, setError] = useState(null);
   const [enviando, setEnviando] = useState(false);
+  const [arrastrando, setArrastrando] = useState(false);
   const oficioInput = useRef(null);
 
   function kb(bytes) {
@@ -131,80 +132,91 @@ export function TicketForm({ modo, inicial, onSubmit, submitLabel }) {
           </p>
         </div>
         {items.map((item, i) => (
-          <Card key={i} className="grid gap-3 sm:grid-cols-3">
-            <div className="sm:col-span-3 -mb-1 flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-ink)]/10 text-xs font-semibold text-[var(--color-ink)]">
-              {i + 1}
+          <Card key={i} className="grid gap-3">
+            <div className="flex items-center justify-between">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-ink)]/10 text-xs font-semibold text-[var(--color-ink)]">
+                {i + 1}
+              </span>
+              {items.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => quitarItem(i)}
+                  aria-label="Quitar registro"
+                  className="rounded p-1 text-[var(--color-muted)] hover:bg-[#f8e0dc] hover:text-[#b3362a]"
+                >
+                  <IconTrash size={15} />
+                </button>
+              )}
             </div>
-            <label className="text-sm">
-              <span className="mb-1 block font-medium">Factura</span>
-              <input
-                value={item.factura || ""}
-                onChange={(e) => actualizarItem(i, "factura", e.target.value)}
-                className={inputClass}
-              />
-            </label>
-            <label className="text-sm">
-              <span className="mb-1 block font-medium">Paciente</span>
-              <input
-                value={item.paciente || ""}
-                onChange={(e) => actualizarItem(i, "paciente", e.target.value)}
-                className={inputClass}
-              />
-            </label>
-            <label className="text-sm">
-              <span className="mb-1 block font-medium">Documento</span>
-              <input
-                value={item.documento || ""}
-                onChange={(e) => actualizarItem(i, "documento", e.target.value)}
-                className={inputClass}
-              />
-            </label>
-            <label className="text-sm">
-              <span className="mb-1 block font-medium">CUPS / folio (si es HC)</span>
-              <input
-                value={item.cups || ""}
-                onChange={(e) => actualizarItem(i, "cups", e.target.value)}
-                className={inputClass}
-              />
-            </label>
-            <label className="text-sm">
-              <span className="mb-1 block font-medium">Fecha</span>
-              <input
-                type="date"
-                value={item.fecha || ""}
-                onChange={(e) => actualizarItem(i, "fecha", e.target.value)}
-                className={inputClass}
-              />
-            </label>
-            <label className="text-sm">
-              <span className="mb-1 block font-medium">Motivo</span>
-              <select
-                value={item.motivo || ""}
-                onChange={(e) => actualizarItem(i, "motivo", e.target.value)}
-                className={inputClass}
-                required
-              >
-                <option value="">Seleccione…</option>
-                {motivos.map((m) => (
-                  <option key={m.clave} value={m.clave}>
-                    {m.etiqueta}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="text-sm sm:col-span-3">
-              <span className="mb-1 block font-medium">Descripción</span>
-              <textarea
-                value={item.descripcion || ""}
-                onChange={(e) => actualizarItem(i, "descripcion", e.target.value)}
-                className={inputClass}
-              />
-            </label>
-            {items.length > 1 && (
-              <Button type="button" variant="danger" className="justify-self-start" onClick={() => quitarItem(i)}>
-                Quitar registro
-              </Button>
-            )}
+            <div className="grid gap-3 sm:grid-cols-4">
+              <label className="text-sm">
+                <span className="mb-1 block font-medium">Factura</span>
+                <input
+                  value={item.factura || ""}
+                  onChange={(e) => actualizarItem(i, "factura", e.target.value)}
+                  className={inputClass}
+                />
+              </label>
+              <label className="text-sm">
+                <span className="mb-1 block font-medium">Paciente</span>
+                <input
+                  value={item.paciente || ""}
+                  onChange={(e) => actualizarItem(i, "paciente", e.target.value)}
+                  className={inputClass}
+                />
+              </label>
+              <label className="text-sm">
+                <span className="mb-1 block font-medium">Documento</span>
+                <input
+                  value={item.documento || ""}
+                  onChange={(e) => actualizarItem(i, "documento", e.target.value)}
+                  className={inputClass}
+                />
+              </label>
+              <label className="text-sm">
+                <span className="mb-1 block font-medium">CUPS / folio (si es HC)</span>
+                <input
+                  value={item.cups || ""}
+                  onChange={(e) => actualizarItem(i, "cups", e.target.value)}
+                  className={inputClass}
+                />
+              </label>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-[160px_1fr_1fr]">
+              <label className="text-sm">
+                <span className="mb-1 block font-medium">Fecha</span>
+                <input
+                  type="date"
+                  value={item.fecha || ""}
+                  onChange={(e) => actualizarItem(i, "fecha", e.target.value)}
+                  className={inputClass}
+                />
+              </label>
+              <label className="text-sm">
+                <span className="mb-1 block font-medium">Motivo</span>
+                <select
+                  value={item.motivo || ""}
+                  onChange={(e) => actualizarItem(i, "motivo", e.target.value)}
+                  className={inputClass}
+                  required
+                >
+                  <option value="">Seleccione…</option>
+                  {motivos.map((m) => (
+                    <option key={m.clave} value={m.clave}>
+                      {m.etiqueta}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-sm">
+                <span className="mb-1 block font-medium">Descripción</span>
+                <input
+                  value={item.descripcion || ""}
+                  onChange={(e) => actualizarItem(i, "descripcion", e.target.value)}
+                  className={inputClass}
+                />
+              </label>
+            </div>
           </Card>
         ))}
         <Button type="button" variant="ghost" className="justify-self-start" onClick={agregarItem}>
@@ -247,10 +259,29 @@ export function TicketForm({ modo, inicial, onSubmit, submitLabel }) {
               </button>
             </div>
           ) : (
-            <Button type="button" variant="ghost" className="justify-self-start" onClick={() => oficioInput.current?.click()}>
-              <IconUpload size={15} />
-              Seleccionar archivo (PDF o imagen)
-            </Button>
+            <div
+              onClick={() => oficioInput.current?.click()}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setArrastrando(true);
+              }}
+              onDragLeave={() => setArrastrando(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setArrastrando(false);
+                const archivo = e.dataTransfer.files?.[0];
+                if (archivo) setOficio(archivo);
+              }}
+              role="button"
+              tabIndex={0}
+              className={`grid cursor-pointer place-items-center gap-2 rounded-[var(--radius-input)] border-2 border-dashed px-4 py-8 text-center transition-colors ${
+                arrastrando ? "border-[var(--color-ink)] bg-[var(--color-ink)]/[0.04]" : "border-[var(--color-ink)]/20"
+              }`}
+            >
+              <IconUpload size={22} className="text-[var(--color-muted)]" />
+              <p className="text-sm font-medium">Arrastra y suelta tu archivo aquí</p>
+              <p className="text-xs text-[var(--color-muted)]">o haz clic para seleccionar (PDF, PNG, JPEG o WebP)</p>
+            </div>
           )}
         </Card>
       </div>

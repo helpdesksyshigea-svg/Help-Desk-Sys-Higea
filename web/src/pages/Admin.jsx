@@ -4,45 +4,58 @@ import { nombreLegible } from "../lib/roles";
 import { useToast } from "../context/ToastContext";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
+import { IconUser, IconShield, IconInbox, IconInfo, IconClock, IconSettings } from "../components/icons";
 
 const inputClass =
   "w-full rounded-[var(--radius-input)] border border-[var(--color-ink)]/20 bg-[var(--color-ink)]/5 px-3 py-2 text-sm outline-none focus:border-[var(--color-ink)]";
 
 const TABS = [
-  { k: "usuarios", l: "Usuarios" },
-  { k: "roles", l: "Roles" },
-  { k: "tipos", l: "Tipos de solicitud" },
-  { k: "motivos", l: "Motivos" },
-  { k: "sla", l: "Plazos (SLA)" },
-  { k: "festivos", l: "Festivos" },
+  { k: "usuarios", l: "Usuarios", icon: IconUser },
+  { k: "roles", l: "Roles", icon: IconShield },
+  { k: "tipos", l: "Tipos de solicitud", icon: IconInbox },
+  { k: "motivos", l: "Motivos", icon: IconInfo },
+  { k: "sla", l: "Plazos SLA", icon: IconClock },
+  { k: "festivos", l: "Festivos", icon: IconSettings },
 ];
 
 export function Admin() {
   const [tab, setTab] = useState("usuarios");
   return (
-    <div className="grid gap-6">
-      <h2 className="text-xl font-light">Administración</h2>
-      <div className="flex flex-wrap gap-2">
-        {TABS.map((t) => (
-          <button
-            key={t.k}
-            onClick={() => setTab(t.k)}
-            className={`rounded-full border px-3 py-1.5 text-sm font-medium ${
-              tab === t.k
-                ? "border-[var(--color-ink)] bg-[var(--color-ink)] text-[var(--color-canvas)]"
-                : "border-[var(--color-border)] text-[var(--color-muted)]"
-            }`}
-          >
-            {t.l}
-          </button>
-        ))}
+    <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
+      <aside className="h-fit overflow-hidden rounded-[var(--radius-card)] bg-[var(--color-ink)] p-3">
+        <div className="mb-3 px-2 pt-1">
+          <p className="text-sm font-bold leading-tight text-[var(--color-canvas)]">Mesa de ayuda</p>
+          <p className="text-xs" style={{ color: "var(--color-accent)" }}>
+            SYS HIGEA
+          </p>
+        </div>
+        <nav className="grid gap-0.5">
+          {TABS.map((t) => (
+            <button
+              key={t.k}
+              onClick={() => setTab(t.k)}
+              className={`flex items-center gap-2 rounded-[var(--radius-button)] px-3 py-2 text-left text-sm font-medium transition-colors ${
+                tab === t.k
+                  ? "bg-[var(--color-accent)] text-[var(--color-accent-ink)]"
+                  : "text-[var(--color-canvas)]/80 hover:bg-white/10"
+              }`}
+            >
+              <t.icon size={15} />
+              {t.l}
+            </button>
+          ))}
+        </nav>
+      </aside>
+
+      <div className="grid gap-6">
+        <h2 className="text-xl font-semibold tracking-tight">Administración</h2>
+        {tab === "usuarios" && <Usuarios />}
+        {tab === "roles" && <Roles />}
+        {tab === "tipos" && <Catalogo titulo="Tipos de solicitud" path="tipos" />}
+        {tab === "motivos" && <Catalogo titulo="Motivos" path="motivos" />}
+        {tab === "sla" && <Sla />}
+        {tab === "festivos" && <Festivos />}
       </div>
-      {tab === "usuarios" && <Usuarios />}
-      {tab === "roles" && <Roles />}
-      {tab === "tipos" && <Catalogo titulo="Tipos de solicitud" path="tipos" />}
-      {tab === "motivos" && <Catalogo titulo="Motivos" path="motivos" />}
-      {tab === "sla" && <Sla />}
-      {tab === "festivos" && <Festivos />}
     </div>
   );
 }

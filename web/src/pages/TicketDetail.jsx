@@ -183,30 +183,32 @@ export function TicketDetail() {
         </table>
       </Card>
 
-      <Card>
-        <Adjuntos ticketId={ticket.id} kindsPermitidos={["soporte", "evidencia"]} />
-      </Card>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <Adjuntos ticketId={ticket.id} kindsPermitidos={["soporte", "evidencia"]} />
+        </Card>
 
-      <Card className="grid gap-4">
-        <h3 className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">Historial</h3>
-        <ol className="grid gap-4">
-          {ticket.eventos.map((ev, i) => (
-            <li key={ev.id} className="grid grid-cols-[20px_1fr] gap-3">
-              <div className="flex flex-col items-center">
-                <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-[var(--color-ink)]" />
-                {i < ticket.eventos.length - 1 && <span className="w-px flex-1 bg-[var(--color-border)]" />}
-              </div>
-              <div className="pb-1">
-                <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
-                  <span className="font-medium">{EVENTO_LABEL[ev.tipo_evento] || ev.tipo_evento}</span>
-                  <span className="text-xs text-[var(--color-muted)]">{fmt(ev.created_at)}</span>
+        <Card className="grid gap-4">
+          <h3 className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">Historial</h3>
+          <ol className="grid gap-4">
+            {ticket.eventos.map((ev, i) => (
+              <li key={ev.id} className="grid grid-cols-[20px_1fr] gap-3">
+                <div className="flex flex-col items-center">
+                  <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-[var(--color-ink)]" />
+                  {i < ticket.eventos.length - 1 && <span className="w-px flex-1 bg-[var(--color-border)]" />}
                 </div>
-                {ev.texto && <div className="mt-0.5 text-sm text-[var(--color-muted)]">{ev.texto}</div>}
-              </div>
-            </li>
-          ))}
-        </ol>
-      </Card>
+                <div className="pb-1">
+                  <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
+                    <span className="font-medium">{EVENTO_LABEL[ev.tipo_evento] || ev.tipo_evento}</span>
+                    <span className="text-xs text-[var(--color-muted)]">{fmt(ev.created_at)}</span>
+                  </div>
+                  {ev.texto && <div className="mt-0.5 text-sm text-[var(--color-muted)]">{ev.texto}</div>}
+                </div>
+              </li>
+            ))}
+          </ol>
+        </Card>
+      </div>
 
       {error && <p className="text-sm text-[#b3362a]">{error}</p>}
 
