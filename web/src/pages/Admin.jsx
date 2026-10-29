@@ -58,6 +58,53 @@ export function Admin() {
   );
 }
 
+// Texto que se convierte en input al hacer clic; el lápiz solo aparece al
+// pasar el mouse (patrón "hover actions" de Help Scout: no abarrotar la fila
+// con controles que casi nunca se usan).
+function CampoEditable({ valor, onGuardar, tipo = "text", placeholder, className = "" }) {
+  const [editando, setEditando] = useState(false);
+  const [valorLocal, setValorLocal] = useState(valor || "");
+
+  useEffect(() => {
+    setValorLocal(valor || "");
+  }, [valor]);
+
+  if (editando) {
+    return (
+      <input
+        autoFocus
+        type={tipo}
+        value={valorLocal}
+        onChange={(e) => setValorLocal(e.target.value)}
+        onBlur={() => {
+          setEditando(false);
+          const limpio = valorLocal.trim();
+          if (limpio && limpio !== (valor || "")) onGuardar(limpio);
+          else setValorLocal(valor || "");
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") e.currentTarget.blur();
+          if (e.key === "Escape") {
+            setValorLocal(valor || "");
+            setEditando(false);
+          }
+        }}
+        placeholder={placeholder}
+        className={`w-full rounded-[var(--radius-input)] border border-[var(--color-ink)] bg-[var(--color-canvas)] px-1.5 py-0.5 outline-none ${className}`}
+      />
+    );
+  }
+  return (
+    <button type="button" onClick={() => setEditando(true)} className="group/campo flex max-w-full items-center gap-1 text-left">
+      <span className={`truncate ${className}`}>{valor || <span className="text-[var(--color-muted)]">{placeholder}</span>}</span>
+      <IconEdit
+        size={11}
+        className="shrink-0 text-[var(--color-muted)] opacity-0 transition-opacity group-hover/campo:opacity-100"
+      />
+    </button>
+  );
+}
+
 function Mensaje({ error, ok }) {
   if (error) return <p className="text-sm text-[#b3362a]">{error}</p>;
   if (ok) return <p className="text-sm text-[var(--color-state-cerrado)]">{ok}</p>;
@@ -139,6 +186,16 @@ function Usuarios() {
       cargar();
     }
   }
+  async function guardarCampo(u, campo, valor, etiqueta) {
+    try {
+      await apiFetch(`/admin/usuarios/${u.id}`, { method: "PATCH", body: JSON.stringify({ [campo]: valor }) });
+      exito(`${etiqueta} actualizado`);
+      cargar();
+    } catch (e) {
+      fallo(e.message);
+      cargar();
+    }
+  }
 
   return (
     <div className="grid gap-4">
@@ -191,9 +248,22 @@ function Usuarios() {
               className="grid grid-cols-1 items-center gap-2 px-4 py-3 sm:grid-cols-[1fr_88px_190px_110px] sm:gap-3"
             >
               <div className="min-w-0">
-                <div className="font-medium">{u.nombre}</div>
-                <div className="truncate text-xs text-[var(--color-muted)]">
-                  {u.email} {u.proveedor ? `· ${u.proveedor}` : ""} {!u.activo && "· Desactivado"}
+                <CampoEditable
+                  valor={u.nombre}
+                  className="font-medium"
+                  placeholder="Nombre"
+                  onGuardar={(v) => guardarCampo(u, "nombre", v, "Nombre")}
+                />
+                <div className="flex flex-wrap items-center gap-1 text-xs text-[var(--color-muted)]">
+                  <CampoEditable
+                    valor={u.email}
+                    tipo="email"
+                    placeholder="correo@ejemplo.com"
+                    onGuardar={(v) => guardarCampo(u, "email", v, "Correo")}
+                  />
+                  <span>
+                    {u.proveedor ? `· ${u.proveedor}` : ""} {!u.activo && "· Desactivado"}
+                  </span>
                 </div>
               </div>
               <span className="relative justify-self-center">

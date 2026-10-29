@@ -141,12 +141,24 @@ adminRouter.post("/admin/usuarios", requirePermission("usuarios.gestionar"), asy
 });
 
 adminRouter.patch("/admin/usuarios/:id", requirePermission("usuarios.gestionar"), async (req, res) => {
-  const { rol_id, activo, nombre, proveedor, codigo_interno } = req.body;
+  const { rol_id, activo, nombre, proveedor, codigo_interno, email } = req.body;
   const patch = {};
   if (rol_id !== undefined) patch.rol_id = rol_id;
   if (activo !== undefined) patch.activo = activo;
   if (nombre !== undefined) patch.nombre = nombre;
   if (proveedor !== undefined) patch.proveedor = proveedor;
+  if (email !== undefined) {
+    const valor = email.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valor)) {
+      return res.status(400).json({ error: "El correo no tiene un formato válido" });
+    }
+    // El correo vive en dos lugares: auth.users (con qué inicia sesión) y
+    // usuarios (de negocio). Se actualiza primero en Auth; si eso falla, la
+    // fila de negocio ni se toca, para que nunca queden desincronizados.
+    const { error: authError } = await supabase.auth.admin.updateUserById(req.params.id, { email: valor });
+    if (authError) return res.status(400).json({ error: `No se pudo actualizar el correo de acceso: ${authError.message}` });
+    patch.email = valor;
+  }
   if (codigo_interno !== undefined) {
     const valor = codigo_interno === null || codigo_interno === "" ? null : String(codigo_interno).trim();
     if (valor !== null && !/^\d{3}$/.test(valor)) {
