@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Card } from "../components/Card";
 import { IconUser, IconShield, IconInbox, IconSend } from "../components/icons";
+import { DiagramaFlujo } from "../components/DiagramaFlujo";
 
 function Captura({ src, alt, caption }) {
   return (
@@ -70,7 +71,7 @@ export function Manual() {
               Todo ticket pasa por estos estados. Solo la persona indicada en cada flecha puede mover el ticket al
               siguiente paso — el sistema oculta los botones de acción a quien no le corresponde.
             </p>
-            <Captura src="/manual/diagrama-flujo-ticket.jpg" alt="Diagrama del ciclo de vida de un ticket" />
+            <DiagramaFlujo />
           </Card>
           <Card className="grid gap-2">
             <h3 className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">
