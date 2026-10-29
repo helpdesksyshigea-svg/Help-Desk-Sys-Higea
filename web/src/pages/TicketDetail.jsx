@@ -8,6 +8,23 @@ import { StatusTag } from "../components/StatusTag";
 import { Adjuntos } from "../components/Adjuntos";
 import { RequirePermission } from "../components/RequirePermission";
 
+const EVENTO_LABEL = {
+  creado: "Ticket radicado",
+  aprobado: "Aprobado",
+  devuelto: "Devuelto al facturador",
+  editado: "Corregido y reenviado",
+  tomado: "Caso tomado por HIGEA",
+  requiere_info: "HIGEA solicitó información",
+  respondido: "Facturación respondió",
+  cerrado: "Cerrado",
+  reabierto: "Reabierto",
+  adjunto_subido: "Documento adjuntado",
+};
+
+function fmt(iso) {
+  return new Date(iso).toLocaleString("es-CO", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
 export function TicketDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -53,54 +70,71 @@ export function TicketDetail() {
   if (error && !ticket) return <Card className="text-[#b3362a]">{error}</Card>;
   if (!ticket) return <p className="text-[var(--color-muted)]">Cargando…</p>;
 
+  const hayAcciones = [
+    "tickets.aprobar",
+    "tickets.devolver",
+    "tickets.tomar",
+    "tickets.pedir_info",
+    "tickets.responder_info",
+    "tickets.cerrar",
+    "tickets.reabrir",
+  ].some((p) => tienePermiso(p));
+
+  const esSolicitante = perfil.id === ticket.solicitante_id && tienePermiso("tickets.crear");
+  const puedeEditar =
+    (esSolicitante && ["pendiente", "devuelto"].includes(ticket.estado)) ||
+    (tienePermiso("tickets.aprobar") && ticket.estado === "devuelto");
+
   return (
     <div className="grid gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <span className="font-mono text-xs text-[var(--color-muted)]">{ticket.code}</span>
-          <h2 className="text-xl font-light">Ticket</h2>
-        </div>
-        <StatusTag estado={ticket.estado} />
-      </div>
+      <button
+        onClick={() => navigate("/")}
+        className="justify-self-start text-sm text-[var(--color-muted)] hover:text-[var(--color-ink)]"
+      >
+        ← Bandeja
+      </button>
 
-      {(() => {
-        const esSolicitante = perfil.id === ticket.solicitante_id && tienePermiso("tickets.crear");
-        const puedeEditar =
-          (esSolicitante && ["pendiente", "devuelto"].includes(ticket.estado)) ||
-          (tienePermiso("tickets.aprobar") && ticket.estado === "devuelto");
-        if (!puedeEditar) return null;
-        return (
+      <Card className="grid gap-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <span className="font-mono text-xs text-[var(--color-muted)]">{ticket.code}</span>
+            <h2 className="text-xl font-semibold">{ticket.items?.map((i) => i.factura).filter(Boolean).join(", ") || "Ticket"}</h2>
+          </div>
+          <div className="flex flex-col items-end gap-1">
+            <StatusTag estado={ticket.estado} />
+            {ticket.dueAt && (
+              <span className={`text-xs ${ticket.vencido ? "font-semibold text-[#b3362a]" : "text-[var(--color-muted)]"}`}>
+                {ticket.vencido ? "Vencido desde" : "Vence"} {fmt(ticket.dueAt)}
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-x-4 gap-y-3 border-t border-[var(--color-border)] pt-4 text-sm sm:grid-cols-4">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">Solicita</div>
+            <div>{ticket.firmante}</div>
+          </div>
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">Prioridad</div>
+            <div className="capitalize">{ticket.prioridad}</div>
+          </div>
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">Radicado</div>
+            <div>{new Date(ticket.created_at).toLocaleDateString("es-CO")}</div>
+          </div>
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">Aprobado</div>
+            <div>{ticket.aprobado_at ? new Date(ticket.aprobado_at).toLocaleDateString("es-CO") : "—"}</div>
+          </div>
+        </div>
+
+        {puedeEditar && (
           <Button variant="ghost" className="justify-self-start" onClick={() => navigate(`/tickets/${ticket.id}/editar`)}>
             Corregir ticket
           </Button>
-        );
-      })()}
-
-      <Card className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-        <div>
-          <div className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">Solicita</div>
-          <div>{ticket.firmante}</div>
-        </div>
-        <div>
-          <div className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">Prioridad</div>
-          <div className="capitalize">{ticket.prioridad}</div>
-        </div>
-        <div>
-          <div className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">Radicado</div>
-          <div>{new Date(ticket.created_at).toLocaleDateString("es-CO")}</div>
-        </div>
-        <div>
-          <div className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">Aprobado</div>
-          <div>{ticket.aprobado_at ? new Date(ticket.aprobado_at).toLocaleDateString("es-CO") : "—"}</div>
-        </div>
+        )}
       </Card>
-
-      {ticket.dueAt && (
-        <p className={`text-sm ${ticket.vencido ? "text-[#b3362a]" : "text-[var(--color-muted)]"}`}>
-          {ticket.vencido ? "Vencido desde" : "Vence"} el{" "}
-          {new Date(ticket.dueAt).toLocaleString("es-CO")}
-        </p>
-      )}
 
       <Card className="overflow-x-auto">
         <h3 className="mb-3 text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">
@@ -138,82 +172,91 @@ export function TicketDetail() {
         <Adjuntos ticketId={ticket.id} kindsPermitidos={["soporte", "evidencia"]} />
       </Card>
 
-      <Card className="grid gap-3">
-        <h3 className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">
-          Historial
-        </h3>
-        {ticket.eventos.map((ev) => (
-          <div key={ev.id} className="text-sm">
-            <span className="font-medium">{ev.tipo_evento}</span>{" "}
-            <span className="text-[var(--color-muted)]">
-              · {new Date(ev.created_at).toLocaleString("es-CO")}
-            </span>
-            {ev.texto && <div className="text-[var(--color-muted)]">{ev.texto}</div>}
-          </div>
-        ))}
+      <Card className="grid gap-4">
+        <h3 className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">Historial</h3>
+        <ol className="grid gap-4">
+          {ticket.eventos.map((ev, i) => (
+            <li key={ev.id} className="grid grid-cols-[20px_1fr] gap-3">
+              <div className="flex flex-col items-center">
+                <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-[var(--color-ink)]" />
+                {i < ticket.eventos.length - 1 && <span className="w-px flex-1 bg-[var(--color-border)]" />}
+              </div>
+              <div className="pb-1">
+                <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
+                  <span className="font-medium">{EVENTO_LABEL[ev.tipo_evento] || ev.tipo_evento}</span>
+                  <span className="text-xs text-[var(--color-muted)]">{fmt(ev.created_at)}</span>
+                </div>
+                {ev.texto && <div className="mt-0.5 text-sm text-[var(--color-muted)]">{ev.texto}</div>}
+              </div>
+            </li>
+          ))}
+        </ol>
       </Card>
 
       {error && <p className="text-sm text-[#b3362a]">{error}</p>}
 
-      <Card className="grid gap-3">
-        <textarea
-          value={nota}
-          onChange={(e) => setNota(e.target.value)}
-          placeholder="Nota (obligatoria según la acción)"
-          className="w-full rounded-[var(--radius-input)] border border-[var(--color-ink)]/20 bg-[var(--color-ink)]/5 px-3 py-2 outline-none focus:border-[var(--color-ink)]"
-        />
-        <div className="flex flex-wrap gap-2">
-          <RequirePermission permisos={["tickets.aprobar"]}>
-            {ticket.estado === "pendiente" && (
-              <Button variant="accent" disabled={procesando} onClick={() => accion("aprobar")}>
-                Aprobar y enviar a HIGEA
-              </Button>
-            )}
-          </RequirePermission>
-          <RequirePermission permisos={["tickets.devolver"]}>
-            {ticket.estado === "pendiente" && (
-              <Button variant="danger" disabled={procesando} onClick={() => accion("devolver")}>
-                Devolver al facturador
-              </Button>
-            )}
-          </RequirePermission>
-          <RequirePermission permisos={["tickets.tomar"]}>
-            {ticket.estado === "aprobado" && (
-              <Button variant="ghost" disabled={procesando} onClick={() => accion("tomar")}>
-                Tomar caso
-              </Button>
-            )}
-          </RequirePermission>
-          <RequirePermission permisos={["tickets.pedir_info"]}>
-            {ticket.estado === "en_proceso" && (
-              <Button variant="ghost" disabled={procesando} onClick={() => accion("pedir-info")}>
-                Pedir información
-              </Button>
-            )}
-          </RequirePermission>
-          <RequirePermission permisos={["tickets.responder_info"]}>
-            {ticket.estado === "requiere_info" && (
-              <Button variant="ghost" disabled={procesando} onClick={() => accion("responder-info")}>
-                Responder a HIGEA
-              </Button>
-            )}
-          </RequirePermission>
-          <RequirePermission permisos={["tickets.cerrar"]}>
-            {ticket.estado === "en_proceso" && (
-              <Button variant="accent" disabled={procesando} onClick={() => accion("cerrar")}>
-                Reportar realizado y cerrar
-              </Button>
-            )}
-          </RequirePermission>
-          <RequirePermission permisos={["tickets.reabrir"]}>
-            {ticket.estado === "cerrado" && (
-              <Button variant="danger" disabled={procesando} onClick={() => accion("reabrir")}>
-                Reabrir
-              </Button>
-            )}
-          </RequirePermission>
-        </div>
-      </Card>
+      {hayAcciones && (
+        <Card className="grid gap-3">
+          <h3 className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">Acciones</h3>
+          <textarea
+            value={nota}
+            onChange={(e) => setNota(e.target.value)}
+            placeholder="Nota (obligatoria según la acción)"
+            className="w-full rounded-[var(--radius-input)] border border-[var(--color-ink)]/20 bg-[var(--color-ink)]/5 px-3 py-2 outline-none focus:border-[var(--color-ink)]"
+          />
+          <div className="flex flex-wrap gap-2">
+            <RequirePermission permisos={["tickets.aprobar"]}>
+              {ticket.estado === "pendiente" && (
+                <Button variant="accent" disabled={procesando} onClick={() => accion("aprobar")}>
+                  Aprobar y enviar a HIGEA
+                </Button>
+              )}
+            </RequirePermission>
+            <RequirePermission permisos={["tickets.devolver"]}>
+              {ticket.estado === "pendiente" && (
+                <Button variant="danger" disabled={procesando} onClick={() => accion("devolver")}>
+                  Devolver al facturador
+                </Button>
+              )}
+            </RequirePermission>
+            <RequirePermission permisos={["tickets.tomar"]}>
+              {ticket.estado === "aprobado" && (
+                <Button variant="ghost" disabled={procesando} onClick={() => accion("tomar")}>
+                  Tomar caso
+                </Button>
+              )}
+            </RequirePermission>
+            <RequirePermission permisos={["tickets.pedir_info"]}>
+              {ticket.estado === "en_proceso" && (
+                <Button variant="ghost" disabled={procesando} onClick={() => accion("pedir-info")}>
+                  Pedir información
+                </Button>
+              )}
+            </RequirePermission>
+            <RequirePermission permisos={["tickets.responder_info"]}>
+              {ticket.estado === "requiere_info" && (
+                <Button variant="ghost" disabled={procesando} onClick={() => accion("responder-info")}>
+                  Responder a HIGEA
+                </Button>
+              )}
+            </RequirePermission>
+            <RequirePermission permisos={["tickets.cerrar"]}>
+              {ticket.estado === "en_proceso" && (
+                <Button variant="accent" disabled={procesando} onClick={() => accion("cerrar")}>
+                  Reportar realizado y cerrar
+                </Button>
+              )}
+            </RequirePermission>
+            <RequirePermission permisos={["tickets.reabrir"]}>
+              {ticket.estado === "cerrado" && (
+                <Button variant="danger" disabled={procesando} onClick={() => accion("reabrir")}>
+                  Reabrir
+                </Button>
+              )}
+            </RequirePermission>
+          </div>
+        </Card>
+      )}
     </div>
   );
 }
