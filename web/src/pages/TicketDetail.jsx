@@ -9,7 +9,7 @@ import { Adjuntos } from "../components/Adjuntos";
 import { useToast } from "../context/ToastContext";
 import { ESPERANDO } from "../lib/filters";
 import { fechaCorta, fechaHora } from "../lib/fecha";
-import { IconArrowLeft, IconCheck, IconReturn, IconInbox, IconInfo, IconSend, IconUser, IconClock, IconPaperclip } from "../components/icons";
+import { IconArrowLeft, IconCheck, IconReturn, IconInbox, IconInfo, IconSend, IconUser, IconClock, IconPaperclip, IconTrash } from "../components/icons";
 
 function iniciales(nombre) {
   if (!nombre) return "?";
@@ -94,6 +94,20 @@ export function TicketDetail() {
     }
   }
 
+  async function eliminarTicket() {
+    if (!window.confirm(`Esto elimina PERMANENTEMENTE el ticket ${ticket.code}, con todo su historial y adjuntos. No se puede deshacer. ¿Continuar?`)) return;
+    setProcesando("eliminar");
+    try {
+      await apiFetch(`/tickets/${id}`, { method: "DELETE" });
+      toastExito(`Ticket ${ticket.code} eliminado`);
+      navigate("/");
+    } catch (e) {
+      toastFallo(e.message);
+    } finally {
+      setProcesando(null);
+    }
+  }
+
   if (error && !ticket) return <Card className="text-[#b3362a]">{error}</Card>;
   if (!ticket) return <p className="text-[var(--color-muted)]">Cargando…</p>;
 
@@ -116,13 +130,25 @@ export function TicketDetail() {
 
   return (
     <div className="grid gap-6">
-      <button
-        onClick={() => navigate("/")}
-        className="inline-flex items-center gap-1.5 justify-self-start text-sm text-[var(--color-muted)] transition-colors hover:text-[var(--color-ink)]"
-      >
-        <IconArrowLeft size={14} />
-        Mesa de ayuda SYS HIGEA
-      </button>
+      <div className="flex items-center justify-between gap-3">
+        <button
+          onClick={() => navigate("/")}
+          className="inline-flex items-center gap-1.5 text-sm text-[var(--color-muted)] transition-colors hover:text-[var(--color-ink)]"
+        >
+          <IconArrowLeft size={14} />
+          Mesa de ayuda SYS HIGEA
+        </button>
+        {tienePermiso("tickets.eliminar") && (
+          <button
+            onClick={eliminarTicket}
+            disabled={procesando === "eliminar"}
+            className="inline-flex items-center gap-1.5 text-sm text-[#b3362a] transition-colors hover:underline disabled:opacity-50"
+          >
+            <IconTrash size={14} />
+            {procesando === "eliminar" ? "Eliminando…" : "Eliminar ticket"}
+          </button>
+        )}
+      </div>
 
       <Card className="grid gap-4">
         <div className="flex flex-wrap items-start justify-between gap-3">

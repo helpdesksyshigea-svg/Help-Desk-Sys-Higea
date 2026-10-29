@@ -350,6 +350,28 @@ ticketsRouter.get("/tickets/:id", async (req, res) => {
   res.json(ticket);
 });
 
+// ---------- eliminar (irreversible) ----------
+ticketsRouter.delete("/tickets/:id", requirePermission("tickets.eliminar"), async (req, res) => {
+  const ticket = await cargarTicketCompleto(req.params.id);
+  if (!ticket) return res.status(404).json({ error: "Ticket no encontrado" });
+
+  const { data: adjuntos, error: adjError } = await supabase
+    .from("ticket_adjuntos")
+    .select("storage_path")
+    .eq("ticket_id", ticket.id);
+  if (adjError) return res.status(500).json({ error: adjError.message });
+  if (adjuntos?.length) {
+    const { error: rmError } = await supabase.storage.from("adjuntos").remove(adjuntos.map((a) => a.storage_path));
+    // Si falla el borrado del archivo, los adjuntos quedan huérfanos en Storage
+    // pero no bloquean la eliminación del ticket en sí: se registra y se sigue.
+    if (rmError) console.error(`[tickets] no se pudieron retirar adjuntos del ticket ${ticket.id} antes de eliminarlo:`, rmError.message);
+  }
+
+  const { error } = await supabase.rpc("eliminar_ticket_permanente", { p_ticket_id: ticket.id });
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ ok: true });
+});
+
 // ---------- transiciones ----------
 
 async function transicion(
