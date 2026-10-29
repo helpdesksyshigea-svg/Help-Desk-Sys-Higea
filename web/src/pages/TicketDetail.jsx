@@ -230,6 +230,12 @@ export function TicketDetail() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
+          {ticket.archivado_at && (
+            <p className="mb-3 rounded-[var(--radius-input)] bg-[var(--color-ink)]/5 px-3 py-2 text-xs text-[var(--color-muted)]">
+              Los documentos adjuntos de este ticket se eliminaron automáticamente el {fechaCorta(ticket.archivado_at)}{" "}
+              por antigüedad. El resto de la información queda disponible para siempre.
+            </p>
+          )}
           <Adjuntos ticketId={ticket.id} kindsPermitidos={["soporte", "evidencia"]} />
         </Card>
 

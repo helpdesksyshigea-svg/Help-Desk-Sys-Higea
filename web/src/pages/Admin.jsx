@@ -849,12 +849,12 @@ function Almacenamiento() {
   }
 
   async function limpiarAhora() {
-    if (!window.confirm(`Esto borra PERMANENTEMENTE y sin respaldo todo ticket cerrado hace más de ${dias} días. ¿Continuar?`)) return;
+    if (!window.confirm(`Esto borra los archivos adjuntos (PDFs) de todo ticket cerrado hace más de ${dias} días. El ticket, sus registros y su historial quedan intactos, solo de consulta. ¿Continuar?`)) return;
     setLimpiando(true);
     try {
       const r = await apiFetch("/admin/limpieza/ejecutar", { method: "POST" });
-      exito(`${r.eliminados.length} ticket(s) eliminado(s) de ${r.evaluados} evaluado(s)`);
-      if (r.errores.length) fallo(`${r.errores.length} no se pudieron eliminar`);
+      exito(`${r.archivados.length} ticket(s) archivado(s) de ${r.evaluados} evaluado(s)`);
+      if (r.errores.length) fallo(`${r.errores.length} no se pudieron archivar`);
       cargar();
     } catch (e) {
       fallo(e.message);
@@ -903,11 +903,12 @@ function Almacenamiento() {
 
       <Card className="grid gap-3">
         <h3 className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">
-          Limpieza automática de tickets cerrados
+          Archivado automático de tickets cerrados
         </h3>
         <p className="text-sm text-[var(--color-muted)]">
-          Todos los días se borran permanentemente (sin respaldo) los tickets en estado "Cerrado" con más de este número de
-          días desde su cierre. Incluye su historial, registros y adjuntos.
+          Todos los días se borran los archivos adjuntos (PDFs) de los tickets en estado "Cerrado" con más de este
+          número de días desde su cierre, para liberar espacio de almacenamiento. El ticket, sus registros y su
+          historial completo <strong>nunca se borran</strong> — quedan disponibles para siempre, solo de consulta.
         </p>
         <form onSubmit={guardarDias} className="flex flex-wrap items-end gap-2">
           <label className="text-sm">
