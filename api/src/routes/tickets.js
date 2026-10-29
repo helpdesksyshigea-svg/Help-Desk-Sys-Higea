@@ -49,11 +49,14 @@ async function subirOficio(ticketId, archivo, subidoPor) {
   if (dbError) throw dbError;
 }
 
-function newCode() {
-  const d = new Date();
-  const p = (n) => String(n).padStart(2, "0");
-  const rand = Math.random().toString(36).slice(2, 5).toUpperCase();
-  return `TK-${String(d.getFullYear()).slice(2)}${p(d.getMonth() + 1)}${p(d.getDate())}-${rand}`;
+// Código 100% numérico y consecutivo: {año}{número}, ej. 20260001. El
+// incremento es atómico en la base de datos (siguiente_numero_ticket), así que
+// dos radicaciones simultáneas nunca reciben el mismo número.
+async function newCode() {
+  const anio = new Date().getFullYear();
+  const { data, error } = await supabase.rpc("siguiente_numero_ticket", { p_anio: anio });
+  if (error) throw error;
+  return `${anio}${String(data).padStart(4, "0")}`;
 }
 
 async function registrarEvento(ticketId, tipoEvento, estadoAnterior, estadoNuevo, por, texto) {
@@ -111,7 +114,7 @@ ticketsRouter.post("/tickets", requirePermission("tickets.crear"), upload.single
   const { data: ticket, error } = await supabase
     .from("tickets")
     .insert({
-      code: newCode(),
+      code: await newCode(),
       tipo,
       prioridad,
       estado: "pendiente",

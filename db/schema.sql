@@ -64,6 +64,25 @@ create table motivos (
 
 -- ---------- Tickets ----------
 
+-- Consecutivo real por año (TK-{año}-{número}), incremento atómico a nivel de
+-- base de datos para que dos radicaciones simultáneas no reciban el mismo número.
+create table ticket_secuencias (
+  anio int primary key,
+  siguiente int not null default 1
+);
+
+create or replace function siguiente_numero_ticket(p_anio int)
+returns int as $$
+declare
+  v_numero int;
+begin
+  insert into ticket_secuencias (anio, siguiente) values (p_anio, 2)
+  on conflict (anio) do update set siguiente = ticket_secuencias.siguiente + 1
+  returning siguiente - 1 into v_numero;
+  return v_numero;
+end;
+$$ language plpgsql;
+
 create table tickets (
   id uuid primary key default gen_random_uuid(),
   code text not null unique,
