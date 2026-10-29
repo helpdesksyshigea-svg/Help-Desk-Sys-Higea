@@ -1,5 +1,5 @@
-import { useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { hashInicial } from "./lib/inviteHash.js";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { ToastProvider } from "./context/ToastContext";
 import { Layout } from "./components/Layout";
@@ -14,13 +14,11 @@ import { Ayuda } from "./pages/Ayuda";
 import { Manual } from "./pages/Manual";
 import { SetPassword } from "./pages/SetPassword";
 
-// Supabase procesa el token de la URL (invitación o "olvidé mi contraseña") y
-// abre sesión automáticamente antes de que React alcance a renderizar nada;
-// sin esta comprobación, Protegido vería "ya autenticado" y mandaría
-// directo a la bandeja sin pedir nunca definir una contraseña.
-function esEnlaceDeContrasena() {
-  return /type=invite|type=recovery/.test(window.location.hash);
-}
+// El cliente de Supabase limpia el hash de la URL al construirse —apenas se
+// importa lib/supabase.js, antes de que React monte nada—, así que se usa el
+// valor capturado en inviteHash.js (importado de primero en main.jsx) en vez
+// de leer window.location.hash acá, que para este punto ya estaría vacío.
+const esEnlaceDeContrasenaInicial = /type=invite|type=recovery/.test(hashInicial);
 
 function Protegido({ children }) {
   const { autenticado, cargando, error } = useAuth();
@@ -43,11 +41,6 @@ function RutaLogin() {
 }
 
 function Rutas() {
-  // Se captura una sola vez al montar: Supabase limpia el hash de la URL (vía
-  // history.replaceState) muy poco después de leer el token, así que si esto
-  // se evaluara en cada render —en vez de una vez, con useState— la pantalla
-  // de contraseña podría "desaparecer" antes de que el usuario la vea.
-  const [esEnlaceDeContrasenaInicial] = useState(esEnlaceDeContrasena);
   if (esEnlaceDeContrasenaInicial) return <SetPassword />;
   return (
     <Routes>
