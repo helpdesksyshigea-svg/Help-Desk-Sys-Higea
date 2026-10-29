@@ -72,6 +72,22 @@ export function TicketForm({ modo, inicial, onSubmit, submitLabel }) {
       setError("Cada registro requiere el número de documento del paciente");
       return;
     }
+    if (items.some((item) => !item.factura?.trim())) {
+      setError("Cada registro requiere su número de factura");
+      return;
+    }
+    if (items.some((item) => !item.cups?.trim())) {
+      setError("Cada registro requiere el CUPS o folio");
+      return;
+    }
+    if (items.some((item) => !item.fecha?.trim())) {
+      setError("Cada registro requiere la fecha");
+      return;
+    }
+    if (items.some((item) => !item.descripcion?.trim())) {
+      setError("Cada registro requiere una descripción");
+      return;
+    }
     if (modo === "crear" && !oficio) {
       setError("Debe adjuntar el oficio firmado para radicar");
       return;
@@ -163,6 +179,7 @@ export function TicketForm({ modo, inicial, onSubmit, submitLabel }) {
                   value={item.factura || ""}
                   onChange={(e) => actualizarItem(i, "factura", e.target.value)}
                   className={inputClass}
+                  required
                 />
               </label>
               <label className="text-sm">
@@ -184,11 +201,12 @@ export function TicketForm({ modo, inicial, onSubmit, submitLabel }) {
                 />
               </label>
               <label className="text-sm">
-                <span className="mb-1 block font-medium">CUPS / folio (si es HC)</span>
+                <span className="mb-1 block font-medium">CUPS / folio</span>
                 <input
                   value={item.cups || ""}
                   onChange={(e) => actualizarItem(i, "cups", e.target.value)}
                   className={inputClass}
+                  required
                 />
               </label>
             </div>
@@ -200,6 +218,7 @@ export function TicketForm({ modo, inicial, onSubmit, submitLabel }) {
                   value={item.fecha || ""}
                   onChange={(e) => actualizarItem(i, "fecha", e.target.value)}
                   className={inputClass}
+                  required
                 />
               </label>
               <label className="text-sm">
@@ -224,6 +243,7 @@ export function TicketForm({ modo, inicial, onSubmit, submitLabel }) {
                   value={item.descripcion || ""}
                   onChange={(e) => actualizarItem(i, "descripcion", e.target.value)}
                   className={inputClass}
+                  required
                 />
               </label>
             </div>
