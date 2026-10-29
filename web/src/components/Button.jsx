@@ -1,7 +1,7 @@
 const VARIANTS = {
   // Único uso del lima: la acción principal de la pantalla. Nunca dos botones
   // "accent" visibles a la vez (regla del doc de estilo: el acento vale por aislamiento).
-  accent: "bg-[var(--color-accent)] text-[var(--color-accent-ink)] border-[var(--color-accent)] shadow-[0_1px_2px_rgba(17,17,13,0.08)] hover:brightness-[0.97]",
+  accent: "bg-[var(--color-accent)] text-[var(--color-accent-ink)] border-[var(--color-accent)] hover:brightness-[0.97]",
   ghost: "bg-transparent text-[var(--color-ink)] border-[var(--color-ink)]/20 hover:border-[var(--color-ink)]/40 hover:bg-[var(--color-ink)]/[0.03]",
   danger: "bg-transparent text-[#b3362a] border-[#b3362a]/30 hover:bg-[#f8e0dc]",
 };

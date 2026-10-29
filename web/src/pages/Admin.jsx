@@ -479,7 +479,7 @@ function Catalogo({ titulo, path }) {
             <li key={item.clave} className="flex items-center justify-between px-4 py-3">
               <div>
                 <div className="font-medium">{item.etiqueta}</div>
-                <div className="font-mono text-xs text-[var(--color-muted)]">{item.clave}</div>
+                <div className="text-xs text-[var(--color-muted)]">{item.clave}</div>
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="ghost" onClick={() => empezarEdicion(item)}>
@@ -598,7 +598,7 @@ function Festivos() {
             <li key={f.fecha} className="flex items-center justify-between px-4 py-3">
               <div>
                 <div className="font-medium">{f.descripcion}</div>
-                <div className="font-mono text-xs text-[var(--color-muted)]">{f.fecha}</div>
+                <div className="text-xs text-[var(--color-muted)]">{f.fecha}</div>
               </div>
               <Button variant="danger" onClick={() => eliminar(f.fecha)}>
                 Quitar

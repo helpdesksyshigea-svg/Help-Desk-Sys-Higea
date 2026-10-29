@@ -119,7 +119,7 @@ export function TicketDetail() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <div className="flex flex-wrap items-center gap-3">
-              <h1 className="font-mono text-2xl font-bold tracking-tight">{ticket.code}</h1>
+              <h1 className="text-2xl font-bold tracking-tight">{ticket.code}</h1>
               <StatusTag estado={ticket.estado} />
             </div>
             {(asunto || ticket.observacion) && (
@@ -202,10 +202,10 @@ export function TicketDetail() {
             {ticket.items.map((item, i) => (
               <tr key={item.id} className="border-b border-[var(--color-border)] last:border-0 align-top">
                 <td className="py-2 pr-3 text-[var(--color-muted)]">{i + 1}</td>
-                <td className="py-2 pr-3 font-mono text-xs">{item.factura || "—"}</td>
+                <td className="py-2 pr-3 text-xs">{item.factura || "—"}</td>
                 <td className="py-2 pr-3">{item.paciente || "—"}</td>
-                <td className="py-2 pr-3 font-mono text-xs">{item.documento || "—"}</td>
-                <td className="py-2 pr-3 font-mono text-xs">{item.cups || "—"}</td>
+                <td className="py-2 pr-3 text-xs">{item.documento || "—"}</td>
+                <td className="py-2 pr-3 text-xs">{item.cups || "—"}</td>
                 <td className="py-2 pr-3">{item.fecha || "—"}</td>
                 <td className="py-2 pr-3">{motivos[item.motivo] || item.motivo}</td>
                 <td className="py-2 text-[var(--color-muted)]">{item.descripcion || "—"}</td>

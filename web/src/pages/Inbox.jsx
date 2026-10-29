@@ -155,7 +155,7 @@ export function Inbox() {
                     </td>
                     <td className="max-w-xs py-3 pr-3 align-top">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs text-[var(--color-muted)]">{t.code}</span>
+                        <span className="text-xs text-[var(--color-muted)]">{t.code}</span>
                         {t.vencido && (
                           <span className="rounded-[var(--radius-tag)] bg-[#f8e0dc] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#b3362a]">
                             Vencido
