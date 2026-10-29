@@ -54,13 +54,19 @@ class ErrorBoundary extends Component {
 }
 
 function Protegido({ children }) {
-  const { autenticado, cargando, error } = useAuth();
+  const { autenticado, cargando, error, cerrarSesion } = useAuth();
   if (cargando) return <div className="flex min-h-screen items-center justify-center">Cargando…</div>;
   if (!autenticado) return <Navigate to="/login" replace />;
   if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center text-[var(--color-muted)]">
-        No se pudo cargar su perfil: {error}
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-6 text-center text-[var(--color-muted)]">
+        <p>No se pudo cargar su perfil: {error}</p>
+        <button
+          onClick={() => cerrarSesion()}
+          className="rounded-[var(--radius-button)] border border-[var(--color-ink)]/20 px-4 py-2 text-sm font-semibold text-[var(--color-ink)] hover:border-[var(--color-ink)]/40"
+        >
+          Salir y volver a ingresar
+        </button>
       </div>
     );
   }
