@@ -260,7 +260,9 @@ export function Adjuntos({ ticketId, kindsPermitidos = ["oficio", "soporte", "ev
           onClick={() => setVista(null)}
         >
           <div
-            className="flex max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-[var(--radius-card)] bg-[var(--color-surface)]"
+            className={`flex max-h-full w-full flex-col overflow-hidden rounded-[var(--radius-card)] bg-[var(--color-surface)] ${
+              vista.tipo === "application/pdf" ? "max-w-6xl" : "max-w-3xl"
+            }`}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] px-4 py-2.5">
@@ -275,7 +277,7 @@ export function Adjuntos({ ticketId, kindsPermitidos = ["oficio", "soporte", "ev
             </div>
             <div className="flex-1 overflow-auto bg-[var(--color-ink)]/[0.03] p-2">
               {vista.tipo === "application/pdf" ? (
-                <iframe src={vista.url} title={vista.nombre} className="h-[75vh] w-full rounded" />
+                <iframe src={vista.url} title={vista.nombre} className="h-[90vh] w-full rounded" />
               ) : (
                 <img src={vista.url} alt={vista.nombre} className="mx-auto max-h-[75vh] rounded" />
               )}
