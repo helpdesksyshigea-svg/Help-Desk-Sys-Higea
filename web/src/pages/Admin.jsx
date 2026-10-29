@@ -178,56 +178,57 @@ function Usuarios() {
       </Card>
 
       <div className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border)]">
-        <div className="hidden items-center justify-between gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)] sm:flex">
+        <div className="hidden grid-cols-[1fr_88px_190px_110px] items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)] sm:grid">
           <span>Usuario</span>
-          <div className="flex items-center gap-2">
-            <span className="w-16 text-center">Código</span>
-            <span className="w-[168px]">Rol</span>
-            <span className="w-[92px]">Acciones</span>
-          </div>
+          <span className="text-center">Código</span>
+          <span>Rol</span>
+          <span className="text-right">Acciones</span>
         </div>
         <ul className="divide-y divide-[var(--color-border)]">
           {usuarios.map((u) => (
-            <li key={u.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+            <li
+              key={u.id}
+              className="grid grid-cols-1 items-center gap-2 px-4 py-3 sm:grid-cols-[1fr_88px_190px_110px] sm:gap-3"
+            >
               <div className="min-w-0">
                 <div className="font-medium">{u.nombre}</div>
                 <div className="truncate text-xs text-[var(--color-muted)]">
                   {u.email} {u.proveedor ? `· ${u.proveedor}` : ""} {!u.activo && "· Desactivado"}
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="relative">
-                  <IconEdit size={11} className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[var(--color-muted)]" />
-                  <input
-                    key={u.id + (u.codigo_interno || "")}
-                    defaultValue={u.codigo_interno || ""}
-                    onBlur={(e) => {
-                      const valor = e.target.value.trim();
-                      if (valor === (u.codigo_interno || "")) return;
-                      if (valor && !/^\d{3}$/.test(valor)) {
-                        fallo("El código interno debe tener exactamente 3 dígitos (ej. 101)");
-                        e.target.value = u.codigo_interno || "";
-                        return;
-                      }
-                      guardarCodigoInterno(u, valor);
-                    }}
-                    placeholder="Código"
-                    title="Código interno (3 dígitos, se asigna solo al crear el usuario; aquí puedes corregirlo)"
-                    maxLength={3}
-                    className="w-16 rounded-[var(--radius-input)] border border-[var(--color-border)] py-1 pl-2 pr-4 text-center text-sm"
-                  />
-                </span>
-                <select
-                  value={u.roles?.id || ""}
-                  onChange={(e) => cambiarRol(u.id, e.target.value)}
-                  className="min-w-[168px] rounded-[var(--radius-input)] border border-[var(--color-border)] px-2 py-1 text-sm"
-                >
-                  {roles.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {nombreLegible(r.nombre)}
-                    </option>
-                  ))}
-                </select>
+              <span className="relative justify-self-center">
+                <IconEdit size={11} className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[var(--color-muted)]" />
+                <input
+                  key={u.id + (u.codigo_interno || "")}
+                  defaultValue={u.codigo_interno || ""}
+                  onBlur={(e) => {
+                    const valor = e.target.value.trim();
+                    if (valor === (u.codigo_interno || "")) return;
+                    if (valor && !/^\d{3}$/.test(valor)) {
+                      fallo("El código interno debe tener exactamente 3 dígitos (ej. 101)");
+                      e.target.value = u.codigo_interno || "";
+                      return;
+                    }
+                    guardarCodigoInterno(u, valor);
+                  }}
+                  placeholder="Código"
+                  title="Código interno (3 dígitos, se asigna solo al crear el usuario; aquí puedes corregirlo)"
+                  maxLength={3}
+                  className="w-16 rounded-[var(--radius-input)] border border-[var(--color-border)] py-1 pl-2 pr-4 text-center text-sm"
+                />
+              </span>
+              <select
+                value={u.roles?.id || ""}
+                onChange={(e) => cambiarRol(u.id, e.target.value)}
+                className="w-full rounded-[var(--radius-input)] border border-[var(--color-border)] px-2 py-1 text-sm"
+              >
+                {roles.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {nombreLegible(r.nombre)}
+                  </option>
+                ))}
+              </select>
+              <div className="sm:justify-self-end">
                 <Button variant={u.activo ? "danger" : "ghost"} onClick={() => alternarActivo(u)}>
                   {u.activo ? "Desactivar" : "Activar"}
                 </Button>
