@@ -26,11 +26,15 @@ const ICONOS = {
   reabierto: ["M9 14 4 9l5-5", "M4 9h11a5 5 0 0 1 5 5v1"],
 };
 
-// Color de acento por carril: tinta el fondo de cada franja y el borde
-// izquierdo de sus tareas, para reforzar "de quién es este paso" de un
-// vistazo, sin depender solo de la posición vertical.
-const COLOR_LANE = { Facturación: "#3656a3", Supervisora: "#6a4fa0", "SYS HIGEA": "#2c7536" };
-const FONDO_LANE = { Facturación: "#f3f6fc", Supervisora: "#f5f2fa", "SYS HIGEA": "#eef7f0" };
+// Paleta clásica de notación BPMN (estilo Bizagi/Visio): tareas en azul,
+// compuertas en amarillo, inicio en verde, fin en rojo — colores fijos por
+// TIPO de forma, no por carril, como en un diagrama BPMN de verdad.
+const COLOR = {
+  tarea: { relleno: "#DCE6F7", borde: "#4472C4" },
+  gateway: { relleno: "#FFFFCC", borde: "#BF9000" },
+  inicio: { relleno: "#CCFFCC", borde: "#38A24A" },
+  fin: { relleno: "#FBD7DA", borde: "#C00000" },
+};
 
 const NODOS = [
   { id: "inicio", tipo: "start", x: 60, y: LANE_FACT, label: "Inicio", lane: "Facturación" },
@@ -233,35 +237,34 @@ const CONEXIONES = [
 
 function Flecha({ puntos, excepcion, seleccionado }) {
   const d = puntos.map((p, i) => `${i === 0 ? "M" : "L"}${p[0]},${p[1]}`).join(" ");
+  // Excepción = línea punteada con punta de flecha hueca (asociación/mensaje,
+  // como en un diagrama BPMN de verdad); flujo normal = línea sólida negra
+  // con punta rellena.
+  const marcador = seleccionado ? "url(#flecha-activa)" : excepcion ? "url(#flecha-hueca)" : "url(#flecha)";
   return (
     <path
       d={d}
       fill="none"
-      stroke={seleccionado ? "var(--color-ink)" : "#8a8d80"}
-      strokeWidth={seleccionado ? 2.75 : 1.75}
+      stroke={seleccionado ? "var(--color-accent-ink)" : "#1a1a1a"}
+      strokeWidth={seleccionado ? 2.5 : 1.25}
       strokeLinejoin="round"
-      strokeLinecap="round"
-      strokeDasharray={excepcion ? "6 5" : undefined}
-      markerEnd={seleccionado ? "url(#flecha-activa)" : "url(#flecha)"}
-      opacity={seleccionado ? 1 : excepcion ? 0.65 : 0.9}
-      style={{ transition: "stroke 0.15s, opacity 0.15s" }}
+      strokeDasharray={excepcion ? "5 4" : undefined}
+      markerEnd={marcador}
+      style={{ transition: "stroke 0.15s" }}
     />
   );
 }
 
 function Nodo({ n, activo, onClick }) {
-  const colorLane = COLOR_LANE[n.lane] || "var(--color-ink)";
-  const relleno = activo ? "var(--color-accent)" : "var(--color-surface)";
-  const borde = activo ? "var(--color-ink)" : "var(--color-border)";
   const lineas = n.label.split("\n");
   const sombra = { filter: "url(#sombra-nodo)" };
 
   if (n.tipo === "start" || n.tipo === "end") {
+    const c = n.tipo === "end" ? COLOR.fin : COLOR.inicio;
     return (
       <g onClick={() => onClick(n)} className="cursor-pointer" style={sombra}>
-        <circle cx={n.x} cy={n.y} r={19} fill={relleno} stroke={n.tipo === "end" ? colorLane : borde} strokeWidth={n.tipo === "end" ? 3.5 : 1.75} />
-        {n.tipo === "end" && <circle cx={n.x} cy={n.y} r={12} fill="none" stroke={colorLane} strokeWidth={1.25} opacity={0.5} />}
-        <text x={n.x} y={n.y + 36} textAnchor="middle" fontSize="11.5" fontWeight={700} letterSpacing="0.01em" fill="var(--color-muted)">
+        <circle cx={n.x} cy={n.y} r={19} fill={activo ? "var(--color-accent)" : c.relleno} stroke={c.borde} strokeWidth={n.tipo === "end" ? 3 : 1.75} />
+        <text x={n.x} y={n.y + 36} textAnchor="middle" fontSize="11.5" fontWeight={700} letterSpacing="0.01em" fill="var(--color-ink)">
           {n.label}
         </text>
       </g>
@@ -271,7 +274,16 @@ function Nodo({ n, activo, onClick }) {
     const s = 31;
     return (
       <g onClick={() => onClick(n)} className="cursor-pointer" style={sombra}>
-        <rect x={n.x - s} y={n.y - s} width={s * 2} height={s * 2} fill={activo ? relleno : "#fffdf4"} stroke={activo ? borde : colorLane} strokeWidth={1.75} transform={`rotate(45 ${n.x} ${n.y})`} rx={5} />
+        <rect
+          x={n.x - s}
+          y={n.y - s}
+          width={s * 2}
+          height={s * 2}
+          fill={activo ? "var(--color-accent)" : COLOR.gateway.relleno}
+          stroke={activo ? "var(--color-ink)" : COLOR.gateway.borde}
+          strokeWidth={1.75}
+          transform={`rotate(45 ${n.x} ${n.y})`}
+        />
         {lineas.map((l, i) => (
           <text key={i} x={n.x} y={n.y - (lineas.length - 1) * 6.5 + i * 13 + 4} textAnchor="middle" fontSize="10.5" fontWeight={700} fill="var(--color-ink)">
             {l}
@@ -283,10 +295,26 @@ function Nodo({ n, activo, onClick }) {
   const iconos = ICONOS[n.id];
   return (
     <g onClick={() => onClick(n)} className="cursor-pointer" style={sombra}>
-      <rect x={n.x - n.w / 2} y={n.y - n.h / 2} width={n.w} height={n.h} rx={12} fill={relleno} stroke={borde} strokeWidth={activo ? 2.25 : 1.5} />
-      <rect x={n.x - n.w / 2} y={n.y - n.h / 2} width={5} height={n.h} rx={2.5} fill={activo ? "var(--color-ink)" : colorLane} opacity={activo ? 1 : 0.75} />
+      <rect
+        x={n.x - n.w / 2}
+        y={n.y - n.h / 2}
+        width={n.w}
+        height={n.h}
+        rx={10}
+        fill={activo ? "var(--color-accent)" : COLOR.tarea.relleno}
+        stroke={activo ? "var(--color-ink)" : COLOR.tarea.borde}
+        strokeWidth={activo ? 2.25 : 1.5}
+      />
       {iconos && (
-        <g transform={`translate(${n.x - n.w / 2 + 16}, ${n.y - n.h / 2 + 10}) scale(0.6)`} stroke={activo ? "var(--color-ink)" : colorLane} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" opacity={0.85}>
+        <g
+          transform={`translate(${n.x - n.w / 2 + 14}, ${n.y - n.h / 2 + 10}) scale(0.58)`}
+          stroke={COLOR.tarea.borde}
+          strokeWidth={2.2}
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity={0.8}
+        >
           {iconos.map((d, i) => (
             <path key={i} d={d} />
           ))}
@@ -309,38 +337,35 @@ export function DiagramaFlujo() {
       <div className="overflow-x-auto rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] p-2">
         <svg viewBox={`0 0 ${1620 + GUTTER} 720`} className="h-auto w-full min-w-[1200px]">
           <defs>
-            <marker id="flecha" markerWidth="9" markerHeight="9" refX="6.5" refY="4" orient="auto">
-              <path d="M0,0 L8,4 L0,8 Z" fill="#8a8d80" />
+            <marker id="flecha" markerWidth="9" markerHeight="9" refX="7" refY="4" orient="auto">
+              <path d="M0,0 L8,4 L0,8 Z" fill="#1a1a1a" />
             </marker>
-            <marker id="flecha-activa" markerWidth="9" markerHeight="9" refX="6.5" refY="4" orient="auto">
-              <path d="M0,0 L8,4 L0,8 Z" fill="var(--color-ink)" />
+            <marker id="flecha-activa" markerWidth="9" markerHeight="9" refX="7" refY="4" orient="auto">
+              <path d="M0,0 L8,4 L0,8 Z" fill="var(--color-accent-ink)" />
+            </marker>
+            <marker id="flecha-hueca" markerWidth="10" markerHeight="9" refX="8" refY="4" orient="auto">
+              <path d="M0,0 L9,4 L0,8 Z" fill="white" stroke="#1a1a1a" strokeWidth="1" />
             </marker>
             <filter id="sombra-nodo" x="-40%" y="-40%" width="180%" height="180%">
-              <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#11110d" floodOpacity="0.14" />
+              <feDropShadow dx="0" dy="2" stdDeviation="2.5" floodColor="#11110d" floodOpacity="0.18" />
             </filter>
-            <linearGradient id="fondo-diagrama" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#fffffe" />
-              <stop offset="100%" stopColor="#fafaf7" />
-            </linearGradient>
           </defs>
 
-          <rect x={0} y={0} width={1620 + GUTTER} height={720} fill="url(#fondo-diagrama)" />
+          <rect x={0} y={0} width={1620 + GUTTER} height={720} fill="#ffffff" />
           {[
-            { y0: 0, y1: 180, label: "Facturación", yc: LANE_FACT },
-            { y0: 180, y1: 370, label: "Supervisora", yc: LANE_SUP },
+            { y0: 0, y1: 180, label: "FACTURACIÓN", yc: LANE_FACT },
+            { y0: 180, y1: 370, label: "SUPERVISORA", yc: LANE_SUP },
             { y0: 370, y1: 720, label: "SYS HIGEA", yc: (LANE_HIGEA + LANE_HIGEA2) / 2 },
           ].map((l) => (
             <g key={l.label}>
-              <rect x={0} y={l.y0} width={1620 + GUTTER} height={l.y1 - l.y0} fill={FONDO_LANE[l.label]} opacity={0.55} />
-              <rect x={0} y={l.y0} width={5} height={l.y1 - l.y0} fill={COLOR_LANE[l.label]} opacity={0.8} />
-              <text x={16} y={l.yc + 4} fontSize="12.5" fontWeight={800} letterSpacing="0.04em" fill={COLOR_LANE[l.label]}>
-                {l.label.toUpperCase()}
+              <rect x={0} y={l.y0} width={GUTTER - 20} height={l.y1 - l.y0} fill="#f4f4f4" stroke="#1a1a1a" strokeWidth={1} />
+              <text x={28} y={l.yc} textAnchor="middle" fontSize="13" fontWeight={700} letterSpacing="0.03em" fill="#1a1a1a" transform={`rotate(-90 28 ${l.yc})`}>
+                {l.label}
               </text>
+              <line x1={0} y1={l.y1} x2={1620 + GUTTER} y2={l.y1} stroke="#1a1a1a" strokeWidth={1} />
             </g>
           ))}
-          <line x1={0} y1={180} x2={1620 + GUTTER} y2={180} stroke="#d8d8d0" />
-          <line x1={0} y1={370} x2={1620 + GUTTER} y2={370} stroke="#d8d8d0" />
-          <line x1={GUTTER - 20} y1={0} x2={GUTTER - 20} y2={720} stroke="#d8d8d0" strokeWidth={1.5} />
+          <rect x={0} y={0} width={1620 + GUTTER} height={720} fill="none" stroke="#1a1a1a" strokeWidth={1.5} />
 
           {CONEXIONES.map((c, i) => {
             const activo = seleccionado && (seleccionado === c.de || seleccionado === c.a);
