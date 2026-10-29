@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { NavLink, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { apiFetch } from "../lib/api";
-import { FILTROS_POR_ROL } from "../lib/filters";
+import { filtrosPorRol } from "../lib/filters";
 import { RequirePermission } from "./RequirePermission";
 import { IconInbox, IconSettings, IconInfo, IconClock, IconCheck, IconAlert, IconDatabase, IconBook } from "./icons";
 
@@ -39,7 +39,7 @@ export function Sidebar() {
   const [params] = useSearchParams();
   const [tickets, setTickets] = useState([]);
   const filtroActivo = params.get("filtro") || "accion";
-  const filtros = FILTROS_POR_ROL[perfil?.rol] || FILTROS_POR_ROL.facturador;
+  const filtros = filtrosPorRol(perfil?.rol, perfil?.id);
 
   useEffect(() => {
     function cargar() {

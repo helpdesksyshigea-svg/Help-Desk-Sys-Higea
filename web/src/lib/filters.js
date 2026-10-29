@@ -2,33 +2,47 @@
 // Solo cambian qué se muestra; el backend decide qué tickets puede ver cada rol.
 // "Requiere tu acción" va primero en los tres roles: es la pregunta real que alguien
 // se hace al abrir la bandeja, no "¿qué estado tiene esto?".
-export const FILTROS_POR_ROL = {
-  supervisora_facturacion: [
-    ["accion", "Requiere tu acción", (t) => necesitaAccion(t, "supervisora_facturacion")],
-    ["vencidos", "Vencidos", (t) => t.vencido],
-    ["higea", "En SYS HIGEA", (t) => ["aprobado", "en_proceso", "requiere_info"].includes(t.estado)],
-    ["devueltos", "Devueltos", (t) => t.estado === "devuelto"],
-    ["cerrados", "Cerrados", (t) => t.estado === "cerrado"],
-    ["todos", "Todos", () => true],
-  ],
-  facturador: [
-    ["accion", "Requiere tu acción", (t) => necesitaAccion(t, "facturador")],
-    ["pendiente", "En aprobación", (t) => t.estado === "pendiente"],
-    ["higea", "Enviados a SYS HIGEA", (t) => ["aprobado", "en_proceso", "requiere_info"].includes(t.estado)],
-    ["abiertos", "Abiertos", (t) => t.estado !== "cerrado"],
-    ["cerrados", "Cerrados", (t) => t.estado === "cerrado"],
-    ["todos", "Todos", () => true],
-  ],
-  higea_soporte: [
-    ["accion", "Requiere tu acción", (t) => necesitaAccion(t, "higea_soporte")],
-    ["vencidos", "Vencidos", (t) => t.vencido],
-    ["en_proceso", "En gestión", (t) => t.estado === "en_proceso"],
-    ["requiere_info", "Esperando al hospital", (t) => t.estado === "requiere_info"],
-    ["cerrados", "Cerrados", (t) => t.estado === "cerrado"],
-    ["todos", "Todos", () => true],
-  ],
-  admin: [["todos", "Todos", () => true]],
-};
+// Algunos filtros (el de "Requiere tu acción" de SYS HIGEA) necesitan saber
+// quién está mirando la bandeja, no solo el estado del ticket — por eso esto
+// es una función en vez de un objeto estático.
+export function filtrosPorRol(rol, userId) {
+  return (
+    {
+      supervisora_facturacion: [
+        ["accion", "Requiere tu acción", (t) => necesitaAccion(t, "supervisora_facturacion", userId)],
+        ["vencidos", "Vencidos", (t) => t.vencido],
+        ["higea", "En SYS HIGEA", (t) => ["aprobado", "en_proceso", "requiere_info"].includes(t.estado)],
+        ["devueltos", "Devueltos", (t) => t.estado === "devuelto"],
+        ["cerrados", "Cerrados", (t) => t.estado === "cerrado"],
+        ["todos", "Todos", () => true],
+      ],
+      facturador: [
+        ["accion", "Requiere tu acción", (t) => necesitaAccion(t, "facturador", userId)],
+        ["pendiente", "En aprobación", (t) => t.estado === "pendiente"],
+        ["higea", "Enviados a SYS HIGEA", (t) => ["aprobado", "en_proceso", "requiere_info"].includes(t.estado)],
+        ["abiertos", "Abiertos", (t) => t.estado !== "cerrado"],
+        ["cerrados", "Cerrados", (t) => t.estado === "cerrado"],
+        ["todos", "Todos", () => true],
+      ],
+      higea_soporte: [
+        ["accion", "Requiere tu acción", (t) => necesitaAccion(t, "higea_soporte", userId)],
+        ["vencidos", "Vencidos", (t) => t.vencido],
+        ["en_proceso", "En gestión", (t) => t.estado === "en_proceso"],
+        ["requiere_info", "Esperando al hospital", (t) => t.estado === "requiere_info"],
+        ["cerrados", "Cerrados", (t) => t.estado === "cerrado"],
+        ["todos", "Todos", () => true],
+      ],
+      admin: [["todos", "Todos", () => true]],
+    }[rol] || FILTROS_POR_ROL_DEFAULT
+  );
+}
+const FILTROS_POR_ROL_DEFAULT = [
+  ["accion", "Requiere tu acción", (t) => necesitaAccion(t, "facturador")],
+  ["pendiente", "En aprobación", (t) => t.estado === "pendiente"],
+  ["abiertos", "Abiertos", (t) => t.estado !== "cerrado"],
+  ["cerrados", "Cerrados", (t) => t.estado === "cerrado"],
+  ["todos", "Todos", () => true],
+];
 
 export const FILTRO_DEFAULT = {
   supervisora_facturacion: "accion",
@@ -50,13 +64,14 @@ export const ESPERANDO = {
 // Un rol "necesita actuar" sobre un ticket si el estado actual es el que a ese
 // rol le toca mover. Los roles combinados (ej. supervisora_admin) heredan el
 // comportamiento del rol base cuyo nombre contienen.
-export function necesitaAccion(ticket, rol) {
+export function necesitaAccion(ticket, rol, userId) {
   const esSupervisora = rol?.includes("supervisora");
   const esHigea = rol === "higea_soporte";
   const esFacturador = rol === "facturador";
   return (
     (esSupervisora && ticket.estado === "pendiente") ||
     (esHigea && ticket.estado === "aprobado") ||
+    (esHigea && ticket.estado === "en_proceso" && userId && ticket.asignado_a === userId) ||
     (esFacturador && ["devuelto", "requiere_info"].includes(ticket.estado))
   );
 }

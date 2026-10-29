@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { apiFetch } from "../lib/api";
-import { FILTROS_POR_ROL, FILTRO_DEFAULT, ESPERANDO, necesitaAccion, textoSla } from "../lib/filters";
+import { filtrosPorRol, FILTRO_DEFAULT, ESPERANDO, necesitaAccion, textoSla } from "../lib/filters";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
 import { StatusTag } from "../components/StatusTag";
@@ -55,7 +55,7 @@ export function Inbox() {
   const { perfil } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const filtros = FILTROS_POR_ROL[perfil?.rol] || FILTROS_POR_ROL.facturador;
+  const filtros = filtrosPorRol(perfil?.rol, perfil?.id);
   const filtroActivo = params.get("filtro") || FILTRO_DEFAULT[perfil?.rol] || filtros[0][0];
   const busqueda = (params.get("q") || "").trim().toLowerCase();
   const [tickets, setTickets] = useState([]);
@@ -185,7 +185,7 @@ export function Inbox() {
                   t.items?.map((i) => i.factura).filter(Boolean).join(", ") || t.items?.[0]?.paciente || "Sin factura";
                 const ultimoEvento = t.eventos?.[t.eventos.length - 1];
                 const snippet = ultimoEvento?.texto || t.observacion || "Sin notas adicionales";
-                const destacado = necesitaAccion(t, perfil?.rol);
+                const destacado = necesitaAccion(t, perfil?.rol, perfil?.id);
                 const sla = textoSla(t);
                 return (
                   <tr
