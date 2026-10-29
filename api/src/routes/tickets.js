@@ -110,7 +110,7 @@ async function registrarEvento(ticketId, tipoEvento, estadoAnterior, estadoNuevo
 async function cargarTicketCompleto(id) {
   const { data: ticket, error } = await supabase
     .from("tickets")
-    .select("*, solicitante:usuarios!tickets_solicitante_id_fkey(nombre, email)")
+    .select("*, solicitante:usuarios!tickets_solicitante_id_fkey(nombre, email), asignado:usuarios!tickets_asignado_a_fkey(id, nombre)")
     .eq("id", id)
     .single();
   if (error || !ticket) return null;
@@ -347,7 +347,7 @@ async function transicion(
     return res.status(400).json({ error: "Esta acción requiere una nota" });
   }
   if (validar) {
-    const errorValidacion = await validar(ticket);
+    const errorValidacion = await validar(ticket, req);
     if (errorValidacion) return res.status(409).json({ error: errorValidacion });
   }
 
@@ -417,6 +417,16 @@ ticketsRouter.post("/tickets/:id/tomar", (req, res) =>
     nuevoEstado: "en_proceso",
     tipoEvento: "tomado",
     notaObligatoria: false,
+    async validar(ticket) {
+      // Defensa extra ante dos clics casi simultáneos: el cambio de estado ya
+      // impide tomar un ticket dos veces en circunstancias normales, pero esto
+      // deja el motivo explícito en vez de un genérico "estado inválido".
+      if (ticket.asignado_a) return "Este ticket ya fue tomado por otro agente";
+      return null;
+    },
+    async efecto(ticket, req) {
+      return { asignado_a: req.user.id };
+    },
   })
 );
 
@@ -427,6 +437,12 @@ ticketsRouter.post("/tickets/:id/pedir-info", (req, res) =>
     nuevoEstado: "requiere_info",
     tipoEvento: "requiere_info",
     notaObligatoria: true,
+    async validar(ticket, req) {
+      if (ticket.asignado_a && ticket.asignado_a !== req.user.id) {
+        return "Este ticket está asignado a otro agente de SYS HIGEA";
+      }
+      return null;
+    },
   })
 );
 
@@ -448,6 +464,9 @@ ticketsRouter.post("/tickets/:id/cerrar", async (req, res) => {
   }
   if (ticket.estado !== "en_proceso") {
     return res.status(409).json({ error: `El ticket está en '${ticket.estado}', no se puede cerrar` });
+  }
+  if (ticket.asignado_a && ticket.asignado_a !== req.user.id) {
+    return res.status(409).json({ error: "Este ticket está asignado a otro agente de SYS HIGEA" });
   }
   if (!ticket.aprobacion || hashItems(ticket.items) !== ticket.aprobacion.hash_items) {
     return res.status(409).json({

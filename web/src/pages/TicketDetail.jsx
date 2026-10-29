@@ -21,9 +21,9 @@ const ACCIONES = [
   { ruta: "aprobar", permiso: "tickets.aprobar", estados: ["pendiente"], label: "Aprobar y enviar a SYS HIGEA", icon: IconCheck, variant: "accent", notaObligatoria: false, exito: "Ticket aprobado y enviado a SYS HIGEA" },
   { ruta: "devolver", permiso: "tickets.devolver", estados: ["pendiente"], label: "Devolver al facturador", icon: IconReturn, variant: "danger", notaObligatoria: true, exito: "Ticket devuelto al facturador" },
   { ruta: "tomar", permiso: "tickets.tomar", estados: ["aprobado"], label: "Tomar caso", icon: IconInbox, variant: "ghost", notaObligatoria: false, exito: "Caso tomado" },
-  { ruta: "pedir-info", permiso: "tickets.pedir_info", estados: ["en_proceso"], label: "Pedir información", icon: IconInfo, variant: "ghost", notaObligatoria: true, exito: "Se solicitó información al facturador" },
+  { ruta: "pedir-info", permiso: "tickets.pedir_info", estados: ["en_proceso"], label: "Pedir información", icon: IconInfo, variant: "ghost", notaObligatoria: true, exito: "Se solicitó información al facturador", requiereAsignado: true },
   { ruta: "responder-info", permiso: "tickets.responder_info", estados: ["requiere_info"], label: "Responder a SYS HIGEA", icon: IconSend, variant: "ghost", notaObligatoria: true, exito: "Respuesta enviada a SYS HIGEA" },
-  { ruta: "cerrar", permiso: "tickets.cerrar", estados: ["en_proceso"], label: "Reportar realizado y cerrar", icon: IconCheck, variant: "accent", notaObligatoria: true, exito: "Ticket cerrado" },
+  { ruta: "cerrar", permiso: "tickets.cerrar", estados: ["en_proceso"], label: "Reportar realizado y cerrar", icon: IconCheck, variant: "accent", notaObligatoria: true, exito: "Ticket cerrado", requiereAsignado: true },
   { ruta: "reabrir", permiso: "tickets.reabrir", estados: ["cerrado"], label: "Reabrir", icon: IconReturn, variant: "danger", notaObligatoria: true, exito: "Ticket reabierto" },
 ];
 
@@ -94,7 +94,8 @@ export function TicketDetail() {
   if (!ticket) return <p className="text-[var(--color-muted)]">Cargando…</p>;
 
   const tienePermisoAccion = ACCIONES.some((a) => tienePermiso(a.permiso));
-  const disponibles = ACCIONES.filter((a) => tienePermiso(a.permiso) && a.estados.includes(ticket.estado));
+  const bloqueadoParaMi = (a) => a.requiereAsignado && ticket.asignado_a && ticket.asignado_a !== perfil.id;
+  const disponibles = ACCIONES.filter((a) => tienePermiso(a.permiso) && a.estados.includes(ticket.estado) && !bloqueadoParaMi(a));
 
   const esSolicitante = perfil.id === ticket.solicitante_id && tienePermiso("tickets.crear");
   const puedeEditar =
@@ -168,6 +169,14 @@ export function TicketDetail() {
             </div>
             <div>{ticket.aprobado_at ? fechaCorta(ticket.aprobado_at) : "Sin aprobación aún"}</div>
           </div>
+          {ticket.asignado && (
+            <div>
+              <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">
+                <IconUser size={13} /> Asignado a
+              </div>
+              <div>{ticket.asignado.nombre}</div>
+            </div>
+          )}
         </div>
 
         <p className="text-sm text-[var(--color-muted)]">{ESPERANDO[ticket.estado]}</p>
