@@ -9,13 +9,27 @@ import { StatusTag } from "../components/StatusTag";
 import { RequirePermission } from "../components/RequirePermission";
 
 const PRIORIDAD_LABEL = { alta: "Alta", normal: "Normal", baja: "Baja" };
-const PRIORIDAD_COLOR = { alta: "#b3362a", normal: "#9a5b06", baja: "#2c7536" };
+const PRIORIDAD_COLOR = { alta: "#c0392b", normal: "#b7791f", baja: "#5a6b5d" };
 
 function hace(iso) {
   const horas = (Date.now() - new Date(iso)) / 36e5;
   if (horas < 1) return "hace minutos";
   if (horas < 24) return `hace ${Math.floor(horas)} h`;
   return `hace ${Math.floor(horas / 24)} d`;
+}
+
+function iniciales(nombre) {
+  if (!nombre) return "?";
+  const partes = nombre.trim().split(/\s+/);
+  return ((partes[0]?.[0] || "") + (partes[1]?.[0] || "")).toUpperCase();
+}
+
+function FlagIcon({ color }) {
+  return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+      <path d="M2 1v10M2 1.5h7l-2 2.5 2 2.5H2" stroke={color} strokeWidth="1.3" strokeLinejoin="round" />
+    </svg>
+  );
 }
 
 export function Inbox() {
@@ -67,9 +81,7 @@ export function Inbox() {
       {cargando && <p className="text-[var(--color-muted)]">Cargando tickets…</p>}
 
       {error && (
-        <Card className="text-sm text-[var(--color-muted)]">
-          No se pudo cargar la bandeja. Error: {error}
-        </Card>
+        <Card className="text-sm text-[var(--color-muted)]">No se pudo cargar la bandeja. Error: {error}</Card>
       )}
 
       {!cargando && !error && visibles.length === 0 && (
@@ -77,45 +89,66 @@ export function Inbox() {
       )}
 
       {!cargando && !error && visibles.length > 0 && (
-        <div className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border)]">
-          <ul className="divide-y divide-[var(--color-border)]">
-            {visibles.map((t) => {
-              const titulo = t.items?.map((i) => i.factura).filter(Boolean).join(", ") || t.items?.[0]?.paciente || "Sin factura";
-              const ultimoEvento = t.eventos?.[t.eventos.length - 1];
-              const snippet = ultimoEvento?.texto || t.observacion || "Sin notas adicionales";
-              const destacado = necesitaAccion(t, perfil?.rol);
-              return (
-                <li
-                  key={t.id}
-                  onClick={() => navigate(`/tickets/${t.id}`)}
-                  className={`flex cursor-pointer items-center gap-4 px-4 py-3 text-sm hover:bg-[var(--color-surface)] ${
-                    t.vencido ? "border-l-4 border-l-[#b3362a]" : "border-l-4 border-l-transparent"
-                  }`}
-                >
-                  <span
-                    title={`Prioridad ${PRIORIDAD_LABEL[t.prioridad] || t.prioridad}`}
-                    className="h-2 w-2 shrink-0 rounded-full"
-                    style={{ background: PRIORIDAD_COLOR[t.prioridad] || "var(--color-muted)" }}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs text-[var(--color-muted)]">{t.code}</span>
-                      {t.vencido && (
-                        <span className="text-xs font-semibold uppercase tracking-wide text-[#b3362a]">Vencido</span>
-                      )}
-                    </div>
-                    <div className={`truncate ${destacado ? "font-semibold" : "font-medium"}`}>{titulo}</div>
-                    <div className="truncate text-xs text-[var(--color-muted)]">{snippet}</div>
-                  </div>
-                  <span className="hidden shrink-0 text-right text-xs text-[var(--color-muted)] sm:block">
-                    <div>{ESPERANDO[t.estado] || ""}</div>
-                    <div>{t.items?.length || 0} registro(s) · {hace(t.created_at)}</div>
-                  </span>
-                  <StatusTag estado={t.estado} />
-                </li>
-              );
-            })}
-          </ul>
+        <div className="overflow-x-auto rounded-[var(--radius-card)] border border-[var(--color-border)]">
+          <table className="w-full min-w-[720px] border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface)] text-left text-xs font-semibold uppercase tracking-wide text-[var(--color-muted)]">
+                <th className="w-8 py-2 pl-4"></th>
+                <th className="py-2 pr-3">Ticket</th>
+                <th className="py-2 pr-3">Solicita</th>
+                <th className="py-2 pr-3">Esperando</th>
+                <th className="py-2 pr-3 text-right">Actualizado</th>
+                <th className="py-2 pr-4 text-right">Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibles.map((t) => {
+                const titulo =
+                  t.items?.map((i) => i.factura).filter(Boolean).join(", ") || t.items?.[0]?.paciente || "Sin factura";
+                const ultimoEvento = t.eventos?.[t.eventos.length - 1];
+                const snippet = ultimoEvento?.texto || t.observacion || "Sin notas adicionales";
+                const destacado = necesitaAccion(t, perfil?.rol);
+                return (
+                  <tr
+                    key={t.id}
+                    onClick={() => navigate(`/tickets/${t.id}`)}
+                    className="cursor-pointer border-b border-[var(--color-border)] last:border-0 hover:bg-[var(--color-surface)]"
+                  >
+                    <td className="py-3 pl-4 align-top">
+                      <span title={`Prioridad ${PRIORIDAD_LABEL[t.prioridad] || t.prioridad}`}>
+                        <FlagIcon color={PRIORIDAD_COLOR[t.prioridad] || "var(--color-muted)"} />
+                      </span>
+                    </td>
+                    <td className="max-w-xs py-3 pr-3 align-top">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs text-[var(--color-muted)]">{t.code}</span>
+                        {t.vencido && (
+                          <span className="rounded-[var(--radius-tag)] bg-[#f8e0dc] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#b3362a]">
+                            Vencido
+                          </span>
+                        )}
+                      </div>
+                      <div className={`truncate ${destacado ? "font-semibold" : "font-medium"}`}>{titulo}</div>
+                      <div className="truncate text-xs text-[var(--color-muted)]">{snippet}</div>
+                    </td>
+                    <td className="py-3 pr-3 align-top">
+                      <div className="flex items-center gap-2">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--color-ink)]/10 text-[10px] font-semibold text-[var(--color-ink)]">
+                          {iniciales(t.solicitante?.nombre)}
+                        </span>
+                        <span className="whitespace-nowrap text-xs text-[var(--color-muted)]">{t.solicitante?.nombre || "—"}</span>
+                      </div>
+                    </td>
+                    <td className="py-3 pr-3 align-top text-xs text-[var(--color-muted)]">{ESPERANDO[t.estado] || ""}</td>
+                    <td className="py-3 pr-3 text-right align-top text-xs text-[var(--color-muted)]">{hace(t.created_at)}</td>
+                    <td className="py-3 pr-4 text-right align-top">
+                      <StatusTag estado={t.estado} />
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
     </div>

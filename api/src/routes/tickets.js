@@ -64,7 +64,11 @@ async function registrarEvento(ticketId, tipoEvento, estadoAnterior, estadoNuevo
 }
 
 async function cargarTicketCompleto(id) {
-  const { data: ticket, error } = await supabase.from("tickets").select("*").eq("id", id).single();
+  const { data: ticket, error } = await supabase
+    .from("tickets")
+    .select("*, solicitante:usuarios!tickets_solicitante_id_fkey(nombre)")
+    .eq("id", id)
+    .single();
   if (error || !ticket) return null;
   const { data: items } = await supabase.from("ticket_items").select("*").eq("ticket_id", id);
   const { data: eventos } = await supabase
