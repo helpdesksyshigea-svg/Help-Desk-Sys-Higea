@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { apiFetch } from "../lib/api";
 import { filtrosPorRol } from "../lib/filters";
 import { RequirePermission } from "./RequirePermission";
-import { IconInbox, IconChart, IconInfo, IconClock, IconCheck, IconAlert, IconDatabase, IconBook } from "./icons";
+import { IconInbox, IconChart, IconSettings, IconInfo, IconClock, IconCheck, IconAlert, IconDatabase, IconBook } from "./icons";
 
 const ICONOS = { accion: IconAlert, vencidos: IconClock, todos: IconCheck };
 
@@ -73,11 +73,11 @@ export function Sidebar() {
           <p className="px-2 text-xs text-[var(--color-muted)]">SYS HIGEA</p>
         </div>
 
-        <RequirePermission permisos={["usuarios.gestionar", "roles.gestionar"]}>
-          <NavLink to="/admin" className={({ isActive }) => itemClass(isActive)}>
+        <RequirePermission permisos={["reportes.ver_dashboard"]}>
+          <NavLink to="/dashboard" className={({ isActive }) => itemClass(isActive)}>
             <span className="flex items-center gap-2">
               <IconChart size={16} />
-              Administración
+              Dashboard ejecutivo
             </span>
           </NavLink>
         </RequirePermission>
@@ -109,6 +109,14 @@ export function Sidebar() {
       <div className="grid shrink-0 gap-0.5 border-t border-[var(--color-border)] pt-3">
         <RequirePermission permisos={["config.editar"]}>
           <IndicadorAlmacenamiento />
+        </RequirePermission>
+        <RequirePermission permisos={["usuarios.gestionar", "roles.gestionar"]}>
+          <NavLink to="/admin" className={({ isActive }) => itemClass(isActive)}>
+            <span className="flex items-center gap-2">
+              <IconSettings size={16} />
+              Administración
+            </span>
+          </NavLink>
         </RequirePermission>
         <NavLink to="/manual" className={({ isActive }) => itemClass(isActive)}>
           <span className="flex items-center gap-2">

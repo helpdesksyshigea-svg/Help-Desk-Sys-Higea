@@ -11,6 +11,7 @@ import { TicketDetail } from "./pages/TicketDetail";
 import { NewTicket } from "./pages/NewTicket";
 import { EditTicket } from "./pages/EditTicket";
 import { Admin } from "./pages/Admin";
+import { Dashboard } from "./pages/Dashboard";
 import { Ayuda } from "./pages/Ayuda";
 import { Manual } from "./pages/Manual";
 import { SetPassword } from "./pages/SetPassword";
@@ -90,6 +91,14 @@ function Rutas() {
         <Route path="/tickets/:id/editar" element={<EditTicket />} />
         <Route path="/ayuda" element={<Ayuda />} />
         <Route path="/manual" element={<Manual />} />
+        <Route
+          path="/dashboard"
+          element={
+            <RequirePermission permisos={["reportes.ver_dashboard"]} fallback={<Navigate to="/" replace />}>
+              <Dashboard />
+            </RequirePermission>
+          }
+        />
         <Route
           path="/admin"
           element={

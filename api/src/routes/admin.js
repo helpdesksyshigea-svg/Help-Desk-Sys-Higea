@@ -355,7 +355,7 @@ adminRouter.patch("/admin/roles/:id", requirePermission("roles.gestionar"), asyn
 
 // `referencia` describe dónde más vive la clave de este catálogo (la tabla/columna
 // de tickets que la usa), para poder renombrarla en cascada sin dejar tickets huérfanos.
-function catalogoRouter(path, tabla, referencia) {
+function catalogoRouter(path, tabla, referencia, { permiteEliminar = false } = {}) {
   adminRouter.get(`/admin/${path}`, requirePermission("config.editar"), async (req, res) => {
     const { data, error } = await supabase.from(tabla).select("*").order("etiqueta");
     if (error) return res.status(500).json({ error: error.message });
@@ -413,11 +413,23 @@ function catalogoRouter(path, tabla, referencia) {
     if (error) return res.status(500).json({ error: error.message });
     res.json(data);
   });
+
+  // Solo para catálogos donde el valor que queda en los tickets ya es texto
+  // independiente de la clave (ej. ingenieros: se guarda el nombre, no la
+  // clave), así que borrar la fila del catálogo no deja tickets huérfanos.
+  // tipos/motivos NO lo habilitan — ahí la clave sí queda referenciada.
+  if (permiteEliminar) {
+    adminRouter.delete(`/admin/${path}/:clave`, requirePermission("config.editar"), async (req, res) => {
+      const { error } = await supabase.from(tabla).delete().eq("clave", req.params.clave);
+      if (error) return res.status(500).json({ error: error.message });
+      res.json({ ok: true });
+    });
+  }
 }
 
 catalogoRouter("tipos", "tipos_solicitud", { tabla: "tickets", columna: "tipo" });
 catalogoRouter("motivos", "motivos", { tabla: "ticket_items", columna: "motivo" });
-catalogoRouter("ingenieros", "ingenieros_higea", { tabla: "tickets", columna: "agente_higea" });
+catalogoRouter("ingenieros", "ingenieros_higea", { tabla: "tickets", columna: "agente_higea" }, { permiteEliminar: true });
 
 // ======================= SLA =======================
 
