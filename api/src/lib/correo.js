@@ -12,7 +12,11 @@ function getTransporter() {
     host: process.env.SMTP_HOST || "smtp.gmail.com",
     port: Number(process.env.SMTP_PORT || 465),
     secure: true,
-    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+    // Gmail muestra las contraseñas de aplicación agrupadas en bloques de 4
+    // caracteres separados por espacios para que sean fáciles de leer, pero la
+    // contraseña real no los lleva. Se quitan acá por si alguien la pegó tal
+    // como Google la muestra.
+    auth: { user: process.env.SMTP_USER?.trim(), pass: process.env.SMTP_PASS?.replace(/\s+/g, "") },
   });
   return transporter;
 }
