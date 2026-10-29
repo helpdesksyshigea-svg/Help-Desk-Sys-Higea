@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { IconDownload } from "./icons";
+import { IconDownload, IconEye, IconClose } from "./icons";
 import { fechaCorta } from "../lib/fecha";
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -14,6 +14,10 @@ export function Adjuntos({ ticketId, kindsPermitidos = ["oficio", "soporte", "ev
   const [adjuntos, setAdjuntos] = useState([]);
   const [subiendo, setSubiendo] = useState(null); // kind que se está subiendo, o null
   const [error, setError] = useState(null);
+  const [vista, setVista] = useState(null); // { nombre, tipo, url } o null
+  const [cargandoVista, setCargandoVista] = useState(null); // adjuntoId que está cargando la vista previa
+  const [editandoId, setEditandoId] = useState(null);
+  const [nombreEditado, setNombreEditado] = useState("");
   const inputs = useRef({});
 
   async function cargar() {
@@ -81,22 +85,66 @@ export function Adjuntos({ ticketId, kindsPermitidos = ["oficio", "soporte", "ev
     subirArchivo(archivo, kindPegado);
   }
 
-  async function abrir(adjuntoId) {
+  async function obtenerUrl(adjuntoId) {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    const res = await fetch(`${API_URL}/tickets/${ticketId}/adjuntos/${adjuntoId}/url`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error || "No se pudo abrir el documento");
+    }
+    const body = await res.json();
+    if (!body.url) throw new Error("No se pudo abrir el documento");
+    return body.url;
+  }
+
+  async function descargar(adjuntoId) {
+    try {
+      window.open(await obtenerUrl(adjuntoId), "_blank", "noopener");
+    } catch (e) {
+      setError(e.message || "No se pudo abrir el documento. Verifique su conexión e inténtelo de nuevo.");
+    }
+  }
+
+  async function previsualizar(adjunto) {
+    setCargandoVista(adjunto.id);
+    setError(null);
+    try {
+      const url = await obtenerUrl(adjunto.id);
+      setVista({ nombre: adjunto.nombre_original, tipo: adjunto.tipo_mime, url });
+    } catch (e) {
+      setError(e.message || "No se pudo abrir la vista previa. Verifique su conexión e inténtelo de nuevo.");
+    } finally {
+      setCargandoVista(null);
+    }
+  }
+
+  function empezarRenombrar(adjunto) {
+    setEditandoId(adjunto.id);
+    setNombreEditado(adjunto.nombre_original);
+  }
+
+  async function confirmarRenombrar(adjuntoId) {
+    const nombre = nombreEditado.trim();
+    setEditandoId(null);
+    if (!nombre) return;
     try {
       const { data } = await supabase.auth.getSession();
       const token = data.session?.access_token;
-      const res = await fetch(`${API_URL}/tickets/${ticketId}/adjuntos/${adjuntoId}/url`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const res = await fetch(`${API_URL}/tickets/${ticketId}/adjuntos/${adjuntoId}`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ nombre_original: nombre }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || "No se pudo abrir el documento");
+        throw new Error(body.error || "No se pudo renombrar el archivo");
       }
-      const body = await res.json();
-      if (!body.url) throw new Error("No se pudo abrir el documento");
-      window.open(body.url, "_blank", "noopener");
+      await cargar();
     } catch (e) {
-      setError(e.message || "No se pudo abrir el documento. Verifique su conexión e inténtelo de nuevo.");
+      setError(e.message || "No se pudo renombrar el archivo. Verifique su conexión e inténtelo de nuevo.");
     }
   }
 
@@ -123,20 +171,45 @@ export function Adjuntos({ ticketId, kindsPermitidos = ["oficio", "soporte", "ev
                   {esPdf ? "PDF" : "IMG"}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <button
-                    onClick={() => abrir(a.id)}
-                    className="block w-full truncate text-left text-sm font-medium text-[var(--color-ink)] underline-offset-2 hover:underline"
-                  >
-                    {a.nombre_original}
-                  </button>
+                  {editandoId === a.id ? (
+                    <input
+                      autoFocus
+                      value={nombreEditado}
+                      onChange={(e) => setNombreEditado(e.target.value)}
+                      onBlur={() => confirmarRenombrar(a.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") e.target.blur();
+                        if (e.key === "Escape") setEditandoId(null);
+                      }}
+                      className="w-full rounded border border-[var(--color-ink)]/30 bg-[var(--color-surface)] px-1.5 py-0.5 text-sm font-medium outline-none focus:border-[var(--color-ink)]"
+                    />
+                  ) : (
+                    <button
+                      onClick={() => empezarRenombrar(a)}
+                      title="Clic para renombrar"
+                      className="block w-full truncate text-left text-sm font-medium text-[var(--color-ink)] hover:underline"
+                    >
+                      {a.nombre_original}
+                    </button>
+                  )}
                   <div className="text-xs text-[var(--color-muted)]">
                     {ETIQUETAS_KIND[a.kind] || a.kind} · {kb(a.tamano_bytes)} · subido por {a.subido_por_usuario?.nombre || "—"}{" "}
                     el {fechaCorta(a.created_at)}
                   </div>
                 </div>
                 <button
-                  onClick={() => abrir(a.id)}
+                  onClick={() => previsualizar(a)}
+                  disabled={cargandoVista === a.id}
+                  aria-label={`Vista previa de ${a.nombre_original}`}
+                  title="Vista previa"
+                  className="shrink-0 rounded p-1.5 text-[var(--color-muted)] hover:bg-[var(--color-ink)]/[0.06] hover:text-[var(--color-ink)] disabled:opacity-50"
+                >
+                  <IconEye size={16} />
+                </button>
+                <button
+                  onClick={() => descargar(a.id)}
                   aria-label={`Descargar ${a.nombre_original}`}
+                  title="Descargar"
                   className="shrink-0 rounded p-1.5 text-[var(--color-muted)] hover:bg-[var(--color-ink)]/[0.06] hover:text-[var(--color-ink)]"
                 >
                   <IconDownload size={16} />
@@ -180,6 +253,36 @@ export function Adjuntos({ ticketId, kindsPermitidos = ["oficio", "soporte", "ev
       </div>
 
       {error && <p className="text-sm text-[#b3362a]">{error}</p>}
+
+      {vista && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6"
+          onClick={() => setVista(null)}
+        >
+          <div
+            className="flex max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-[var(--radius-card)] bg-[var(--color-surface)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] px-4 py-2.5">
+              <p className="truncate text-sm font-medium">{vista.nombre}</p>
+              <button
+                onClick={() => setVista(null)}
+                aria-label="Cerrar vista previa"
+                className="shrink-0 rounded p-1 text-[var(--color-muted)] hover:bg-[var(--color-ink)]/[0.06] hover:text-[var(--color-ink)]"
+              >
+                <IconClose size={18} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto bg-[var(--color-ink)]/[0.03] p-2">
+              {vista.tipo === "application/pdf" ? (
+                <iframe src={vista.url} title={vista.nombre} className="h-[75vh] w-full rounded" />
+              ) : (
+                <img src={vista.url} alt={vista.nombre} className="mx-auto max-h-[75vh] rounded" />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

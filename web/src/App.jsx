@@ -20,6 +20,11 @@ import { SetPassword } from "./pages/SetPassword";
 // valor capturado en inviteHash.js (importado de primero en main.jsx) en vez
 // de leer window.location.hash acá, que para este punto ya estaría vacío.
 const esEnlaceDeContrasenaInicial = /type=invite|type=recovery/.test(hashInicial);
+// Un enlace de invitación/recuperación es de un solo uso: si ya se abrió antes
+// (o alguien más lo usó primero), Supabase redirige con este error en vez de
+// con la sesión — sin detectarlo, la app caía en silencio al login normal sin
+// explicar por qué nunca pidió definir la contraseña.
+const esEnlaceVencido = /error=access_denied/.test(hashInicial) && /otp_expired/.test(hashInicial);
 
 class ErrorBoundary extends Component {
   state = { error: false };
@@ -64,7 +69,7 @@ function Protegido({ children }) {
 function RutaLogin() {
   const { autenticado, cargando } = useAuth();
   if (!cargando && autenticado) return <Navigate to="/" replace />;
-  return <Login />;
+  return <Login enlaceVencido={esEnlaceVencido} />;
 }
 
 function Rutas() {

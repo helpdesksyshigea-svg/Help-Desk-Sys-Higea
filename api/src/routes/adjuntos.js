@@ -109,6 +109,33 @@ adjuntosRouter.get("/tickets/:id/adjuntos", async (req, res) => {
   res.json(data);
 });
 
+// ---------- renombrar ----------
+adjuntosRouter.patch("/tickets/:id/adjuntos/:adjuntoId", async (req, res) => {
+  if (!(await puedeVerTicket(req, req.params.id))) {
+    return res.status(403).json({ error: "No tiene permiso sobre este ticket" });
+  }
+  const nombre = req.body?.nombre_original?.trim();
+  if (!nombre) return res.status(400).json({ error: "El nombre no puede estar vacío" });
+
+  const { data: adjunto, error: findError } = await supabase
+    .from("ticket_adjuntos")
+    .select("ticket_id")
+    .eq("id", req.params.adjuntoId)
+    .single();
+  if (findError || !adjunto || adjunto.ticket_id !== req.params.id) {
+    return res.status(404).json({ error: "Adjunto no encontrado" });
+  }
+
+  const { data: actualizado, error } = await supabase
+    .from("ticket_adjuntos")
+    .update({ nombre_original: nombre })
+    .eq("id", req.params.adjuntoId)
+    .select()
+    .single();
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(actualizado);
+});
+
 // ---------- url firmada para ver/descargar ----------
 adjuntosRouter.get("/tickets/:id/adjuntos/:adjuntoId/url", async (req, res) => {
   if (!(await puedeVerTicket(req, req.params.id))) {

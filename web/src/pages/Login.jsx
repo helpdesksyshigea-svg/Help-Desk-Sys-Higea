@@ -6,7 +6,7 @@ import { supabase } from "../lib/supabase";
 const inputClass =
   "w-full rounded-[var(--radius-input)] border border-[var(--color-ink)]/20 bg-[var(--color-ink)]/[0.04] px-3.5 py-2.5 outline-none transition-colors focus:border-[var(--color-ink)] focus:bg-[var(--color-canvas)]";
 
-export function Login() {
+export function Login({ enlaceVencido = false }) {
   const { iniciarSesion } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -100,6 +100,12 @@ export function Login() {
           />
         </label>
 
+        {enlaceVencido && (
+          <p className="mb-4 rounded-[var(--radius-input)] bg-[#f8e0dc] px-3 py-2 text-sm text-[#b3362a]">
+            El enlace que usó ya expiró o ya fue utilizado. Pida al administrador que le envíe uno nuevo, o use "¿Olvidó su
+            contraseña?" abajo si ya tiene cuenta.
+          </p>
+        )}
         {error && (
           <p className="mb-4 rounded-[var(--radius-input)] bg-[#f8e0dc] px-3 py-2 text-sm text-[#b3362a]">{error}</p>
         )}
