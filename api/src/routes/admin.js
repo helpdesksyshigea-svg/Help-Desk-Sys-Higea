@@ -417,6 +417,7 @@ function catalogoRouter(path, tabla, referencia) {
 
 catalogoRouter("tipos", "tipos_solicitud", { tabla: "tickets", columna: "tipo" });
 catalogoRouter("motivos", "motivos", { tabla: "ticket_items", columna: "motivo" });
+catalogoRouter("ingenieros", "ingenieros_higea", { tabla: "tickets", columna: "agente_higea" });
 
 // ======================= SLA =======================
 

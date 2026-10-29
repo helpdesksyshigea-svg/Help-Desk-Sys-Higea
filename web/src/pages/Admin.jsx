@@ -17,6 +17,7 @@ const TABS = [
   { k: "roles", l: "Roles", icon: IconShield },
   { k: "tipos", l: "Tipos de solicitud", icon: IconInbox },
   { k: "motivos", l: "Motivos", icon: IconInfo },
+  { k: "ingenieros", l: "Ingenieros SYS HIGEA", icon: IconShield },
   { k: "sla", l: "Plazos SLA", icon: IconClock },
   { k: "festivos", l: "Festivos", icon: IconSettings },
   { k: "almacenamiento", l: "Almacenamiento", icon: IconDatabase },
@@ -55,6 +56,7 @@ export function Admin() {
         {tab === "roles" && <Roles />}
         {tab === "tipos" && <Catalogo titulo="Tipos de solicitud" path="tipos" />}
         {tab === "motivos" && <Catalogo titulo="Motivos" path="motivos" />}
+        {tab === "ingenieros" && <Catalogo titulo="Ingenieros SYS HIGEA" path="ingenieros" />}
         {tab === "sla" && <Sla />}
         {tab === "festivos" && <Festivos />}
         {tab === "almacenamiento" && <Almacenamiento />}

@@ -53,6 +53,8 @@ export function TicketDetail() {
   const [error, setError] = useState(null);
   const [nota, setNota] = useState("");
   const [procesando, setProcesando] = useState(null); // ruta de la acción en curso, o null
+  const [ingenieros, setIngenieros] = useState([]);
+  const [agenteHigea, setAgenteHigea] = useState("");
 
   async function cargar() {
     try {
@@ -74,16 +76,29 @@ export function TicketDetail() {
       .catch((e) => setError(`No se pudieron cargar los motivos. ${e.message}`));
   }, []);
 
+  useEffect(() => {
+    apiFetch("/catalogos/ingenieros")
+      .then((data) => setIngenieros(Array.isArray(data) ? data : []))
+      .catch(() => {}); // solo hace falta para tomar un caso; si falla, el selector queda vacío
+  }, []);
+
   async function accion(def) {
     if (def.notaObligatoria && !nota.trim()) {
       toastFallo("Esta acción requiere que escribas una nota primero");
       return;
     }
+    if (def.ruta === "tomar" && !agenteHigea) {
+      toastFallo("Indique qué ingeniero de SYS HIGEA toma el caso");
+      return;
+    }
     setProcesando(def.ruta);
     setError(null);
     try {
-      await apiFetch(`/tickets/${id}/${def.ruta}`, { method: "POST", body: JSON.stringify({ nota }) });
+      const body = { nota };
+      if (def.ruta === "tomar") body.agente_higea = agenteHigea;
+      await apiFetch(`/tickets/${id}/${def.ruta}`, { method: "POST", body: JSON.stringify(body) });
       setNota("");
+      setAgenteHigea("");
       await cargar();
       toastExito(def.exito);
     } catch (e) {
@@ -208,9 +223,9 @@ export function TicketDetail() {
           {ticket.asignado && (
             <div>
               <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">
-                <IconUser size={13} /> Asignado a
+                <IconUser size={13} /> Ingeniero SYS HIGEA
               </div>
-              <div>{ticket.asignado.nombre}</div>
+              <div>{ticket.agente_higea || ticket.asignado.nombre}</div>
             </div>
           )}
         </div>
@@ -308,25 +323,46 @@ export function TicketDetail() {
       )}
 
       {disponibles.length > 0 && (
-        <Card className="flex flex-col gap-3 sm:flex-row sm:items-end">
-          <label className="flex-1 text-sm">
-            <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">
-              Nota {disponibles.some((a) => a.notaObligatoria) ? "(obligatoria según la acción)" : "(opcional)"}
-            </span>
-            <input
-              value={nota}
-              onChange={(e) => setNota(e.target.value)}
-              placeholder="Escribe una observación sobre el ticket…"
-              className="w-full rounded-[var(--radius-input)] border border-[var(--color-ink)]/20 bg-[var(--color-ink)]/5 px-3 py-2 outline-none focus:border-[var(--color-ink)]"
-            />
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {disponibles.map((a) => (
-              <Button key={a.ruta} variant={a.variant} disabled={!!procesando} onClick={() => accion(a)}>
-                <a.icon size={15} />
-                {procesando === a.ruta ? "Guardando…" : a.label}
-              </Button>
-            ))}
+        <Card className="flex flex-col gap-3">
+          {disponibles.some((a) => a.ruta === "tomar") && (
+            <label className="text-sm">
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">
+                Ingeniero de SYS HIGEA que toma el caso
+              </span>
+              <select
+                value={agenteHigea}
+                onChange={(e) => setAgenteHigea(e.target.value)}
+                className="w-full rounded-[var(--radius-input)] border border-[var(--color-ink)]/20 bg-[var(--color-ink)]/5 px-3 py-2 outline-none focus:border-[var(--color-ink)]"
+              >
+                <option value="">Seleccione…</option>
+                {ingenieros.map((i) => (
+                  <option key={i.clave} value={i.etiqueta}>
+                    {i.etiqueta}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <label className="flex-1 text-sm">
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">
+                Nota {disponibles.some((a) => a.notaObligatoria) ? "(obligatoria según la acción)" : "(opcional)"}
+              </span>
+              <input
+                value={nota}
+                onChange={(e) => setNota(e.target.value)}
+                placeholder="Escribe una observación sobre el ticket…"
+                className="w-full rounded-[var(--radius-input)] border border-[var(--color-ink)]/20 bg-[var(--color-ink)]/5 px-3 py-2 outline-none focus:border-[var(--color-ink)]"
+              />
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {disponibles.map((a) => (
+                <Button key={a.ruta} variant={a.variant} disabled={!!procesando} onClick={() => accion(a)}>
+                  <a.icon size={15} />
+                  {procesando === a.ruta ? "Guardando…" : a.label}
+                </Button>
+              ))}
+            </div>
           </div>
         </Card>
       )}

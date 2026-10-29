@@ -19,3 +19,9 @@ catalogosRouter.get("/catalogos/motivos", async (req, res) => {
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
 });
+
+catalogosRouter.get("/catalogos/ingenieros", async (req, res) => {
+  const { data, error } = await supabase.from("ingenieros_higea").select("clave, etiqueta").eq("activo", true).order("etiqueta");
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});

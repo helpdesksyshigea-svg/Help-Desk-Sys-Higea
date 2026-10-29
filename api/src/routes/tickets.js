@@ -463,15 +463,19 @@ ticketsRouter.post("/tickets/:id/tomar", (req, res) =>
     nuevoEstado: "en_proceso",
     tipoEvento: "tomado",
     notaObligatoria: false,
-    async validar(ticket) {
+    async validar(ticket, req) {
       // Defensa extra ante dos clics casi simultáneos: el cambio de estado ya
       // impide tomar un ticket dos veces en circunstancias normales, pero esto
       // deja el motivo explícito en vez de un genérico "estado inválido".
       if (ticket.asignado_a) return "Este ticket ya fue tomado por otro agente";
+      // SYS HIGEA atiende con una sola cuenta compartida entre varios
+      // ingenieros: asignado_a (el usuario de Auth) no distingue quién de
+      // ellos lo gestiona de verdad, así que se pide el nombre explícito.
+      if (!req.body?.agente_higea?.trim()) return "Indique qué ingeniero de SYS HIGEA toma el caso";
       return null;
     },
     async efecto(ticket, req) {
-      return { asignado_a: req.user.id };
+      return { asignado_a: req.user.id, agente_higea: req.body.agente_higea.trim() };
     },
   })
 );
@@ -494,7 +498,7 @@ ticketsRouter.post("/tickets/:id/liberar", (req, res) =>
       return null;
     },
     async efecto() {
-      return { asignado_a: null };
+      return { asignado_a: null, agente_higea: null };
     },
   })
 );
