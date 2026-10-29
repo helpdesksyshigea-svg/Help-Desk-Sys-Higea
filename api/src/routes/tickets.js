@@ -377,7 +377,7 @@ ticketsRouter.delete("/tickets/:id", requirePermission("tickets.eliminar"), asyn
 async function transicion(
   req,
   res,
-  { permiso, estadosValidos, nuevoEstado, tipoEvento, notaObligatoria, efecto, validar }
+  { permiso, estadosValidos, nuevoEstado, tipoEvento, notaObligatoria, efecto, validar, textoEvento }
 ) {
   const ticket = await cargarTicketCompleto(req.params.id);
   if (!ticket) return res.status(404).json({ error: "Ticket no encontrado" });
@@ -402,7 +402,12 @@ async function transicion(
   const { error } = await supabase.from("tickets").update(patch).eq("id", ticket.id);
   if (error) return res.status(500).json({ error: error.message });
 
-  await registrarEvento(ticket.id, tipoEvento, ticket.estado, nuevoEstado, req.user.id, nota || null);
+  // La mayoría de eventos solo guardan la nota tal cual; "tomar" necesita
+  // dejar registrado también qué ingeniero de SYS HIGEA tomó el caso (la
+  // cuenta de SYS HIGEA es compartida, no identifica a la persona real),
+  // para poder medir efectividad por ingeniero en el historial.
+  const textoFinal = textoEvento ? textoEvento(req, nota) : nota || null;
+  await registrarEvento(ticket.id, tipoEvento, ticket.estado, nuevoEstado, req.user.id, textoFinal);
   const actualizado = await cargarTicketCompleto(ticket.id);
   notificarTransicion(tipoEvento, actualizado, ticket.solicitante?.email).catch(() => {});
   res.json(actualizado);
@@ -476,6 +481,10 @@ ticketsRouter.post("/tickets/:id/tomar", (req, res) =>
     },
     async efecto(ticket, req) {
       return { asignado_a: req.user.id, agente_higea: req.body.agente_higea.trim() };
+    },
+    textoEvento(req, nota) {
+      const base = `Asignado a ${req.body.agente_higea.trim()}`;
+      return nota ? `${base} — ${nota}` : base;
     },
   })
 );
