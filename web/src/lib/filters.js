@@ -6,7 +6,7 @@ export const FILTROS_POR_ROL = {
   supervisora_facturacion: [
     ["accion", "Requiere tu acción", (t) => necesitaAccion(t, "supervisora_facturacion")],
     ["vencidos", "Vencidos", (t) => t.vencido],
-    ["higea", "En HIGEA", (t) => ["aprobado", "en_proceso", "requiere_info"].includes(t.estado)],
+    ["higea", "En SYS HIGEA", (t) => ["aprobado", "en_proceso", "requiere_info"].includes(t.estado)],
     ["devueltos", "Devueltos", (t) => t.estado === "devuelto"],
     ["cerrados", "Cerrados", (t) => t.estado === "cerrado"],
     ["todos", "Todos", () => true],
@@ -40,8 +40,8 @@ export const FILTRO_DEFAULT = {
 export const ESPERANDO = {
   pendiente: "Esperando aprobación",
   devuelto: "Esperando corrección de Facturación",
-  aprobado: "Esperando que HIGEA tome el caso",
-  en_proceso: "En gestión de HIGEA",
+  aprobado: "Esperando que SYS HIGEA tome el caso",
+  en_proceso: "En gestión de SYS HIGEA",
   requiere_info: "Esperando respuesta de Facturación",
   cerrado: "Cerrado",
 };

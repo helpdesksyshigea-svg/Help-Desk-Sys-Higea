@@ -1,9 +1,9 @@
 const ESTADOS = {
   pendiente: "Pendiente de aprobación",
   devuelto: "Devuelto al facturador",
-  aprobado: "Enviado a HIGEA",
-  en_proceso: "En gestión HIGEA",
-  requiere_info: "HIGEA requiere información",
+  aprobado: "Enviado a SYS HIGEA",
+  en_proceso: "En gestión SYS HIGEA",
+  requiere_info: "SYS HIGEA requiere información",
   cerrado: "Realizado y cerrado",
 };
 

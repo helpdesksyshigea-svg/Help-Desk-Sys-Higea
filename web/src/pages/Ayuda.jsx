@@ -10,8 +10,8 @@ const FAQ = [
     a: "Mientras el ticket esté en Pendiente o Devuelto, ábralo y pulse \"Corregir ticket\". Al guardar, vuelve a quedar pendiente de aprobación.",
   },
   {
-    q: "Un ticket aparece como vencido pero HIGEA ya respondió.",
-    a: "El ticket deja de estar vencido solo cuando cambia de estado (por ejemplo, al cerrarse). Mientras siga en \"Enviado a HIGEA\" o \"En gestión HIGEA\" después de su fecha límite, se marca vencido.",
+    q: "Un ticket aparece como vencido pero SYS HIGEA ya respondió.",
+    a: "El ticket deja de estar vencido solo cuando cambia de estado (por ejemplo, al cerrarse). Mientras siga en \"Enviado a SYS HIGEA\" o \"En gestión SYS HIGEA\" después de su fecha límite, se marca vencido.",
   },
   {
     q: "Olvidé mi contraseña o no puedo ingresar.",
@@ -22,8 +22,8 @@ const FAQ = [
     a: "Use el campo de nota en el detalle del ticket para dejar constancia; todo el historial queda visible a quien tenga acceso al ticket.",
   },
   {
-    q: "¿Por qué HIGEA no ve mi ticket recién radicado?",
-    a: "Un ticket solo cuenta como aprobado cuando la supervisora lo aprueba expresamente. Mientras eso no pase, HIGEA no lo ve, aunque figure en su propia bandeja.",
+    q: "¿Por qué SYS HIGEA no ve mi ticket recién radicado?",
+    a: "Un ticket solo cuenta como aprobado cuando la supervisora lo aprueba expresamente. Mientras eso no pase, SYS HIGEA no lo ve, aunque figure en su propia bandeja.",
   },
   {
     q: "¿Por qué el oficio es obligatorio para radicar?",

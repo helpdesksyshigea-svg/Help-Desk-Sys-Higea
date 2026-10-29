@@ -17,11 +17,11 @@ function iniciales(nombre) {
 }
 
 const ACCIONES = [
-  { ruta: "aprobar", permiso: "tickets.aprobar", estados: ["pendiente"], label: "Aprobar y enviar a HIGEA", icon: IconCheck, variant: "accent", notaObligatoria: false, exito: "Ticket aprobado y enviado a HIGEA" },
+  { ruta: "aprobar", permiso: "tickets.aprobar", estados: ["pendiente"], label: "Aprobar y enviar a SYS HIGEA", icon: IconCheck, variant: "accent", notaObligatoria: false, exito: "Ticket aprobado y enviado a SYS HIGEA" },
   { ruta: "devolver", permiso: "tickets.devolver", estados: ["pendiente"], label: "Devolver al facturador", icon: IconReturn, variant: "danger", notaObligatoria: true, exito: "Ticket devuelto al facturador" },
   { ruta: "tomar", permiso: "tickets.tomar", estados: ["aprobado"], label: "Tomar caso", icon: IconInbox, variant: "ghost", notaObligatoria: false, exito: "Caso tomado" },
   { ruta: "pedir-info", permiso: "tickets.pedir_info", estados: ["en_proceso"], label: "Pedir información", icon: IconInfo, variant: "ghost", notaObligatoria: true, exito: "Se solicitó información al facturador" },
-  { ruta: "responder-info", permiso: "tickets.responder_info", estados: ["requiere_info"], label: "Responder a HIGEA", icon: IconSend, variant: "ghost", notaObligatoria: true, exito: "Respuesta enviada a HIGEA" },
+  { ruta: "responder-info", permiso: "tickets.responder_info", estados: ["requiere_info"], label: "Responder a SYS HIGEA", icon: IconSend, variant: "ghost", notaObligatoria: true, exito: "Respuesta enviada a SYS HIGEA" },
   { ruta: "cerrar", permiso: "tickets.cerrar", estados: ["en_proceso"], label: "Reportar realizado y cerrar", icon: IconCheck, variant: "accent", notaObligatoria: true, exito: "Ticket cerrado" },
   { ruta: "reabrir", permiso: "tickets.reabrir", estados: ["cerrado"], label: "Reabrir", icon: IconReturn, variant: "danger", notaObligatoria: true, exito: "Ticket reabierto" },
 ];
@@ -31,8 +31,8 @@ const EVENTO_LABEL = {
   aprobado: "Aprobado",
   devuelto: "Devuelto al facturador",
   editado: "Corregido y reenviado",
-  tomado: "Caso tomado por HIGEA",
-  requiere_info: "HIGEA solicitó información",
+  tomado: "Caso tomado por SYS HIGEA",
+  requiere_info: "SYS HIGEA solicitó información",
   respondido: "Facturación respondió",
   cerrado: "Cerrado",
   reabierto: "Reabierto",

@@ -14,7 +14,7 @@ export function NewTicket() {
     <div className="grid gap-6">
       <h2 className="text-xl font-light">Nuevo ticket para SYS HIGEA</h2>
       <p className="-mt-4 text-sm text-[var(--color-muted)]">
-        Al radicar, el ticket pasa a aprobación de la supervisora antes de llegar a HIGEA.
+        Al radicar, el ticket pasa a aprobación de la supervisora antes de llegar a SYS HIGEA.
       </p>
       <TicketForm modo="crear" onSubmit={crear} submitLabel="Radicar ticket" />
     </div>

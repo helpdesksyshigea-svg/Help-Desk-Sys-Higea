@@ -3,7 +3,7 @@ import { supabase } from "../lib/supabase";
 import { IconDownload } from "./icons";
 
 const API_URL = import.meta.env.VITE_API_URL;
-const ETIQUETAS_KIND = { oficio: "Oficio firmado", soporte: "Soporte", evidencia: "Evidencia HIGEA" };
+const ETIQUETAS_KIND = { oficio: "Oficio firmado", soporte: "Soporte", evidencia: "Evidencia SYS HIGEA" };
 
 function kb(bytes) {
   return bytes > 1048576 ? (bytes / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(bytes / 1024)) + " KB";
