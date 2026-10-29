@@ -56,7 +56,7 @@ export function Admin() {
         {tab === "roles" && <Roles />}
         {tab === "tipos" && <Catalogo titulo="Tipos de solicitud" path="tipos" />}
         {tab === "motivos" && <Catalogo titulo="Motivos" path="motivos" />}
-        {tab === "ingenieros" && <Catalogo titulo="Ingenieros SYS HIGEA" path="ingenieros" />}
+        {tab === "ingenieros" && <Catalogo titulo="Ingenieros SYS HIGEA" path="ingenieros" claveAutomatica />}
         {tab === "sla" && <Sla />}
         {tab === "festivos" && <Festivos />}
         {tab === "almacenamiento" && <Almacenamiento />}
@@ -556,7 +556,22 @@ function Roles() {
 
 // ======================= Catálogos (tipos / motivos) =======================
 
-function Catalogo({ titulo, path }) {
+// Convierte un nombre libre en una clave interna válida (minúsculas, sin
+// tildes, solo letras/números/guion bajo) con un sufijo aleatorio para evitar
+// choques entre nombres parecidos o repetidos.
+function slugificar(texto) {
+  const base = texto
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  const sufijo = Math.random().toString(36).slice(2, 6);
+  return `${base || "item"}_${sufijo}`;
+}
+
+function Catalogo({ titulo, path, claveAutomatica = false }) {
   const [items, setItems] = useState([]);
   const [clave, setClave] = useState("");
   const [etiqueta, setEtiqueta] = useState("");
@@ -582,7 +597,8 @@ function Catalogo({ titulo, path }) {
     e.preventDefault();
     setError(null);
     try {
-      await apiFetch(`/admin/${path}`, { method: "POST", body: JSON.stringify({ clave, etiqueta }) });
+      const claveFinal = claveAutomatica ? slugificar(etiqueta) : clave;
+      await apiFetch(`/admin/${path}`, { method: "POST", body: JSON.stringify({ clave: claveFinal, etiqueta }) });
       exito(`"${etiqueta}" agregado`);
       setClave("");
       setEtiqueta("");
@@ -627,13 +643,18 @@ function Catalogo({ titulo, path }) {
     <div className="grid gap-4">
       <Card className="grid gap-3">
         <h3 className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">Agregar {titulo.toLowerCase()}</h3>
-        <form onSubmit={agregar} className="grid gap-3 sm:grid-cols-[160px_1fr_auto] sm:items-end">
+        <form
+          onSubmit={agregar}
+          className={`grid gap-3 sm:items-end ${claveAutomatica ? "sm:grid-cols-[1fr_auto]" : "sm:grid-cols-[160px_1fr_auto]"}`}
+        >
+          {!claveAutomatica && (
+            <label className="text-sm">
+              <span className="mb-1 block font-medium">Clave</span>
+              <input required value={clave} onChange={(e) => setClave(e.target.value)} placeholder="ej. equivocacion_cups" className={inputClass} />
+            </label>
+          )}
           <label className="text-sm">
-            <span className="mb-1 block font-medium">Clave</span>
-            <input required value={clave} onChange={(e) => setClave(e.target.value)} placeholder="ej. equivocacion_cups" className={inputClass} />
-          </label>
-          <label className="text-sm">
-            <span className="mb-1 block font-medium">Etiqueta</span>
+            <span className="mb-1 block font-medium">{claveAutomatica ? "Nombre y apellidos" : "Etiqueta"}</span>
             <input required value={etiqueta} onChange={(e) => setEtiqueta(e.target.value)} className={inputClass} />
           </label>
           <Button type="submit" variant="accent">
@@ -647,17 +668,24 @@ function Catalogo({ titulo, path }) {
         <ul className="divide-y divide-[var(--color-border)]">
         {items.map((item) =>
           editando === item.clave ? (
-            <li key={item.clave} className="grid gap-2 px-4 py-3 sm:grid-cols-[160px_1fr_auto_auto] sm:items-end">
+            <li
+              key={item.clave}
+              className={`grid gap-2 px-4 py-3 sm:items-end ${claveAutomatica ? "sm:grid-cols-[1fr_auto_auto]" : "sm:grid-cols-[160px_1fr_auto_auto]"}`}
+            >
+              {!claveAutomatica && (
+                <label className="text-sm">
+                  <span className="mb-1 block text-xs font-medium text-[var(--color-muted)]">Clave</span>
+                  <input
+                    value={edicion.clave}
+                    onChange={(e) => setEdicion((p) => ({ ...p, clave: e.target.value }))}
+                    className={inputClass}
+                  />
+                </label>
+              )}
               <label className="text-sm">
-                <span className="mb-1 block text-xs font-medium text-[var(--color-muted)]">Clave</span>
-                <input
-                  value={edicion.clave}
-                  onChange={(e) => setEdicion((p) => ({ ...p, clave: e.target.value }))}
-                  className={inputClass}
-                />
-              </label>
-              <label className="text-sm">
-                <span className="mb-1 block text-xs font-medium text-[var(--color-muted)]">Etiqueta</span>
+                <span className="mb-1 block text-xs font-medium text-[var(--color-muted)]">
+                  {claveAutomatica ? "Nombre y apellidos" : "Etiqueta"}
+                </span>
                 <input
                   value={edicion.etiqueta}
                   onChange={(e) => setEdicion((p) => ({ ...p, etiqueta: e.target.value }))}
@@ -675,7 +703,7 @@ function Catalogo({ titulo, path }) {
             <li key={item.clave} className="flex items-center justify-between px-4 py-3">
               <div>
                 <div className="font-medium">{item.etiqueta}</div>
-                <div className="text-xs text-[var(--color-muted)]">{item.clave}</div>
+                {!claveAutomatica && <div className="text-xs text-[var(--color-muted)]">{item.clave}</div>}
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="ghost" onClick={() => empezarEdicion(item)}>
