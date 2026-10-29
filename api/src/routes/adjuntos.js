@@ -80,7 +80,7 @@ adjuntosRouter.get("/tickets/:id/adjuntos", async (req, res) => {
   }
   const { data, error } = await supabase
     .from("ticket_adjuntos")
-    .select("*")
+    .select("*, subido_por_usuario:usuarios!ticket_adjuntos_subido_por_fkey(nombre)")
     .eq("ticket_id", req.params.id)
     .order("created_at", { ascending: true });
   if (error) return res.status(500).json({ error: error.message });

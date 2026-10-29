@@ -97,7 +97,8 @@ export function Adjuntos({ ticketId, kindsPermitidos = ["oficio", "soporte", "ev
                     {a.nombre_original}
                   </button>
                   <div className="text-xs text-[var(--color-muted)]">
-                    {ETIQUETAS_KIND[a.kind] || a.kind} · {kb(a.tamano_bytes)}
+                    {ETIQUETAS_KIND[a.kind] || a.kind} · {kb(a.tamano_bytes)} · subido por {a.subido_por_usuario?.nombre || "—"}{" "}
+                    el {new Date(a.created_at).toLocaleDateString("es-CO", { day: "2-digit", month: "short" })}
                   </div>
                 </div>
               </li>
