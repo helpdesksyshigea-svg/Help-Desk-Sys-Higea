@@ -100,13 +100,27 @@ export function Sidebar() {
         <div className="mt-2 flex min-w-0 flex-col gap-0.5">
           {filtros.map(([clave, etiqueta, fn]) => {
             const Icono = ICONOS[clave] || IconClock;
+            const total = tickets.filter(fn).length;
+            // "Requiere tu acción" con pendientes reales se marca aparte de la
+            // selección normal (lima = "estás viendo esto"): el conteo en rojo
+            // con parpadeo es la única señal de "esto necesita tu atención
+            // ahora", para que no se pierda entre el resto de filtros en 0.
+            const esAlerta = clave === "accion" && total > 0;
             return (
               <NavLink key={clave} to={`/?filtro=${clave}`} className={() => itemClass(filtroActivo === clave)}>
                 <span className="flex min-w-0 flex-1 items-center gap-2">
-                  <Icono size={14} className="shrink-0" />
-                  <span className="min-w-0 flex-1 truncate">{etiqueta}</span>
+                  <Icono size={14} className={`shrink-0 ${esAlerta ? "text-[#b3362a]" : ""}`} />
+                  <span className={`min-w-0 flex-1 truncate ${esAlerta ? "text-[#b3362a]" : ""}`}>{etiqueta}</span>
                 </span>
-                <span className="shrink-0 text-xs opacity-70">{tickets.filter(fn).length}</span>
+                <span
+                  className={
+                    esAlerta
+                      ? "shrink-0 animate-pulse rounded-full bg-[#b3362a] px-1.5 py-0.5 text-[10px] font-bold text-white"
+                      : "shrink-0 text-xs opacity-70"
+                  }
+                >
+                  {total}
+                </span>
               </NavLink>
             );
           })}
