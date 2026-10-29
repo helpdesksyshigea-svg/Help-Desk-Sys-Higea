@@ -6,6 +6,31 @@ import { limpiarTicketsAntiguos } from "../lib/limpieza.js";
 export const adminRouter = Router();
 adminRouter.use(authenticate);
 
+// Asigna el siguiente código interno de 3 dígitos libre (101, 102, ...), sin importar
+// el rol: todo usuario nuevo lo necesita para poder radicar tickets o para que su
+// nombre quede identificado en el código del ticket que otros radiquen a su nombre.
+// Reintenta ante choque de unicidad por si dos invitaciones llegan al mismo tiempo.
+async function siguienteCodigoInterno() {
+  for (let intento = 0; intento < 20; intento++) {
+    const { data } = await supabase
+      .from("usuarios")
+      .select("codigo_interno")
+      .not("codigo_interno", "is", null)
+      .order("codigo_interno", { ascending: false });
+    const maximo = (data || [])
+      .map((u) => Number(u.codigo_interno))
+      .filter((n) => Number.isInteger(n))
+      .reduce((max, n) => Math.max(max, n), 100);
+    const candidato = String(maximo + 1 + intento).padStart(3, "0");
+    const { count } = await supabase
+      .from("usuarios")
+      .select("id", { count: "exact", head: true })
+      .eq("codigo_interno", candidato);
+    if (!count) return candidato;
+  }
+  throw new Error("No se pudo asignar un código interno disponible");
+}
+
 // ======================= Almacenamiento =======================
 
 const LIMITE_DB_BYTES = 500 * 1024 * 1024; // 500 MB, plan gratuito de Supabase
@@ -95,6 +120,8 @@ adminRouter.post("/admin/usuarios", requirePermission("usuarios.gestionar"), asy
   });
   if (authError) return res.status(400).json({ error: `No se pudo invitar al usuario: ${authError.message}` });
 
+  const codigoInterno = await siguienteCodigoInterno();
+
   const { data: usuario, error } = await supabase
     .from("usuarios")
     .insert({
@@ -103,9 +130,10 @@ adminRouter.post("/admin/usuarios", requirePermission("usuarios.gestionar"), asy
       nombre: nombre.trim(),
       rol_id,
       proveedor: proveedor || null,
+      codigo_interno: codigoInterno,
       activo: true,
     })
-    .select("id, email, nombre, proveedor, activo, created_at, roles(id, nombre)")
+    .select("id, email, nombre, proveedor, codigo_interno, activo, created_at, roles(id, nombre)")
     .single();
   if (error) return res.status(500).json({ error: error.message });
 

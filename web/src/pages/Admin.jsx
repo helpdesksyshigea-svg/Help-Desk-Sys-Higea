@@ -202,7 +202,7 @@ function Usuarios() {
                     guardarCodigoInterno(u, valor);
                   }}
                   placeholder="Código"
-                  title="Código interno (3 dígitos) usado en el número de ticket"
+                  title="Código interno (3 dígitos, se asigna solo al crear el usuario; aquí puedes corregirlo)"
                   maxLength={3}
                   className="w-16 rounded-[var(--radius-input)] border border-[var(--color-border)] px-2 py-1 text-center text-sm"
                 />
