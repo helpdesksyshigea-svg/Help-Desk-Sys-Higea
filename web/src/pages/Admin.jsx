@@ -5,7 +5,7 @@ import { nombreLegible } from "../lib/roles";
 import { useToast } from "../context/ToastContext";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
-import { IconUser, IconShield, IconInbox, IconInfo, IconClock, IconSettings, IconDatabase } from "../components/icons";
+import { IconUser, IconShield, IconInbox, IconInfo, IconClock, IconSettings, IconDatabase, IconEdit } from "../components/icons";
 
 const inputClass =
   "w-full rounded-[var(--radius-input)] border border-[var(--color-ink)]/20 bg-[var(--color-ink)]/5 px-3 py-2 text-sm outline-none focus:border-[var(--color-ink)]";
@@ -178,6 +178,14 @@ function Usuarios() {
       </Card>
 
       <div className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border)]">
+        <div className="hidden items-center justify-between gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)] sm:flex">
+          <span>Usuario</span>
+          <div className="flex items-center gap-2">
+            <span className="w-16 text-center">Código</span>
+            <span className="w-[168px]">Rol</span>
+            <span className="w-[92px]">Acciones</span>
+          </div>
+        </div>
         <ul className="divide-y divide-[var(--color-border)]">
           {usuarios.map((u) => (
             <li key={u.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
@@ -188,28 +196,31 @@ function Usuarios() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <input
-                  key={u.id + (u.codigo_interno || "")}
-                  defaultValue={u.codigo_interno || ""}
-                  onBlur={(e) => {
-                    const valor = e.target.value.trim();
-                    if (valor === (u.codigo_interno || "")) return;
-                    if (valor && !/^\d{3}$/.test(valor)) {
-                      fallo("El código interno debe tener exactamente 3 dígitos (ej. 101)");
-                      e.target.value = u.codigo_interno || "";
-                      return;
-                    }
-                    guardarCodigoInterno(u, valor);
-                  }}
-                  placeholder="Código"
-                  title="Código interno (3 dígitos, se asigna solo al crear el usuario; aquí puedes corregirlo)"
-                  maxLength={3}
-                  className="w-16 rounded-[var(--radius-input)] border border-[var(--color-border)] px-2 py-1 text-center text-sm"
-                />
+                <span className="relative">
+                  <IconEdit size={11} className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[var(--color-muted)]" />
+                  <input
+                    key={u.id + (u.codigo_interno || "")}
+                    defaultValue={u.codigo_interno || ""}
+                    onBlur={(e) => {
+                      const valor = e.target.value.trim();
+                      if (valor === (u.codigo_interno || "")) return;
+                      if (valor && !/^\d{3}$/.test(valor)) {
+                        fallo("El código interno debe tener exactamente 3 dígitos (ej. 101)");
+                        e.target.value = u.codigo_interno || "";
+                        return;
+                      }
+                      guardarCodigoInterno(u, valor);
+                    }}
+                    placeholder="Código"
+                    title="Código interno (3 dígitos, se asigna solo al crear el usuario; aquí puedes corregirlo)"
+                    maxLength={3}
+                    className="w-16 rounded-[var(--radius-input)] border border-[var(--color-border)] py-1 pl-2 pr-4 text-center text-sm"
+                  />
+                </span>
                 <select
                   value={u.roles?.id || ""}
                   onChange={(e) => cambiarRol(u.id, e.target.value)}
-                  className="rounded-[var(--radius-input)] border border-[var(--color-border)] px-2 py-1 text-sm"
+                  className="min-w-[168px] rounded-[var(--radius-input)] border border-[var(--color-border)] px-2 py-1 text-sm"
                 >
                   {roles.map((r) => (
                     <option key={r.id} value={r.id}>
@@ -509,6 +520,7 @@ function Catalogo({ titulo, path }) {
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="ghost" onClick={() => empezarEdicion(item)}>
+                  <IconEdit size={13} />
                   Editar
                 </Button>
                 <Button variant={item.activo ? "danger" : "ghost"} onClick={() => alternarActivo(item)}>
@@ -544,18 +556,25 @@ function Sla() {
 
   return (
     <div className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border)]">
+      <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">
+        <span>Prioridad</span>
+        <span>Plazo</span>
+      </div>
       <ul className="divide-y divide-[var(--color-border)]">
       {config.map((c) => (
         <li key={c.prioridad} className="flex items-center justify-between gap-3 px-4 py-3">
           <span className="capitalize font-medium">{c.prioridad}</span>
           <div className="flex items-center gap-2">
-            <input
-              type="number"
-              min="1"
-              defaultValue={c.dias_habiles}
-              onBlur={(e) => guardar(c.prioridad, Number(e.target.value))}
-              className="w-20 rounded-[var(--radius-input)] border border-[var(--color-border)] px-2 py-1 text-sm"
-            />
+            <span className="relative">
+              <IconEdit size={11} className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[var(--color-muted)]" />
+              <input
+                type="number"
+                min="1"
+                defaultValue={c.dias_habiles}
+                onBlur={(e) => guardar(c.prioridad, Number(e.target.value))}
+                className="w-20 rounded-[var(--radius-input)] border border-[var(--color-border)] py-1 pl-2 pr-5 text-sm"
+              />
+            </span>
             <span className="text-sm text-[var(--color-muted)]">días hábiles</span>
           </div>
         </li>
@@ -753,13 +772,16 @@ function Almacenamiento() {
         <form onSubmit={guardarDias} className="flex flex-wrap items-end gap-2">
           <label className="text-sm">
             <span className="mb-1 block font-medium">Días de retención</span>
-            <input
-              type="number"
-              min="1"
-              value={dias}
-              onChange={(e) => setDias(e.target.value)}
-              className="w-28 rounded-[var(--radius-input)] border border-[var(--color-border)] px-3 py-2 text-sm"
-            />
+            <span className="relative block">
+              <IconEdit size={12} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--color-muted)]" />
+              <input
+                type="number"
+                min="1"
+                value={dias}
+                onChange={(e) => setDias(e.target.value)}
+                className="w-28 rounded-[var(--radius-input)] border border-[var(--color-border)] py-2 pl-3 pr-7 text-sm"
+              />
+            </span>
           </label>
           <Button type="submit" variant="ghost">
             Guardar
