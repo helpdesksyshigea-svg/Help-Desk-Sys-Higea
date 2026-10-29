@@ -14,6 +14,7 @@ export const FILTROS_POR_ROL = {
   facturador: [
     ["accion", "Requiere tu acción", (t) => necesitaAccion(t, "facturador")],
     ["pendiente", "En aprobación", (t) => t.estado === "pendiente"],
+    ["higea", "Enviados a SYS HIGEA", (t) => ["aprobado", "en_proceso", "requiere_info"].includes(t.estado)],
     ["abiertos", "Abiertos", (t) => t.estado !== "cerrado"],
     ["cerrados", "Cerrados", (t) => t.estado === "cerrado"],
     ["todos", "Todos", () => true],
