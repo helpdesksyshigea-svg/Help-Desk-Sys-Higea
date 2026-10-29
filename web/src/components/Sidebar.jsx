@@ -58,7 +58,7 @@ export function Sidebar() {
   }, []);
 
   const itemClass = (activo) =>
-    `flex items-center justify-between gap-2 rounded-[var(--radius-button)] px-3 py-2 text-sm font-medium transition-colors ${
+    `flex min-w-0 items-center justify-between gap-2 rounded-[var(--radius-button)] px-3 py-2 text-sm font-medium transition-colors ${
       activo
         ? "bg-[var(--color-accent)] text-[var(--color-accent-ink)]"
         : "text-[var(--color-ink)] hover:bg-[var(--color-ink)]/[0.05]"
@@ -90,7 +90,7 @@ export function Sidebar() {
           <span className="shrink-0 text-xs opacity-70">{tickets.length || ""}</span>
         </NavLink>
 
-        <div className="mt-2 grid gap-0.5">
+        <div className="mt-2 flex min-w-0 flex-col gap-0.5">
           {filtros.map(([clave, etiqueta, fn]) => {
             const Icono = ICONOS[clave] || IconClock;
             return (
