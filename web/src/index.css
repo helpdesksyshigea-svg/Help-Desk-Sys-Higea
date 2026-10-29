@@ -45,4 +45,9 @@ body {
   color: var(--color-ink);
   font-family: var(--font-sans);
   letter-spacing: 0.054em;
+  /* Si algún contenido del panel principal (ej. una tabla ancha en la
+     bandeja) se desborda, esto evita que arrastre a toda la página con él —
+     el sidebar es "sticky", no "fixed", así que un scroll horizontal del
+     documento completo lo recorre y lo corta visualmente. */
+  overflow-x: hidden;
 }
