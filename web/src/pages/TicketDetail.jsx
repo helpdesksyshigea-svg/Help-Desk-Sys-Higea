@@ -8,6 +8,7 @@ import { StatusTag } from "../components/StatusTag";
 import { Adjuntos } from "../components/Adjuntos";
 import { useToast } from "../context/ToastContext";
 import { ESPERANDO } from "../lib/filters";
+import { fechaCorta, fechaHora } from "../lib/fecha";
 import { IconArrowLeft, IconCheck, IconReturn, IconInbox, IconInfo, IconSend, IconUser, IconClock, IconPaperclip } from "../components/icons";
 
 function iniciales(nombre) {
@@ -39,9 +40,6 @@ const EVENTO_LABEL = {
   adjunto_subido: "Documento adjuntado",
 };
 
-function fmt(iso) {
-  return new Date(iso).toLocaleString("es-CO", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
-}
 
 export function TicketDetail() {
   const { id } = useParams();
@@ -127,10 +125,10 @@ export function TicketDetail() {
             )}
           </div>
           <div className="text-right text-xs text-[var(--color-muted)]">
-            <div>Creado el {fmt(ticket.created_at)}</div>
+            <div>Creado el {fechaHora(ticket.created_at)}</div>
             {ticket.dueAt && (
               <div className={ticket.vencido ? "font-semibold text-[#b3362a]" : ""}>
-                {ticket.vencido ? "Vencido desde" : "Vence"} {fmt(ticket.dueAt)}
+                {ticket.vencido ? "Vencido desde" : "Vence"} {fechaHora(ticket.dueAt)}
               </div>
             )}
           </div>
@@ -162,13 +160,13 @@ export function TicketDetail() {
             <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">
               <IconClock size={13} /> Radicado
             </div>
-            <div>{new Date(ticket.created_at).toLocaleDateString("es-CO")}</div>
+            <div>{fechaCorta(ticket.created_at)}</div>
           </div>
           <div>
             <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">
               <IconCheck size={13} /> Aprobado
             </div>
-            <div>{ticket.aprobado_at ? new Date(ticket.aprobado_at).toLocaleDateString("es-CO") : "Sin aprobación aún"}</div>
+            <div>{ticket.aprobado_at ? fechaCorta(ticket.aprobado_at) : "Sin aprobación aún"}</div>
           </div>
         </div>
 
@@ -206,7 +204,7 @@ export function TicketDetail() {
                 <td className="py-2 pr-3">{item.paciente || "—"}</td>
                 <td className="py-2 pr-3 text-xs">{item.documento || "—"}</td>
                 <td className="py-2 pr-3 text-xs">{item.cups || "—"}</td>
-                <td className="py-2 pr-3">{item.fecha || "—"}</td>
+                <td className="py-2 pr-3">{fechaCorta(item.fecha)}</td>
                 <td className="py-2 pr-3">{motivos[item.motivo] || item.motivo}</td>
                 <td className="py-2 text-[var(--color-muted)]">{item.descripcion || "—"}</td>
               </tr>
@@ -239,7 +237,7 @@ export function TicketDetail() {
                 <div className="pb-1">
                   <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
                     <span className="font-medium">{EVENTO_LABEL[ev.tipo_evento] || ev.tipo_evento}</span>
-                    <span className="text-xs text-[var(--color-muted)]">{fmt(ev.created_at)}</span>
+                    <span className="text-xs text-[var(--color-muted)]">{fechaHora(ev.created_at)}</span>
                   </div>
                   {ev.texto && <div className="mt-0.5 text-sm text-[var(--color-muted)]">{ev.texto}</div>}
                 </div>

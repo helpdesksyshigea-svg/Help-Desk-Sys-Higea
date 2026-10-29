@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { IconDownload } from "./icons";
+import { fechaCorta } from "../lib/fecha";
 
 const API_URL = import.meta.env.VITE_API_URL;
 const ETIQUETAS_KIND = { oficio: "Oficio firmado", soporte: "Soporte", evidencia: "Evidencia SYS HIGEA" };
@@ -99,7 +100,7 @@ export function Adjuntos({ ticketId, kindsPermitidos = ["oficio", "soporte", "ev
                   </button>
                   <div className="text-xs text-[var(--color-muted)]">
                     {ETIQUETAS_KIND[a.kind] || a.kind} · {kb(a.tamano_bytes)} · subido por {a.subido_por_usuario?.nombre || "—"}{" "}
-                    el {new Date(a.created_at).toLocaleDateString("es-CO", { day: "2-digit", month: "short" })}
+                    el {fechaCorta(a.created_at)}
                   </div>
                 </div>
                 <button
