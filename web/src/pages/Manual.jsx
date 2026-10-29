@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Card } from "../components/Card";
-import { IconUser, IconShield, IconInbox, IconSend } from "../components/icons";
+import { IconUser, IconShield, IconInbox, IconSend, IconSettings } from "../components/icons";
 import { DiagramaFlujo } from "../components/DiagramaFlujo";
 
 function Captura({ src, alt, caption }) {
@@ -31,6 +31,7 @@ const SECCIONES = [
   { k: "facturador", l: "Facturación", icon: IconUser },
   { k: "supervisora", l: "Supervisora", icon: IconShield },
   { k: "higea", l: "SYS HIGEA", icon: IconInbox },
+  { k: "admin", l: "Administración", icon: IconSettings },
 ];
 
 export function Manual() {
@@ -191,6 +192,45 @@ export function Manual() {
               <li>• "Liberar caso" lo devuelve a "Aprobado" sin asignar, para que cualquier agente (incluido usted) lo pueda tomar de nuevo. El plazo de respuesta no se reinicia al liberarlo.</li>
               <li>• Si la supervisora reabre un ticket que usted cerró, sigue asignado a usted — no hay que volver a tomarlo.</li>
             </ul>
+          </Card>
+        </div>
+      )}
+
+      {seccion === "admin" && (
+        <div className="grid gap-4">
+          <Card className="grid gap-3">
+            <Paso numero="1" titulo="Usuarios: invitar, editar y gestionar cuentas">
+              Desde Administración → Usuarios puede invitar a alguien nuevo (correo, nombre y rol); la persona recibe un
+              correo para definir su propia contraseña. También puede editar el correo, nombre o código interno de un
+              usuario existente haciendo clic sobre el dato, activar/desactivar su cuenta sin borrarla, cambiarle la
+              contraseña directamente, o eliminarla por completo si ya no la necesita.
+            </Paso>
+            <Captura src="/manual/11-admin-usuarios.jpg" alt="Panel de administración, pestaña Usuarios" />
+          </Card>
+          <Card className="grid gap-3">
+            <Paso numero="2" titulo="Roles: qué puede hacer cada tipo de usuario">
+              En Administración → Roles puede crear un rol nuevo o ajustar los permisos de uno existente marcando o
+              desmarcando casillas en la matriz — cada cambio se guarda al instante, sin botón "Guardar" aparte. Los
+              permisos están agrupados por tema (tickets, usuarios, roles, configuración, reportes).
+            </Paso>
+            <Captura src="/manual/12-admin-roles.jpg" alt="Panel de administración, pestaña Roles" />
+          </Card>
+          <Card className="grid gap-3">
+            <Paso numero="3" titulo="Catálogos, plazos y festivos">
+              "Tipos de solicitud" y "Motivos" son las listas que ve el facturador al radicar un ticket — puede agregar,
+              editar o quitar opciones. "Plazos SLA" define cuántos días hábiles tiene SYS HIGEA para atender cada
+              prioridad (alta, media, baja). "Festivos" es el calendario que el sistema usa para no contar esos días
+              como hábiles al calcular los plazos.
+            </Paso>
+          </Card>
+          <Card className="grid gap-3">
+            <Paso numero="4" titulo="Almacenamiento: espacio usado y limpieza">
+              Muestra cuánto espacio ocupan los adjuntos frente al límite del plan, y cada cuántos días (por defecto 90)
+              se archivan automáticamente los adjuntos de los tickets cerrados para liberar espacio (el ticket y su
+              historial no se borran, solo los archivos). Puede ajustar ese plazo o ejecutar la limpieza manualmente.
+              Si el uso llega al 75% del límite, el sistema le avisa por correo automáticamente.
+            </Paso>
+            <Captura src="/manual/13-admin-almacenamiento.jpg" alt="Panel de administración, pestaña Almacenamiento" />
           </Card>
         </div>
       )}
