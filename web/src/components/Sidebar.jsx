@@ -53,8 +53,15 @@ export function Sidebar() {
         .catch((e) => console.error("No se pudo actualizar el contador de tickets:", e));
     }
     cargar();
+    function alVolverVisible() {
+      if (document.visibilityState === "visible") cargar();
+    }
     window.addEventListener("tickets-changed", cargar);
-    return () => window.removeEventListener("tickets-changed", cargar);
+    document.addEventListener("visibilitychange", alVolverVisible);
+    return () => {
+      window.removeEventListener("tickets-changed", cargar);
+      document.removeEventListener("visibilitychange", alVolverVisible);
+    };
   }, []);
 
   const itemClass = (activo) =>

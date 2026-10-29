@@ -68,6 +68,14 @@ export function TicketDetail() {
 
   useEffect(() => {
     cargar();
+    // Si otra persona cambia este ticket desde otra sesión mientras esta
+    // pestaña sigue abierta en su detalle, al volver a ella se refresca solo.
+    function alVolverVisible() {
+      if (document.visibilityState === "visible") cargar();
+    }
+    document.addEventListener("visibilitychange", alVolverVisible);
+    return () => document.removeEventListener("visibilitychange", alVolverVisible);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   useEffect(() => {

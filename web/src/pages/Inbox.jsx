@@ -76,13 +76,30 @@ export function Inbox() {
   }
 
   useEffect(() => {
-    apiFetch("/tickets")
-      .then((data) => {
-        if (!Array.isArray(data)) throw new Error("La respuesta del servidor no tiene el formato esperado.");
-        setTickets(data);
-      })
-      .catch((e) => setError(e.message))
-      .finally(() => setCargando(false));
+    function cargar() {
+      apiFetch("/tickets")
+        .then((data) => {
+          if (!Array.isArray(data)) throw new Error("La respuesta del servidor no tiene el formato esperado.");
+          setTickets(data);
+        })
+        .catch((e) => setError(e.message))
+        .finally(() => setCargando(false));
+    }
+    cargar();
+    // Otra persona (ej. la supervisora) puede cambiar un ticket desde otra
+    // sesión/dispositivo mientras esta pestaña sigue abierta — sin esto, la
+    // bandeja se queda con el estado viejo hasta que alguien recarga a mano.
+    // "tickets-changed" cubre acciones propias en esta misma pestaña;
+    // "visibilitychange" cubre cambios ajenos, al volver a esta pestaña.
+    function alVolverVisible() {
+      if (document.visibilityState === "visible") cargar();
+    }
+    window.addEventListener("tickets-changed", cargar);
+    document.addEventListener("visibilitychange", alVolverVisible);
+    return () => {
+      window.removeEventListener("tickets-changed", cargar);
+      document.removeEventListener("visibilitychange", alVolverVisible);
+    };
   }, []);
 
   const [, , fn] = filtros.find(([k]) => k === filtroActivo) || filtros[0];
