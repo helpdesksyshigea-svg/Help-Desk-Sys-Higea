@@ -181,6 +181,43 @@ adminRouter.patch("/admin/usuarios/:id", requirePermission("usuarios.gestionar")
   res.json(data);
 });
 
+// Permite a la administradora fijar una contraseña directamente (ej. soporte
+// telefónico con el hospital), sin depender de que el correo de invitación o
+// de "olvidé mi contraseña" llegue. No revela la contraseña anterior ni la
+// nueva en ningún log.
+adminRouter.post("/admin/usuarios/:id/contrasena", requirePermission("usuarios.gestionar"), async (req, res) => {
+  const password = req.body?.password;
+  if (!password || password.length < 8) {
+    return res.status(400).json({ error: "La contraseña debe tener al menos 8 caracteres" });
+  }
+  const { error } = await supabase.auth.admin.updateUserById(req.params.id, { password });
+  if (error) return res.status(400).json({ error: error.message });
+  res.json({ ok: true });
+});
+
+// Borrado real (no desactivación). La base de datos protege la integridad del
+// historial: cualquier usuario con tickets radicados, aprobaciones, adjuntos
+// o eventos a su nombre no se puede borrar (restricción de llave foránea) —
+// en ese caso el error se devuelve tal cual, explicando que debe desactivarse
+// en vez de eliminarse. Solo cuentas sin ningún rastro de uso se pueden borrar.
+adminRouter.delete("/admin/usuarios/:id", requirePermission("usuarios.gestionar"), async (req, res) => {
+  if (req.params.id === req.user.id) {
+    return res.status(400).json({ error: "No puede eliminar su propia cuenta" });
+  }
+  const { error } = await supabase.from("usuarios").delete().eq("id", req.params.id);
+  if (error) {
+    if (error.code === "23503") {
+      return res.status(409).json({
+        error: "Este usuario tiene tickets, aprobaciones o historial a su nombre; no se puede eliminar sin perder ese rastro. Desactívelo en su lugar.",
+      });
+    }
+    return res.status(500).json({ error: error.message });
+  }
+  const { error: authError } = await supabase.auth.admin.deleteUser(req.params.id);
+  if (authError) return res.status(500).json({ error: `Usuario eliminado del sistema, pero no de la cuenta de acceso: ${authError.message}` });
+  res.json({ ok: true });
+});
+
 // ======================= Roles y permisos =======================
 
 adminRouter.get("/admin/permisos", requirePermission("roles.gestionar"), async (req, res) => {

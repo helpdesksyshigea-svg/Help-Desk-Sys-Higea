@@ -118,6 +118,12 @@ export const IconBook = (p) => (
     <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z" />
   </Svg>
 );
+export const IconKey = (p) => (
+  <Svg {...p}>
+    <circle cx="7.5" cy="15.5" r="4.5" />
+    <path d="m10.5 12.5 9-9M15 8l2 2M18 5l2 2" />
+  </Svg>
+);
 export const IconEdit = (p) => (
   <Svg {...p}>
     <path d="M12 20h9" />

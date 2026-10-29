@@ -5,7 +5,7 @@ import { nombreLegible } from "../lib/roles";
 import { useToast } from "../context/ToastContext";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
-import { IconUser, IconShield, IconInbox, IconInfo, IconClock, IconSettings, IconDatabase, IconEdit } from "../components/icons";
+import { IconUser, IconShield, IconInbox, IconInfo, IconClock, IconSettings, IconDatabase, IconEdit, IconKey, IconTrash } from "../components/icons";
 
 const inputClass =
   "w-full rounded-[var(--radius-input)] border border-[var(--color-ink)]/20 bg-[var(--color-ink)]/5 px-3 py-2 text-sm outline-none focus:border-[var(--color-ink)]";
@@ -105,6 +105,40 @@ function CampoEditable({ valor, onGuardar, tipo = "text", placeholder, className
   );
 }
 
+function FormularioContrasena({ onGuardar, onCancelar }) {
+  const [password, setPassword] = useState("");
+  const [confirmar, setConfirmar] = useState("");
+  const [error, setError] = useState(null);
+
+  function enviar(e) {
+    e.preventDefault();
+    if (password.length < 8) return setError("Debe tener al menos 8 caracteres");
+    if (password !== confirmar) return setError("Las contraseñas no coinciden");
+    setError(null);
+    onGuardar(password);
+  }
+
+  return (
+    <form onSubmit={enviar} className="mt-2 grid gap-2 rounded-[var(--radius-input)] border border-[var(--color-border)] bg-[var(--color-canvas)] p-3 sm:grid-cols-[1fr_1fr_auto_auto] sm:items-end">
+      <label className="text-xs">
+        <span className="mb-1 block font-medium">Nueva contraseña</span>
+        <input type="password" autoFocus minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} className={inputClass} />
+      </label>
+      <label className="text-xs">
+        <span className="mb-1 block font-medium">Confirmar</span>
+        <input type="password" minLength={8} value={confirmar} onChange={(e) => setConfirmar(e.target.value)} className={inputClass} />
+      </label>
+      <Button type="submit" variant="accent">
+        Guardar
+      </Button>
+      <Button type="button" variant="ghost" onClick={onCancelar}>
+        Cancelar
+      </Button>
+      {error && <p className="text-xs text-[#b3362a] sm:col-span-4">{error}</p>}
+    </form>
+  );
+}
+
 function Mensaje({ error, ok }) {
   if (error) return <p className="text-sm text-[#b3362a]">{error}</p>;
   if (ok) return <p className="text-sm text-[var(--color-state-cerrado)]">{ok}</p>;
@@ -123,6 +157,7 @@ function Usuarios() {
   const [error, setError] = useState(null);
   const [ok, setOk] = useState(null);
   const [enviando, setEnviando] = useState(false);
+  const [cambiandoPassId, setCambiandoPassId] = useState(null);
 
   async function cargar() {
     const [u, r] = await Promise.all([apiFetch("/admin/usuarios"), apiFetch("/admin/roles")]);
@@ -196,6 +231,25 @@ function Usuarios() {
       cargar();
     }
   }
+  async function eliminarUsuario(u) {
+    if (!window.confirm(`Esto elimina PERMANENTEMENTE la cuenta de "${u.nombre}" (${u.email}). ¿Continuar?`)) return;
+    try {
+      await apiFetch(`/admin/usuarios/${u.id}`, { method: "DELETE" });
+      exito(`${u.nombre} eliminado`);
+      cargar();
+    } catch (e) {
+      fallo(e.message);
+    }
+  }
+  async function cambiarContrasena(u, password) {
+    try {
+      await apiFetch(`/admin/usuarios/${u.id}/contrasena`, { method: "POST", body: JSON.stringify({ password }) });
+      exito(`Contraseña de ${u.nombre} actualizada`);
+      setCambiandoPassId(null);
+    } catch (e) {
+      fallo(e.message);
+    }
+  }
 
   return (
     <div className="grid gap-4">
@@ -235,7 +289,7 @@ function Usuarios() {
       </Card>
 
       <div className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border)]">
-        <div className="hidden grid-cols-[1fr_88px_190px_110px] items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)] sm:grid">
+        <div className="hidden grid-cols-[1fr_88px_190px_190px] items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)] sm:grid">
           <span>Usuario</span>
           <span className="text-center">Código</span>
           <span>Rol</span>
@@ -245,7 +299,7 @@ function Usuarios() {
           {usuarios.map((u) => (
             <li
               key={u.id}
-              className="grid grid-cols-1 items-center gap-2 px-4 py-3 sm:grid-cols-[1fr_88px_190px_110px] sm:gap-3"
+              className="grid grid-cols-1 items-center gap-2 px-4 py-3 sm:grid-cols-[1fr_88px_190px_190px] sm:gap-3"
             >
               <div className="min-w-0">
                 <CampoEditable
@@ -298,11 +352,26 @@ function Usuarios() {
                   </option>
                 ))}
               </select>
-              <div className="sm:justify-self-end">
+              <div className="flex items-center gap-1 sm:justify-self-end">
                 <Button variant={u.activo ? "danger" : "ghost"} onClick={() => alternarActivo(u)}>
                   {u.activo ? "Desactivar" : "Activar"}
                 </Button>
+                <Button
+                  variant="ghost"
+                  title="Cambiar contraseña"
+                  onClick={() => setCambiandoPassId(cambiandoPassId === u.id ? null : u.id)}
+                >
+                  <IconKey size={14} />
+                </Button>
+                <Button variant="ghost" title="Eliminar usuario" onClick={() => eliminarUsuario(u)}>
+                  <IconTrash size={14} />
+                </Button>
               </div>
+              {cambiandoPassId === u.id && (
+                <div className="sm:col-span-4">
+                  <FormularioContrasena onGuardar={(pass) => cambiarContrasena(u, pass)} onCancelar={() => setCambiandoPassId(null)} />
+                </div>
+              )}
             </li>
           ))}
         </ul>
