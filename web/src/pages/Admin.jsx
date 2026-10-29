@@ -54,7 +54,7 @@ export function Admin() {
         {tab === "roles" && <Roles />}
         {tab === "tipos" && <Catalogo titulo="Tipos de solicitud" path="tipos" />}
         {tab === "motivos" && <Catalogo titulo="Motivos" path="motivos" />}
-        {tab === "ingenieros" && <Catalogo titulo="Ingenieros SYS HIGEA" path="ingenieros" claveAutomatica />}
+        {tab === "ingenieros" && <Catalogo titulo="Ingenieros SYS HIGEA" path="ingenieros" claveAutomatica permiteEliminar />}
         {tab === "sla" && <Sla />}
         {tab === "festivos" && <Festivos />}
         {tab === "almacenamiento" && <Almacenamiento />}
