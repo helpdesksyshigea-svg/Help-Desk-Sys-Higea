@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { apiFetch } from "../lib/api";
-import { FILTROS_POR_ROL, FILTRO_DEFAULT, ESPERANDO, necesitaAccion } from "../lib/filters";
+import { FILTROS_POR_ROL, FILTRO_DEFAULT, ESPERANDO, necesitaAccion, textoSla } from "../lib/filters";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
 import { StatusTag } from "../components/StatusTag";
@@ -47,7 +47,13 @@ export function Inbox() {
   }, []);
 
   const [, , fn] = filtros.find(([k]) => k === filtroActivo) || filtros[0];
-  const visibles = useMemo(() => tickets.filter(fn), [tickets, fn]);
+  const visibles = useMemo(
+    () =>
+      tickets
+        .filter(fn)
+        .sort((a, b) => (b.vencido === a.vencido ? new Date(b.created_at) - new Date(a.created_at) : b.vencido ? 1 : -1)),
+    [tickets, fn]
+  );
 
   return (
     <div className="grid gap-6">
@@ -106,7 +112,7 @@ export function Inbox() {
                 <th className="py-2 pr-3">Ticket</th>
                 <th className="py-2 pr-3">Solicita</th>
                 <th className="py-2 pr-3">Esperando</th>
-                <th className="py-2 pr-3 text-right">Actualizado</th>
+                <th className="py-2 pr-3 text-right">Plazo</th>
                 <th className="py-2 pr-4 text-right">Estado</th>
               </tr>
             </thead>
@@ -117,6 +123,7 @@ export function Inbox() {
                 const ultimoEvento = t.eventos?.[t.eventos.length - 1];
                 const snippet = ultimoEvento?.texto || t.observacion || "Sin notas adicionales";
                 const destacado = necesitaAccion(t, perfil?.rol);
+                const sla = textoSla(t);
                 return (
                   <tr
                     key={t.id}
@@ -138,7 +145,9 @@ export function Inbox() {
                         )}
                       </div>
                       <div className={`truncate ${destacado ? "font-semibold" : "font-medium"}`}>{titulo}</div>
-                      <div className="truncate text-xs text-[var(--color-muted)]">{snippet}</div>
+                      <div className="truncate text-xs text-[var(--color-muted)]">
+                        {snippet} <span className="opacity-60">· {hace(t.created_at)}</span>
+                      </div>
                     </td>
                     <td className="py-3 pr-3 align-top">
                       <div className="flex items-center gap-2">
@@ -149,7 +158,15 @@ export function Inbox() {
                       </div>
                     </td>
                     <td className="py-3 pr-3 align-top text-xs text-[var(--color-muted)]">{ESPERANDO[t.estado] || ""}</td>
-                    <td className="py-3 pr-3 text-right align-top text-xs text-[var(--color-muted)]">{hace(t.created_at)}</td>
+                    <td className="py-3 pr-3 text-right align-top">
+                      {sla ? (
+                        <span className={`text-xs ${sla.urgente ? "font-semibold text-[#b3362a]" : "text-[var(--color-muted)]"}`}>
+                          {sla.texto}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-[var(--color-muted)]">—</span>
+                      )}
+                    </td>
                     <td className="py-3 pr-4 text-right align-top">
                       <StatusTag estado={t.estado} />
                     </td>

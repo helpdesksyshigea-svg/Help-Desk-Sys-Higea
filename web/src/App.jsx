@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { ToastProvider } from "./context/ToastContext";
 import { Layout } from "./components/Layout";
 import { RequirePermission } from "./components/RequirePermission";
 import { Login } from "./pages/Login";
@@ -63,9 +64,11 @@ function Rutas() {
 export default function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <Rutas />
-      </AuthProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <Rutas />
+        </AuthProvider>
+      </ToastProvider>
     </BrowserRouter>
   );
 }

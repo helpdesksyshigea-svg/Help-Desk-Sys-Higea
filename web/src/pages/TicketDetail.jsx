@@ -6,8 +6,19 @@ import { Card } from "../components/Card";
 import { Button } from "../components/Button";
 import { StatusTag } from "../components/StatusTag";
 import { Adjuntos } from "../components/Adjuntos";
-import { RequirePermission } from "../components/RequirePermission";
+import { useToast } from "../context/ToastContext";
+import { ESPERANDO } from "../lib/filters";
 import { IconArrowLeft, IconCheck, IconReturn, IconInbox, IconInfo, IconSend } from "../components/icons";
+
+const ACCIONES = [
+  { ruta: "aprobar", permiso: "tickets.aprobar", estados: ["pendiente"], label: "Aprobar y enviar a HIGEA", icon: IconCheck, variant: "accent", notaObligatoria: false, exito: "Ticket aprobado y enviado a HIGEA" },
+  { ruta: "devolver", permiso: "tickets.devolver", estados: ["pendiente"], label: "Devolver al facturador", icon: IconReturn, variant: "danger", notaObligatoria: true, exito: "Ticket devuelto al facturador" },
+  { ruta: "tomar", permiso: "tickets.tomar", estados: ["aprobado"], label: "Tomar caso", icon: IconInbox, variant: "ghost", notaObligatoria: false, exito: "Caso tomado" },
+  { ruta: "pedir-info", permiso: "tickets.pedir_info", estados: ["en_proceso"], label: "Pedir información", icon: IconInfo, variant: "ghost", notaObligatoria: true, exito: "Se solicitó información al facturador" },
+  { ruta: "responder-info", permiso: "tickets.responder_info", estados: ["requiere_info"], label: "Responder a HIGEA", icon: IconSend, variant: "ghost", notaObligatoria: true, exito: "Respuesta enviada a HIGEA" },
+  { ruta: "cerrar", permiso: "tickets.cerrar", estados: ["en_proceso"], label: "Reportar realizado y cerrar", icon: IconCheck, variant: "accent", notaObligatoria: true, exito: "Ticket cerrado" },
+  { ruta: "reabrir", permiso: "tickets.reabrir", estados: ["cerrado"], label: "Reabrir", icon: IconReturn, variant: "danger", notaObligatoria: true, exito: "Ticket reabierto" },
+];
 
 const EVENTO_LABEL = {
   creado: "Ticket radicado",
@@ -30,11 +41,12 @@ export function TicketDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { perfil, tienePermiso } = useAuth();
+  const { exito: toastExito, fallo: toastFallo } = useToast();
   const [ticket, setTicket] = useState(null);
   const [motivos, setMotivos] = useState({});
   const [error, setError] = useState(null);
   const [nota, setNota] = useState("");
-  const [procesando, setProcesando] = useState(false);
+  const [procesando, setProcesando] = useState(null); // ruta de la acción en curso, o null
 
   async function cargar() {
     try {
@@ -54,32 +66,31 @@ export function TicketDetail() {
     });
   }, []);
 
-  async function accion(ruta) {
-    setProcesando(true);
+  async function accion(def) {
+    if (def.notaObligatoria && !nota.trim()) {
+      toastFallo("Esta acción requiere que escribas una nota primero");
+      return;
+    }
+    setProcesando(def.ruta);
     setError(null);
     try {
-      await apiFetch(`/tickets/${id}/${ruta}`, { method: "POST", body: JSON.stringify({ nota }) });
+      await apiFetch(`/tickets/${id}/${def.ruta}`, { method: "POST", body: JSON.stringify({ nota }) });
       setNota("");
       await cargar();
+      toastExito(def.exito);
     } catch (e) {
       setError(e.message);
+      toastFallo(e.message);
     } finally {
-      setProcesando(false);
+      setProcesando(null);
     }
   }
 
   if (error && !ticket) return <Card className="text-[#b3362a]">{error}</Card>;
   if (!ticket) return <p className="text-[var(--color-muted)]">Cargando…</p>;
 
-  const hayAcciones = [
-    "tickets.aprobar",
-    "tickets.devolver",
-    "tickets.tomar",
-    "tickets.pedir_info",
-    "tickets.responder_info",
-    "tickets.cerrar",
-    "tickets.reabrir",
-  ].some((p) => tienePermiso(p));
+  const tienePermisoAccion = ACCIONES.some((a) => tienePermiso(a.permiso));
+  const disponibles = ACCIONES.filter((a) => tienePermiso(a.permiso) && a.estados.includes(ticket.estado));
 
   const esSolicitante = perfil.id === ticket.solicitante_id && tienePermiso("tickets.crear");
   const puedeEditar =
@@ -111,6 +122,8 @@ export function TicketDetail() {
             )}
           </div>
         </div>
+
+        <p className="text-sm text-[var(--color-muted)]">{ESPERANDO[ticket.estado]}</p>
 
         <div className="grid grid-cols-2 gap-x-4 gap-y-3 border-t border-[var(--color-border)] pt-4 text-sm sm:grid-cols-4">
           <div>
@@ -197,72 +210,30 @@ export function TicketDetail() {
 
       {error && <p className="text-sm text-[#b3362a]">{error}</p>}
 
-      {hayAcciones && (
+      {tienePermisoAccion && disponibles.length === 0 && (
+        <Card className="text-sm text-[var(--color-muted)]">
+          No tienes ninguna acción disponible mientras el ticket esté <b>{ESPERANDO[ticket.estado]?.toLowerCase()}</b>.
+        </Card>
+      )}
+
+      {disponibles.length > 0 && (
         <Card className="grid gap-3">
           <h3 className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">Acciones</h3>
-          <textarea
-            value={nota}
-            onChange={(e) => setNota(e.target.value)}
-            placeholder="Nota (obligatoria según la acción)"
-            className="w-full rounded-[var(--radius-input)] border border-[var(--color-ink)]/20 bg-[var(--color-ink)]/5 px-3 py-2 outline-none focus:border-[var(--color-ink)]"
-          />
+          {disponibles.some((a) => a.notaObligatoria) && (
+            <textarea
+              value={nota}
+              onChange={(e) => setNota(e.target.value)}
+              placeholder="Nota (obligatoria para devolver, pedir información, responder, cerrar o reabrir)"
+              className="w-full rounded-[var(--radius-input)] border border-[var(--color-ink)]/20 bg-[var(--color-ink)]/5 px-3 py-2 outline-none focus:border-[var(--color-ink)]"
+            />
+          )}
           <div className="flex flex-wrap gap-2">
-            <RequirePermission permisos={["tickets.aprobar"]}>
-              {ticket.estado === "pendiente" && (
-                <Button variant="accent" disabled={procesando} onClick={() => accion("aprobar")}>
-                  <IconCheck size={15} />
-                  Aprobar y enviar a HIGEA
-                </Button>
-              )}
-            </RequirePermission>
-            <RequirePermission permisos={["tickets.devolver"]}>
-              {ticket.estado === "pendiente" && (
-                <Button variant="danger" disabled={procesando} onClick={() => accion("devolver")}>
-                  <IconReturn size={15} />
-                  Devolver al facturador
-                </Button>
-              )}
-            </RequirePermission>
-            <RequirePermission permisos={["tickets.tomar"]}>
-              {ticket.estado === "aprobado" && (
-                <Button variant="ghost" disabled={procesando} onClick={() => accion("tomar")}>
-                  <IconInbox size={15} />
-                  Tomar caso
-                </Button>
-              )}
-            </RequirePermission>
-            <RequirePermission permisos={["tickets.pedir_info"]}>
-              {ticket.estado === "en_proceso" && (
-                <Button variant="ghost" disabled={procesando} onClick={() => accion("pedir-info")}>
-                  <IconInfo size={15} />
-                  Pedir información
-                </Button>
-              )}
-            </RequirePermission>
-            <RequirePermission permisos={["tickets.responder_info"]}>
-              {ticket.estado === "requiere_info" && (
-                <Button variant="ghost" disabled={procesando} onClick={() => accion("responder-info")}>
-                  <IconSend size={15} />
-                  Responder a HIGEA
-                </Button>
-              )}
-            </RequirePermission>
-            <RequirePermission permisos={["tickets.cerrar"]}>
-              {ticket.estado === "en_proceso" && (
-                <Button variant="accent" disabled={procesando} onClick={() => accion("cerrar")}>
-                  <IconCheck size={15} />
-                  Reportar realizado y cerrar
-                </Button>
-              )}
-            </RequirePermission>
-            <RequirePermission permisos={["tickets.reabrir"]}>
-              {ticket.estado === "cerrado" && (
-                <Button variant="danger" disabled={procesando} onClick={() => accion("reabrir")}>
-                  <IconReturn size={15} />
-                  Reabrir
-                </Button>
-              )}
-            </RequirePermission>
+            {disponibles.map((a) => (
+              <Button key={a.ruta} variant={a.variant} disabled={!!procesando} onClick={() => accion(a)}>
+                <a.icon size={15} />
+                {procesando === a.ruta ? "Guardando…" : a.label}
+              </Button>
+            ))}
           </div>
         </Card>
       )}

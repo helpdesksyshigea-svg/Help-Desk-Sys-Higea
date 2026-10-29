@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { apiFetch } from "../lib/api";
 import { Card } from "./Card";
 import { Button } from "./Button";
+import { IconUpload, IconPlus } from "./icons";
 
 export const PRIORIDADES = { alta: "Alta (1 día hábil)", normal: "Normal (2 días hábiles)", baja: "Baja (5 días hábiles)" };
 
@@ -27,6 +28,11 @@ export function TicketForm({ modo, inicial, onSubmit, submitLabel }) {
   const [oficio, setOficio] = useState(null);
   const [error, setError] = useState(null);
   const [enviando, setEnviando] = useState(false);
+  const oficioInput = useRef(null);
+
+  function kb(bytes) {
+    return bytes > 1048576 ? (bytes / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(bytes / 1024)) + " KB";
+  }
 
   useEffect(() => {
     apiFetch("/catalogos/tipos").then((data) => {
@@ -78,6 +84,9 @@ export function TicketForm({ modo, inicial, onSubmit, submitLabel }) {
 
   return (
     <form onSubmit={enviar} className="grid gap-6">
+      <h3 className="-mb-3 text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">
+        1. Datos de la solicitud
+      </h3>
       <Card className="grid gap-4 sm:grid-cols-2">
         <label className="text-sm">
           <span className="mb-1 block font-medium">Tipo de solicitud</span>
@@ -113,11 +122,19 @@ export function TicketForm({ modo, inicial, onSubmit, submitLabel }) {
       </Card>
 
       <div className="grid gap-3">
-        <h3 className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">
-          Registros a eliminar
-        </h3>
+        <div>
+          <h3 className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">
+            2. Registros a eliminar
+          </h3>
+          <p className="mt-0.5 text-xs text-[var(--color-muted)]">
+            Uno por cada factura, resultado o registro que debe corregirse.
+          </p>
+        </div>
         {items.map((item, i) => (
           <Card key={i} className="grid gap-3 sm:grid-cols-3">
+            <div className="sm:col-span-3 -mb-1 flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-ink)]/10 text-xs font-semibold text-[var(--color-ink)]">
+              {i + 1}
+            </div>
             <label className="text-sm">
               <span className="mb-1 block font-medium">Factura</span>
               <input
@@ -191,21 +208,52 @@ export function TicketForm({ modo, inicial, onSubmit, submitLabel }) {
           </Card>
         ))}
         <Button type="button" variant="ghost" className="justify-self-start" onClick={agregarItem}>
-          + Agregar otro registro
+          <IconPlus size={15} />
+          Agregar otro registro
         </Button>
       </div>
 
-      <Card className="grid gap-2">
-        <span className="text-sm font-medium">
-          Oficio firmado {modo === "crear" ? <span className="text-[var(--color-ink)]/60">(obligatorio)</span> : "(opcional: reemplaza el actual)"}
-        </span>
-        <input
-          type="file"
-          accept="application/pdf,image/png,image/jpeg,image/webp"
-          onChange={(e) => setOficio(e.target.files[0] || null)}
-          className="text-xs"
-        />
-      </Card>
+      <div>
+        <h3 className="mb-3 text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">
+          3. Oficio firmado
+        </h3>
+        <Card className="grid gap-3">
+          <p className="text-sm">
+            {modo === "crear"
+              ? "Adjunta el oficio con firma y VoBo. Es obligatorio: no se puede radicar la solicitud sin él."
+              : "Puedes dejar el oficio que ya está adjunto, o reemplazarlo subiendo uno nuevo."}
+          </p>
+          <input
+            ref={oficioInput}
+            type="file"
+            accept="application/pdf,image/png,image/jpeg,image/webp"
+            onChange={(e) => setOficio(e.target.files[0] || null)}
+            className="hidden"
+          />
+          {oficio ? (
+            <div className="flex items-center justify-between rounded-[var(--radius-input)] border border-[var(--color-state-cerrado)]/30 bg-[var(--color-state-cerrado-bg)] px-3 py-2 text-sm">
+              <span className="truncate text-[var(--color-state-cerrado)]">
+                {oficio.name} · {kb(oficio.size)}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setOficio(null);
+                  if (oficioInput.current) oficioInput.current.value = "";
+                }}
+                className="shrink-0 text-xs font-medium text-[var(--color-muted)] hover:text-[var(--color-ink)]"
+              >
+                Quitar
+              </button>
+            </div>
+          ) : (
+            <Button type="button" variant="ghost" className="justify-self-start" onClick={() => oficioInput.current?.click()}>
+              <IconUpload size={15} />
+              Seleccionar archivo (PDF o imagen)
+            </Button>
+          )}
+        </Card>
+      </div>
 
       {error && <p className="text-sm text-[#b3362a]">{error}</p>}
 
