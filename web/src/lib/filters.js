@@ -5,7 +5,19 @@
 // Algunos filtros (el de "Requiere tu acción" de SYS HIGEA) necesitan saber
 // quién está mirando la bandeja, no solo el estado del ticket — por eso esto
 // es una función en vez de un objeto estático.
+// Resuelve el rol "base" cuyo set de filtros aplica. Roles combinados (ej.
+// supervisora_admin) se detectan por substring, igual que ya hace
+// necesitaAccion — si no se hiciera así, un rol combinado caía en el set por
+// defecto (pensado para facturador) y mostraba "Requiere tu acción" siempre
+// en cero aunque sí tuviera tickets pendientes de aprobar.
+function rolBase(rol) {
+  if (rol?.includes("supervisora")) return "supervisora_facturacion";
+  if (rol === "higea_soporte" || rol === "facturador" || rol === "admin") return rol;
+  return null;
+}
+
 export function filtrosPorRol(rol, userId) {
+  const base = rolBase(rol);
   return (
     {
       supervisora_facturacion: [
@@ -33,7 +45,7 @@ export function filtrosPorRol(rol, userId) {
         ["todos", "Todos", () => true],
       ],
       admin: [["todos", "Todos", () => true]],
-    }[rol] || FILTROS_POR_ROL_DEFAULT
+    }[base] || FILTROS_POR_ROL_DEFAULT
   );
 }
 const FILTROS_POR_ROL_DEFAULT = [
