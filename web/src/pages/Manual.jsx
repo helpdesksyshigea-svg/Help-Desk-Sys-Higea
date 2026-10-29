@@ -163,21 +163,34 @@ export function Manual() {
             <Captura src="/manual/07-bandeja-higea.jpg" alt="Bandeja de SYS HIGEA" />
           </Card>
           <Card className="grid gap-3">
-            <Paso numero="2" titulo='Tome el caso y gestiónelo'>
-              Al tomar un ticket aprobado pasa a "En proceso". Desde ahí puede pedir información adicional (el
-              facturador recibe la solicitud y debe responder antes de que el caso siga) o reportarlo como realizado
-              para cerrarlo.
+            <Paso numero="2" titulo='Tome el caso'>
+              Al tomar un ticket aprobado pasa a "En proceso" y queda <strong>asignado exclusivamente a usted</strong>:
+              ningún otro agente de SYS HIGEA puede pedir información, cerrarlo ni liberarlo mientras lo tenga
+              asignado. No hay reparto automático — es el primero que lo toma quien se lo lleva.
             </Paso>
-            <Captura src="/manual/08-detalle-aprobado-higea.jpg" alt="Detalle de ticket aprobado visto por SYS HIGEA" />
+            <Captura src="/manual/08-detalle-aprobado-higea.jpg" alt="Detalle de ticket aprobado, antes de tomarlo" caption='Antes de tomar: solo aparece el botón "Tomar caso".' />
+          </Card>
+          <Card className="grid gap-3">
+            <Paso numero="3" titulo="Gestione el caso">
+              Una vez asignado, el detalle muestra "Asignado a" con su nombre y tres acciones: pedir información
+              adicional al facturador (el caso se pausa hasta que responda), reportarlo como realizado para cerrarlo,
+              o liberarlo si no va a continuar con él.
+            </Paso>
+            <Captura
+              src="/manual/10-acciones-liberar.jpg"
+              alt="Acciones disponibles para el agente asignado: Pedir información, Reportar realizado y cerrar, Liberar caso"
+              caption='Tras tomarlo: "Asignado a" y los botones Pedir información / Reportar realizado y cerrar / Liberar caso.'
+            />
           </Card>
           <Card className="grid gap-2">
             <h3 className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">
               Importante
             </h3>
-            <p className="text-sm text-[var(--color-muted)]">
-              Al cerrar un ticket es obligatorio dejar una nota confirmando qué se eliminó o corrigió. Esa nota queda
-              en el historial permanente del ticket.
-            </p>
+            <ul className="grid gap-1.5 text-sm text-[var(--color-muted)]">
+              <li>• Al cerrar un ticket es obligatorio dejar una nota confirmando qué se eliminó o corrigió. Esa nota queda en el historial permanente del ticket.</li>
+              <li>• "Liberar caso" lo devuelve a "Aprobado" sin asignar, para que cualquier agente (incluido usted) lo pueda tomar de nuevo. El plazo de respuesta no se reinicia al liberarlo.</li>
+              <li>• Si la supervisora reabre un ticket que usted cerró, sigue asignado a usted — no hay que volver a tomarlo.</li>
+            </ul>
           </Card>
         </div>
       )}
