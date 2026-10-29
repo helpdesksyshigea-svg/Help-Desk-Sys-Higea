@@ -133,13 +133,11 @@ function FormularioContrasena({ onGuardar, onCancelar }) {
         <span className="mb-1 block font-medium">Confirmar</span>
         <input type="password" minLength={8} value={confirmar} onChange={(e) => setConfirmar(e.target.value)} className={inputClass} />
       </label>
-      <Button type="submit" variant="accent">
+      <Button type="submit" variant="accent" title="Guardar">
         <IconKey size={14} />
-        Guardar
       </Button>
-      <Button type="button" variant="ghost" onClick={onCancelar}>
+      <Button type="button" variant="ghost" onClick={onCancelar} title="Cancelar">
         <IconClose size={14} />
-        Cancelar
       </Button>
       {error && <p className="text-xs text-[#b3362a] sm:col-span-4">{error}</p>}
     </form>
@@ -300,7 +298,7 @@ function Usuarios() {
       </Card>
 
       <div className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border)]">
-        <div className="hidden grid-cols-[1fr_88px_160px_340px] items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)] sm:grid">
+        <div className="hidden grid-cols-[1fr_88px_180px_150px] items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)] sm:grid">
           <span>Usuario</span>
           <span className="text-center">Código</span>
           <span>Rol</span>
@@ -310,7 +308,7 @@ function Usuarios() {
           {usuarios.map((u) => (
             <li
               key={u.id}
-              className="grid grid-cols-1 items-center gap-2 px-4 py-3 sm:grid-cols-[1fr_88px_160px_340px] sm:gap-3"
+              className="grid grid-cols-1 items-center gap-2 px-4 py-3 sm:grid-cols-[1fr_88px_180px_150px] sm:gap-3"
             >
               <div className="min-w-0">
                 <CampoEditable
@@ -364,17 +362,18 @@ function Usuarios() {
                 ))}
               </select>
               <div className="flex flex-wrap items-center justify-end gap-1">
-                <Button variant={u.activo ? "danger" : "ghost"} onClick={() => alternarActivo(u)}>
+                <Button variant={u.activo ? "danger" : "ghost"} onClick={() => alternarActivo(u)} title={u.activo ? "Desactivar" : "Activar"}>
                   {u.activo ? <IconClose size={14} /> : <IconCheck size={14} />}
-                  {u.activo ? "Desactivar" : "Activar"}
                 </Button>
-                <Button variant="ghost" onClick={() => setCambiandoPassId(cambiandoPassId === u.id ? null : u.id)}>
+                <Button
+                  variant="ghost"
+                  onClick={() => setCambiandoPassId(cambiandoPassId === u.id ? null : u.id)}
+                  title="Cambiar contraseña"
+                >
                   <IconKey size={14} />
-                  Contraseña
                 </Button>
-                <Button variant="danger" onClick={() => eliminarUsuario(u)}>
+                <Button variant="danger" onClick={() => eliminarUsuario(u)} title="Eliminar usuario">
                   <IconTrash size={14} />
-                  Eliminar
                 </Button>
               </div>
               {cambiandoPassId === u.id && (
@@ -710,13 +709,11 @@ function Catalogo({ titulo, path, claveAutomatica = false, permiteEliminar = fal
                   className={inputClass}
                 />
               </label>
-              <Button variant="accent" onClick={() => guardarEdicion(item.clave)}>
+              <Button variant="accent" onClick={() => guardarEdicion(item.clave)} title="Guardar">
                 <IconCheck size={14} />
-                Guardar
               </Button>
-              <Button variant="ghost" onClick={() => setEditando(null)}>
+              <Button variant="ghost" onClick={() => setEditando(null)} title="Cancelar">
                 <IconClose size={14} />
-                Cancelar
               </Button>
             </li>
           ) : (
@@ -726,18 +723,19 @@ function Catalogo({ titulo, path, claveAutomatica = false, permiteEliminar = fal
                 {!claveAutomatica && <div className="text-xs text-[var(--color-muted)]">{item.clave}</div>}
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="ghost" onClick={() => empezarEdicion(item)}>
+                <Button variant="ghost" onClick={() => empezarEdicion(item)} title="Editar">
                   <IconEdit size={13} />
-                  Editar
                 </Button>
-                <Button variant={item.activo ? "danger" : "ghost"} onClick={() => alternarActivo(item)}>
+                <Button
+                  variant={item.activo ? "danger" : "ghost"}
+                  onClick={() => alternarActivo(item)}
+                  title={item.activo ? "Desactivar" : "Activar"}
+                >
                   {item.activo ? <IconClose size={13} /> : <IconCheck size={13} />}
-                  {item.activo ? "Desactivar" : "Activar"}
                 </Button>
                 {permiteEliminar && (
-                  <Button variant="danger" onClick={() => eliminar(item)}>
+                  <Button variant="danger" onClick={() => eliminar(item)} title="Eliminar">
                     <IconTrash size={13} />
-                    Eliminar
                   </Button>
                 )}
               </div>
@@ -883,9 +881,8 @@ function Festivos() {
                 <div className="font-medium">{f.descripcion}</div>
                 <div className="text-xs text-[var(--color-muted)]">{f.fecha}</div>
               </div>
-              <Button variant="danger" onClick={() => eliminar(f.fecha)}>
+              <Button variant="danger" onClick={() => eliminar(f.fecha)} title="Quitar">
                 <IconTrash size={14} />
-                Quitar
               </Button>
             </li>
           ))}
