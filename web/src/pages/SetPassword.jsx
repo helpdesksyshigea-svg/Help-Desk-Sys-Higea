@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { supabase } from "../lib/supabase";
 import { Button } from "../components/Button";
+import { IconKey } from "../components/icons";
 
 const inputClass =
   "w-full rounded-[var(--radius-input)] border border-[var(--color-ink)]/20 bg-[var(--color-ink)]/[0.04] px-3.5 py-2.5 outline-none transition-colors focus:border-[var(--color-ink)] focus:bg-[var(--color-canvas)]";
@@ -86,6 +87,7 @@ export function SetPassword() {
               <p className="mb-4 rounded-[var(--radius-input)] bg-[#f8e0dc] px-3 py-2 text-sm text-[#b3362a]">{error}</p>
             )}
             <Button variant="accent" type="submit" disabled={guardando} className="w-full justify-center">
+              <IconKey size={15} />
               {guardando ? "Guardando…" : "Guardar contraseña"}
             </Button>
           </>

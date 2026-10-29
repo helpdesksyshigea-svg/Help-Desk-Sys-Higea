@@ -3,7 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { nombreLegible } from "../lib/roles";
 import { Sidebar } from "./Sidebar";
 import { Button } from "./Button";
-import { IconSearch } from "./icons";
+import { IconSearch, IconLogout } from "./icons";
 
 const COLORES_AVATAR = ["#2d6a4f", "#1d4ed8", "#9a3412", "#6d28d9", "#0f766e", "#b91c1c"];
 
@@ -64,6 +64,7 @@ export function Layout() {
                 <div className="text-xs text-[var(--color-muted)]">{nombreLegible(perfil?.rol)}</div>
               </div>
               <Button variant="ghost" onClick={cerrarSesion}>
+                <IconLogout size={15} />
                 Salir
               </Button>
             </div>

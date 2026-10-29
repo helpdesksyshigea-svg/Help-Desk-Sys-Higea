@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { Button } from "../components/Button";
+import { IconLogin } from "../components/icons";
 import { supabase } from "../lib/supabase";
 
 const inputClass =
@@ -116,6 +117,7 @@ export function Login({ enlaceVencido = false }) {
         )}
 
         <Button variant="accent" type="submit" disabled={cargando} className="w-full justify-center">
+          <IconLogin size={15} />
           {cargando ? "Ingresando…" : "Ingresar"}
         </Button>
 

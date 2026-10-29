@@ -6,7 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
-import { IconUser, IconShield, IconInbox, IconInfo, IconClock, IconSettings, IconDatabase, IconEdit, IconKey, IconTrash } from "../components/icons";
+import { IconUser, IconShield, IconInbox, IconInfo, IconClock, IconSettings, IconDatabase, IconEdit, IconKey, IconTrash, IconPlus, IconCheck, IconClose, IconSend } from "../components/icons";
 
 const inputClass =
   "w-full rounded-[var(--radius-input)] border border-[var(--color-ink)]/20 bg-[var(--color-ink)]/5 px-3 py-2 text-sm outline-none focus:border-[var(--color-ink)]";
@@ -134,9 +134,11 @@ function FormularioContrasena({ onGuardar, onCancelar }) {
         <input type="password" minLength={8} value={confirmar} onChange={(e) => setConfirmar(e.target.value)} className={inputClass} />
       </label>
       <Button type="submit" variant="accent">
+        <IconKey size={14} />
         Guardar
       </Button>
       <Button type="button" variant="ghost" onClick={onCancelar}>
+        <IconClose size={14} />
         Cancelar
       </Button>
       {error && <p className="text-xs text-[#b3362a] sm:col-span-4">{error}</p>}
@@ -287,6 +289,7 @@ function Usuarios() {
           </label>
           <div className="sm:col-span-2">
             <Button type="submit" variant="accent" disabled={enviando}>
+              <IconSend size={14} />
               {enviando ? "Invitando…" : "Invitar usuario"}
             </Button>
           </div>
@@ -297,7 +300,7 @@ function Usuarios() {
       </Card>
 
       <div className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border)]">
-        <div className="hidden grid-cols-[1fr_88px_170px_240px] items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)] sm:grid">
+        <div className="hidden grid-cols-[1fr_88px_160px_340px] items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)] sm:grid">
           <span>Usuario</span>
           <span className="text-center">Código</span>
           <span>Rol</span>
@@ -307,7 +310,7 @@ function Usuarios() {
           {usuarios.map((u) => (
             <li
               key={u.id}
-              className="grid grid-cols-1 items-center gap-2 px-4 py-3 sm:grid-cols-[1fr_88px_170px_240px] sm:gap-3"
+              className="grid grid-cols-1 items-center gap-2 px-4 py-3 sm:grid-cols-[1fr_88px_160px_340px] sm:gap-3"
             >
               <div className="min-w-0">
                 <CampoEditable
@@ -362,17 +365,16 @@ function Usuarios() {
               </select>
               <div className="flex flex-wrap items-center justify-end gap-1">
                 <Button variant={u.activo ? "danger" : "ghost"} onClick={() => alternarActivo(u)}>
+                  {u.activo ? <IconClose size={14} /> : <IconCheck size={14} />}
                   {u.activo ? "Desactivar" : "Activar"}
                 </Button>
-                <Button
-                  variant="ghost"
-                  title="Cambiar contraseña"
-                  onClick={() => setCambiandoPassId(cambiandoPassId === u.id ? null : u.id)}
-                >
+                <Button variant="ghost" onClick={() => setCambiandoPassId(cambiandoPassId === u.id ? null : u.id)}>
                   <IconKey size={14} />
+                  Contraseña
                 </Button>
-                <Button variant="ghost" title="Eliminar usuario" onClick={() => eliminarUsuario(u)}>
+                <Button variant="danger" onClick={() => eliminarUsuario(u)}>
                   <IconTrash size={14} />
+                  Eliminar
                 </Button>
               </div>
               {cambiandoPassId === u.id && (
@@ -494,6 +496,7 @@ function Roles() {
           </div>
           <div className="sm:col-span-2">
             <Button type="submit" variant="accent" disabled={enviando}>
+              <IconPlus size={14} />
               Crear rol
             </Button>
           </div>
@@ -667,6 +670,7 @@ function Catalogo({ titulo, path, claveAutomatica = false, permiteEliminar = fal
             <input required value={etiqueta} onChange={(e) => setEtiqueta(e.target.value)} className={inputClass} />
           </label>
           <Button type="submit" variant="accent">
+            <IconPlus size={14} />
             Agregar
           </Button>
         </form>
@@ -707,9 +711,11 @@ function Catalogo({ titulo, path, claveAutomatica = false, permiteEliminar = fal
                 />
               </label>
               <Button variant="accent" onClick={() => guardarEdicion(item.clave)}>
+                <IconCheck size={14} />
                 Guardar
               </Button>
               <Button variant="ghost" onClick={() => setEditando(null)}>
+                <IconClose size={14} />
                 Cancelar
               </Button>
             </li>
@@ -725,6 +731,7 @@ function Catalogo({ titulo, path, claveAutomatica = false, permiteEliminar = fal
                   Editar
                 </Button>
                 <Button variant={item.activo ? "danger" : "ghost"} onClick={() => alternarActivo(item)}>
+                  {item.activo ? <IconClose size={13} /> : <IconCheck size={13} />}
                   {item.activo ? "Desactivar" : "Activar"}
                 </Button>
                 {permiteEliminar && (
@@ -861,6 +868,7 @@ function Festivos() {
             <input required value={descripcion} onChange={(e) => setDescripcion(e.target.value)} className={inputClass} />
           </label>
           <Button type="submit" variant="accent">
+            <IconPlus size={14} />
             Agregar
           </Button>
         </form>
@@ -876,6 +884,7 @@ function Festivos() {
                 <div className="text-xs text-[var(--color-muted)]">{f.fecha}</div>
               </div>
               <Button variant="danger" onClick={() => eliminar(f.fecha)}>
+                <IconTrash size={14} />
                 Quitar
               </Button>
             </li>
@@ -1037,9 +1046,11 @@ function Almacenamiento() {
             </span>
           </label>
           <Button type="submit" variant="ghost">
+            <IconCheck size={14} />
             Guardar
           </Button>
           <Button type="button" variant="danger" disabled={limpiando} onClick={limpiarAhora}>
+            <IconTrash size={14} />
             {limpiando ? "Limpiando…" : "Limpiar ahora"}
           </Button>
         </form>

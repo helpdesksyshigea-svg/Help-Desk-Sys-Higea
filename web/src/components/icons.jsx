@@ -160,3 +160,15 @@ export const IconDashboard = (p) => (
     <path d="M9.5 13V9M13.5 13V6.5M17 13v-4" />
   </Svg>
 );
+export const IconLogout = (p) => (
+  <Svg {...p}>
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+    <path d="M16 17l5-5-5-5M21 12H9" />
+  </Svg>
+);
+export const IconLogin = (p) => (
+  <Svg {...p}>
+    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+    <path d="M3 12h13M11 7l5 5-5 5" />
+  </Svg>
+);

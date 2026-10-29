@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { apiFetch } from "../lib/api";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
+import { IconSearch } from "../components/icons";
 
 const inputClass =
   "w-full rounded-[var(--radius-input)] border border-[var(--color-ink)]/20 bg-[var(--color-ink)]/5 px-3 py-2 text-sm outline-none focus:border-[var(--color-ink)]";
@@ -127,6 +128,7 @@ function DashboardContenido({ datos, error, desde, hasta, setDesde, setHasta, ca
             <input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} className={inputClass} />
           </label>
           <Button type="submit" variant="ghost">
+            <IconSearch size={15} />
             Aplicar
           </Button>
         </form>

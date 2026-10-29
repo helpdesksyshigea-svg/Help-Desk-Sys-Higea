@@ -9,7 +9,7 @@ import { Adjuntos } from "../components/Adjuntos";
 import { useToast } from "../context/ToastContext";
 import { ESPERANDO } from "../lib/filters";
 import { fechaCorta, fechaHora } from "../lib/fecha";
-import { IconArrowLeft, IconCheck, IconReturn, IconInbox, IconInfo, IconSend, IconUser, IconClock, IconPaperclip, IconTrash } from "../components/icons";
+import { IconArrowLeft, IconCheck, IconReturn, IconInbox, IconInfo, IconSend, IconUser, IconClock, IconPaperclip, IconTrash, IconEdit } from "../components/icons";
 
 function iniciales(nombre) {
   if (!nombre) return "?";
@@ -234,6 +234,7 @@ export function TicketDetail() {
 
         {puedeEditar && (
           <Button variant="ghost" className="justify-self-start" onClick={() => navigate(`/tickets/${ticket.id}/editar`)}>
+            <IconEdit size={14} />
             Corregir ticket
           </Button>
         )}
