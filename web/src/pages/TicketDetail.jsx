@@ -42,6 +42,20 @@ const EVENTO_LABEL = {
   adjunto_subido: "Documento adjuntado",
 };
 
+// Solo para eventos donde "por" en la BD es una persona con su propia
+// cuenta (facturador/supervisora) — "tomado"/"cerrado" ya llevan el nombre
+// del ingeniero en el texto, porque "por" ahí es la cuenta compartida de
+// SYS HIGEA, no la persona real.
+const EVENTOS_CON_AUTOR = new Set(["creado", "aprobado", "devuelto", "editado", "respondido", "reabierto"]);
+
+function etiquetaEvento(ev) {
+  const base = EVENTO_LABEL[ev.tipo_evento] || ev.tipo_evento;
+  if (EVENTOS_CON_AUTOR.has(ev.tipo_evento) && ev.usuario?.nombre) {
+    return `${base} por ${ev.usuario.nombre}`;
+  }
+  return base;
+}
+
 
 export function TicketDetail() {
   const { id } = useParams();
@@ -311,7 +325,7 @@ export function TicketDetail() {
                 </div>
                 <div className="pb-1">
                   <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
-                    <span className="font-medium">{EVENTO_LABEL[ev.tipo_evento] || ev.tipo_evento}</span>
+                    <span className="font-medium">{etiquetaEvento(ev)}</span>
                     <span className="text-xs text-[var(--color-muted)]">{fechaHora(ev.created_at)}</span>
                   </div>
                   {ev.texto && <div className="mt-0.5 text-sm text-[var(--color-muted)]">{ev.texto}</div>}

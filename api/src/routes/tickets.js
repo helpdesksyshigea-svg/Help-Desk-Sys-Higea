@@ -129,7 +129,7 @@ async function cargarTicketCompleto(id) {
   if (itemsError) throw new Error(`cargando items del ticket ${id}: ${itemsError.message}`);
   const { data: eventos, error: eventosError } = await supabase
     .from("ticket_eventos")
-    .select("*")
+    .select("*, usuario:usuarios!ticket_eventos_por_fkey(nombre)")
     .eq("ticket_id", id)
     .order("created_at", { ascending: true });
   if (eventosError) throw new Error(`cargando eventos del ticket ${id}: ${eventosError.message}`);
@@ -576,7 +576,10 @@ ticketsRouter.post("/tickets/:id/cerrar", async (req, res) => {
     .eq("id", ticket.id);
   if (error) return res.status(500).json({ error: error.message });
 
-  await registrarEvento(ticket.id, "cerrado", ticket.estado, "cerrado", req.user.id, nota);
+  // "por" en el evento es la cuenta compartida de SYS HIGEA, no la persona —
+  // ticket.agente_higea sí identifica a quién cerró el caso realmente.
+  const textoCierre = ticket.agente_higea ? `Cerrado por ${ticket.agente_higea} — ${nota}` : nota;
+  await registrarEvento(ticket.id, "cerrado", ticket.estado, "cerrado", req.user.id, textoCierre);
   const actualizado = await cargarTicketCompleto(ticket.id);
   notificarTransicion("cerrado", actualizado, ticket.solicitante?.email).catch(() => {});
   res.json(actualizado);
