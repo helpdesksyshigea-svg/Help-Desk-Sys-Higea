@@ -52,7 +52,7 @@ export function Login() {
         </div>
 
         <div className="relative">
-          <p className="text-xs font-semibold uppercase tracking-[0.1em] text-white/60">E.S.E. Hospital Orito</p>
+          <img src="/branding/logo-hospital-orito-sm.png" alt="E.S.E. Hospital Orito" className="mb-6 h-14 w-auto rounded-md bg-white px-3 py-2" />
           <h1 className="mt-2 text-3xl font-light leading-tight text-white">
             Mesa de ayuda
             <br />
@@ -79,9 +79,7 @@ export function Login() {
       {/* Formulario */}
       <div className="flex items-center justify-center bg-[var(--color-canvas)] px-6 py-16">
         <form onSubmit={onSubmit} className="w-full max-w-sm">
-          <p className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)] lg:hidden">
-            E.S.E. Hospital Orito
-          </p>
+          <img src="/branding/logo-hospital-orito-sm.png" alt="E.S.E. Hospital Orito" className="mb-6 h-10 w-auto lg:hidden" />
           <h2 className="mb-1 text-2xl font-semibold">Ingresar</h2>
           <p className="mb-8 text-sm text-[var(--color-muted)]">Use el correo institucional que le fue invitado.</p>
 
