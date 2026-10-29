@@ -871,7 +871,7 @@ function Almacenamiento() {
     <div className="grid gap-4">
       <Card className="grid gap-5">
         <h3 className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">
-          Storage de archivos (plan gratuito Supabase)
+          Almacenamiento de archivos (plan gratuito Supabase)
         </h3>
         <div className="grid gap-2">
           <div className="flex items-baseline justify-between text-sm">

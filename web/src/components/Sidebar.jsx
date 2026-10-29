@@ -26,10 +26,10 @@ function IndicadorAlmacenamiento() {
     <NavLink
       to="/admin?tab=almacenamiento"
       className="flex items-center gap-2 rounded-[var(--radius-button)] px-3 py-2 text-xs text-[var(--color-muted)] hover:bg-[var(--color-ink)]/[0.05] hover:text-[var(--color-ink)]"
-      title={`Storage: ${kb(datos.storage.bytes)} de ${kb(datos.storage.limite)}`}
+      title={`Almacenamiento: ${kb(datos.storage.bytes)} de ${kb(datos.storage.limite)}`}
     >
       <IconDatabase size={14} className="shrink-0" />
-      <span>Storage {pct < 0.01 ? "< 0.01" : pct.toFixed(2)}%</span>
+      <span>Almacenamiento {pct < 0.01 ? "< 0.01" : pct.toFixed(2)}%</span>
     </NavLink>
   );
 }
