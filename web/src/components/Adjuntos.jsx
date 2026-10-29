@@ -132,6 +132,13 @@ export function Adjuntos({ ticketId, kindsPermitidos = ["oficio", "soporte", "ev
         </ul>
       )}
 
+      {kindsPermitidos.includes("evidencia") && (
+        <p className="text-xs text-[var(--color-muted)]">
+          Suba como "Evidencia SYS HIGEA" un pantallazo del sistema de SYS HIGEA mostrando la solución aplicada — sirve como
+          soporte de que el caso se gestionó antes de cerrarlo.
+        </p>
+      )}
+
       <div className="flex flex-wrap gap-2">
         {kindsPermitidos.map((kind) => (
           <div key={kind}>
