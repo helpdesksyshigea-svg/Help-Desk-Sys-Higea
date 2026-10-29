@@ -5,6 +5,33 @@ import { Sidebar } from "./Sidebar";
 import { Button } from "./Button";
 import { IconSearch } from "./icons";
 
+const COLORES_AVATAR = ["#2d6a4f", "#1d4ed8", "#9a3412", "#6d28d9", "#0f766e", "#b91c1c"];
+
+function iniciales(nombre) {
+  if (!nombre) return "?";
+  const partes = nombre.trim().split(/\s+/);
+  const letras = partes.length > 1 ? [partes[0][0], partes[partes.length - 1][0]] : [partes[0][0]];
+  return letras.join("").toUpperCase();
+}
+
+function colorAvatar(nombre) {
+  if (!nombre) return COLORES_AVATAR[0];
+  const suma = [...nombre].reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  return COLORES_AVATAR[suma % COLORES_AVATAR.length];
+}
+
+function Avatar({ nombre }) {
+  return (
+    <div
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white"
+      style={{ backgroundColor: colorAvatar(nombre) }}
+      title={nombre}
+    >
+      {iniciales(nombre)}
+    </div>
+  );
+}
+
 export function Layout() {
   const { perfil, cerrarSesion } = useAuth();
   const navigate = useNavigate();
@@ -35,6 +62,7 @@ export function Layout() {
                 <div className="font-medium leading-tight">{perfil?.nombre}</div>
                 <div className="text-xs text-[var(--color-muted)]">{nombreLegible(perfil?.rol)}</div>
               </div>
+              <Avatar nombre={perfil?.nombre} />
               <Button variant="ghost" onClick={cerrarSesion}>
                 Salir
               </Button>
