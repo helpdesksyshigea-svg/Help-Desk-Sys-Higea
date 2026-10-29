@@ -187,7 +187,7 @@ export function Manual() {
               Importante
             </h3>
             <ul className="grid gap-1.5 text-sm text-[var(--color-muted)]">
-              <li>• Al cerrar un ticket es obligatorio dejar una nota confirmando qué se eliminó o corrigió. Esa nota queda en el historial permanente del ticket.</li>
+              <li>• Al cerrar un ticket es obligatorio dejar una nota confirmando qué se eliminó o corrigió, y adjuntar como "Evidencia SYS HIGEA" un pantallazo de la solución en el sistema de SYS HIGEA. La nota queda en el historial permanente del ticket.</li>
               <li>• "Liberar caso" lo devuelve a "Aprobado" sin asignar, para que cualquier agente (incluido usted) lo pueda tomar de nuevo. El plazo de respuesta no se reinicia al liberarlo.</li>
               <li>• Si la supervisora reabre un ticket que usted cerró, sigue asignado a usted — no hay que volver a tomarlo.</li>
             </ul>

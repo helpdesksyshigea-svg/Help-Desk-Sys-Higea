@@ -521,6 +521,18 @@ ticketsRouter.post("/tickets/:id/cerrar", async (req, res) => {
   const nota = req.body?.nota?.trim();
   if (!nota) return res.status(400).json({ error: "Cerrar un ticket requiere una nota" });
 
+  const { count: evidencias, error: evidenciaError } = await supabase
+    .from("ticket_adjuntos")
+    .select("id", { count: "exact", head: true })
+    .eq("ticket_id", ticket.id)
+    .eq("kind", "evidencia");
+  if (evidenciaError) return res.status(500).json({ error: evidenciaError.message });
+  if (!evidencias) {
+    return res.status(400).json({
+      error: "Cerrar un ticket requiere adjuntar la evidencia de SYS HIGEA (pantallazo de la solución)",
+    });
+  }
+
   const { error } = await supabase
     .from("tickets")
     .update({ estado: "cerrado", cerrado_at: new Date().toISOString(), updated_at: new Date().toISOString() })

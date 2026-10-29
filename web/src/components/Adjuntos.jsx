@@ -134,8 +134,8 @@ export function Adjuntos({ ticketId, kindsPermitidos = ["oficio", "soporte", "ev
 
       {kindsPermitidos.includes("evidencia") && (
         <p className="text-xs text-[var(--color-muted)]">
-          Suba como "Evidencia SYS HIGEA" un pantallazo del sistema de SYS HIGEA mostrando la solución aplicada — sirve como
-          soporte de que el caso se gestionó antes de cerrarlo.
+          <strong className="font-medium text-[var(--color-ink)]">Obligatoria para cerrar:</strong> suba como "Evidencia SYS
+          HIGEA" un pantallazo del sistema de SYS HIGEA mostrando la solución aplicada.
         </p>
       )}
 
