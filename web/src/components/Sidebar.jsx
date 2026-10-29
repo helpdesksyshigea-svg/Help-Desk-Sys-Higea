@@ -65,37 +65,39 @@ export function Sidebar() {
     }`;
 
   return (
-    <aside className="hidden w-60 shrink-0 border-r border-[var(--color-border)] bg-[var(--color-canvas)] px-3 py-4 md:flex md:flex-col md:gap-1">
-      <div className="mb-5 -mx-3 -mt-4 px-3 pt-4">
-        <img src="/branding/logo-hospital-orito-sm.png" alt="E.S.E. Hospital Orito" className="mb-3 w-full object-contain" />
-        <p className="px-2 text-base font-bold leading-tight">Mesa de ayuda</p>
-        <p className="px-2 text-xs text-[var(--color-muted)]">SYS HIGEA</p>
+    <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-[var(--color-border)] bg-[var(--color-canvas)] px-3 py-4 md:flex">
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="mb-5 -mx-3 -mt-4 px-3 pt-4">
+          <img src="/branding/logo-hospital-orito-sm.png" alt="E.S.E. Hospital Orito" className="mb-3 w-full object-contain" />
+          <p className="px-2 text-base font-bold leading-tight">Mesa de ayuda</p>
+          <p className="px-2 text-xs text-[var(--color-muted)]">SYS HIGEA</p>
+        </div>
+
+        <NavLink to="/" end className={({ isActive }) => itemClass(isActive && !params.get("filtro"))}>
+          <span className="flex items-center gap-2">
+            <IconInbox size={16} />
+            Bandeja
+          </span>
+          <span className="text-xs opacity-70">{tickets.length || ""}</span>
+        </NavLink>
+
+        <div className="mt-2 grid gap-0.5">
+          {filtros.map(([clave, etiqueta, fn]) => {
+            const Icono = ICONOS[clave] || IconClock;
+            return (
+              <NavLink key={clave} to={`/?filtro=${clave}`} className={() => itemClass(filtroActivo === clave)}>
+                <span className="flex min-w-0 items-center gap-2">
+                  <Icono size={14} className="shrink-0" />
+                  <span className="truncate">{etiqueta}</span>
+                </span>
+                <span className="text-xs opacity-70">{tickets.filter(fn).length}</span>
+              </NavLink>
+            );
+          })}
+        </div>
       </div>
 
-      <NavLink to="/" end className={({ isActive }) => itemClass(isActive && !params.get("filtro"))}>
-        <span className="flex items-center gap-2">
-          <IconInbox size={16} />
-          Bandeja
-        </span>
-        <span className="text-xs opacity-70">{tickets.length || ""}</span>
-      </NavLink>
-
-      <div className="mt-2 grid gap-0.5">
-        {filtros.map(([clave, etiqueta, fn]) => {
-          const Icono = ICONOS[clave] || IconClock;
-          return (
-            <NavLink key={clave} to={`/?filtro=${clave}`} className={() => itemClass(filtroActivo === clave)}>
-              <span className="flex min-w-0 items-center gap-2">
-                <Icono size={14} className="shrink-0" />
-                <span className="truncate">{etiqueta}</span>
-              </span>
-              <span className="text-xs opacity-70">{tickets.filter(fn).length}</span>
-            </NavLink>
-          );
-        })}
-      </div>
-
-      <div className="mt-auto grid gap-0.5 border-t border-[var(--color-border)] pt-3">
+      <div className="grid shrink-0 gap-0.5 border-t border-[var(--color-border)] pt-3">
         <RequirePermission permisos={["config.editar"]}>
           <IndicadorAlmacenamiento />
         </RequirePermission>
