@@ -16,9 +16,14 @@ export function Sidebar() {
   const filtros = FILTROS_POR_ROL[perfil?.rol] || FILTROS_POR_ROL.facturador;
 
   useEffect(() => {
-    apiFetch("/tickets")
-      .then(setTickets)
-      .catch(() => {});
+    function cargar() {
+      apiFetch("/tickets")
+        .then(setTickets)
+        .catch(() => {});
+    }
+    cargar();
+    window.addEventListener("tickets-changed", cargar);
+    return () => window.removeEventListener("tickets-changed", cargar);
   }, []);
 
   const itemClass = (activo) =>
