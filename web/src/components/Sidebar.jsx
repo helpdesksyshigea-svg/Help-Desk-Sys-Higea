@@ -83,11 +83,11 @@ export function Sidebar() {
         </RequirePermission>
 
         <NavLink to="/" end className={({ isActive }) => itemClass(isActive && !params.get("filtro"))}>
-          <span className="flex items-center gap-2">
-            <IconInbox size={16} />
-            Bandeja
+          <span className="flex min-w-0 items-center gap-2">
+            <IconInbox size={16} className="shrink-0" />
+            <span className="truncate">Bandeja</span>
           </span>
-          <span className="text-xs opacity-70">{tickets.length || ""}</span>
+          <span className="shrink-0 text-xs opacity-70">{tickets.length || ""}</span>
         </NavLink>
 
         <div className="mt-2 grid gap-0.5">
@@ -99,7 +99,7 @@ export function Sidebar() {
                   <Icono size={14} className="shrink-0" />
                   <span className="truncate">{etiqueta}</span>
                 </span>
-                <span className="text-xs opacity-70">{tickets.filter(fn).length}</span>
+                <span className="shrink-0 text-xs opacity-70">{tickets.filter(fn).length}</span>
               </NavLink>
             );
           })}
