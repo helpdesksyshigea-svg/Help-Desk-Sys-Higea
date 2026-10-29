@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { ToastProvider } from "./context/ToastContext";
@@ -42,7 +43,12 @@ function RutaLogin() {
 }
 
 function Rutas() {
-  if (esEnlaceDeContrasena()) return <SetPassword />;
+  // Se captura una sola vez al montar: Supabase limpia el hash de la URL (vía
+  // history.replaceState) muy poco después de leer el token, así que si esto
+  // se evaluara en cada render —en vez de una vez, con useState— la pantalla
+  // de contraseña podría "desaparecer" antes de que el usuario la vea.
+  const [esEnlaceDeContrasenaInicial] = useState(esEnlaceDeContrasena);
+  if (esEnlaceDeContrasenaInicial) return <SetPassword />;
   return (
     <Routes>
       <Route path="/login" element={<RutaLogin />} />
