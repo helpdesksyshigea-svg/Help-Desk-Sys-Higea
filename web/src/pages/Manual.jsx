@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Card } from "../components/Card";
-import { IconUser, IconShield, IconInbox, IconSend, IconSettings } from "../components/icons";
+import { IconUser, IconShield, IconInbox, IconSend, IconSettings, IconDashboard } from "../components/icons";
 import { DiagramaFlujo } from "../components/DiagramaFlujo";
 
 function Captura({ src, alt, caption }) {
@@ -32,6 +32,7 @@ const SECCIONES = [
   { k: "supervisora", l: "Supervisora", icon: IconShield },
   { k: "higea", l: "SYS HIGEA", icon: IconInbox },
   { k: "admin", l: "Administración", icon: IconSettings },
+  { k: "dashboard", l: "Dashboard ejecutivo", icon: IconDashboard },
 ];
 
 export function Manual() {
@@ -81,9 +82,9 @@ export function Manual() {
             <ul className="grid gap-1.5 text-sm text-[var(--color-muted)]">
               <li>• No se puede radicar un ticket sin adjuntar el oficio firmado.</li>
               <li>• SYS HIGEA nunca ve un ticket que no haya sido aprobado por la supervisora.</li>
-              <li>• Cada registro (factura/paciente) requiere todos sus campos completos para poder enviarse.</li>
+              <li>• Cada registro requiere los campos marcados como obligatorios para el tipo de solicitud elegido — algunos tipos (ej. historia clínica) no piden número de factura; eso se configura en Administración → Tipos de solicitud.</li>
               <li>• El historial de cada ticket es permanente: ninguna nota o cambio de estado se puede borrar ni editar después.</li>
-              <li>• Los tickets cerrados hace más de 3 meses (configurable por el administrador) se eliminan automáticamente.</li>
+              <li>• Los tickets cerrados hace más de 3 meses (configurable por el administrador) se archivan automáticamente: se borran solo los adjuntos, el ticket y su historial quedan para siempre, solo de consulta.</li>
             </ul>
           </Card>
         </div>
@@ -107,7 +108,8 @@ export function Manual() {
             <Paso numero="3" titulo="Complete el formulario">
               Indique tipo de solicitud, prioridad y quién firma el oficio. Por cada factura o resultado que deba
               eliminarse, agregue un registro con: factura, paciente, documento, CUPS/folio, fecha, motivo y
-              descripción — los siete campos son obligatorios.
+              descripción. Qué campos son obligatorios depende del tipo elegido — el formulario marca "(opcional)" en
+              los que no aplican para ese tipo.
             </Paso>
             <Paso numero="4" titulo="Adjunte el oficio firmado">
               Es obligatorio (PDF, PNG, JPEG o WEBP). Sin él, el sistema no deja radicar el ticket.
@@ -149,6 +151,8 @@ export function Manual() {
               <li>• Radicar tickets directamente, igual que un facturador.</li>
               <li>• Reabrir un ticket cerrado si aparece un error posterior.</li>
               <li>• Exportar a Excel todos los tickets visibles desde el botón en la bandeja.</li>
+              <li>• Eliminar un ticket por completo (irreversible) desde su detalle — útil para casos de prueba radicados por error, no para uso normal.</li>
+              <li>• Ver el Dashboard ejecutivo (acceso propio arriba de Bandeja, con el permiso correspondiente).</li>
             </ul>
           </Card>
         </div>
@@ -164,12 +168,15 @@ export function Manual() {
             <Captura src="/manual/07-bandeja-higea.jpg" alt="Bandeja de SYS HIGEA" />
           </Card>
           <Card className="grid gap-3">
-            <Paso numero="2" titulo='Tome el caso'>
-              Al tomar un ticket aprobado pasa a "En proceso" y queda <strong>asignado exclusivamente a usted</strong>:
-              ningún otro agente de SYS HIGEA puede pedir información, cerrarlo ni liberarlo mientras lo tenga
-              asignado. No hay reparto automático — es el primero que lo toma quien se lo lleva.
+            <Paso numero="2" titulo='Tome el caso e indique quién lo atiende'>
+              La cuenta de SYS HIGEA es compartida entre varios ingenieros, así que al tomar un caso debe elegir su
+              nombre de la lista "Ingeniero de SYS HIGEA que toma el caso" (si no aparece, pida al administrador que lo
+              agregue en Administración → Ingenieros SYS HIGEA). Al tomar un ticket aprobado pasa a "En proceso" y
+              queda <strong>asignado exclusivamente a usted</strong>: ningún otro agente de SYS HIGEA puede pedir
+              información, cerrarlo ni liberarlo mientras lo tenga asignado. No hay reparto automático — es el primero
+              que lo toma quien se lo lleva.
             </Paso>
-            <Captura src="/manual/08-detalle-aprobado-higea.jpg" alt="Detalle de ticket aprobado, antes de tomarlo" caption='Antes de tomar: solo aparece el botón "Tomar caso".' />
+            <Captura src="/manual/08-detalle-aprobado-higea.jpg" alt="Detalle de ticket aprobado, antes de tomarlo" caption='Antes de tomar: selector de ingeniero y el botón "Tomar caso".' />
           </Card>
           <Card className="grid gap-3">
             <Paso numero="3" titulo="Gestione el caso">
@@ -218,10 +225,15 @@ export function Manual() {
           <Card className="grid gap-3">
             <Paso numero="3" titulo="Catálogos, plazos y festivos">
               "Tipos de solicitud" y "Motivos" son las listas que ve el facturador al radicar un ticket — puede agregar,
-              editar o quitar opciones. "Plazos SLA" define cuántos días hábiles tiene SYS HIGEA para atender cada
-              prioridad (alta, media, baja). "Festivos" es el calendario que el sistema usa para no contar esos días
-              como hábiles al calcular los plazos.
+              editar o quitar opciones. En cada tipo de solicitud también marca con checkboxes cuáles de los 7 campos
+              del registro (factura, paciente, documento, CUPS/folio, fecha, motivo, descripción) son obligatorios —
+              por ejemplo, historia clínica no exige número de factura. "Ingenieros SYS HIGEA" es la lista de nombres
+              que aparece al tomar un caso (solo pide nombre y apellidos, la clave interna se genera sola, y sí se
+              puede eliminar un ingeniero por completo). "Plazos SLA" define cuántos días hábiles tiene SYS HIGEA para
+              atender cada prioridad (alta, normal, baja). "Festivos" es el calendario que el sistema usa para no
+              contar esos días como hábiles al calcular los plazos.
             </Paso>
+            <Captura src="/manual/14-admin-tipos.jpg" alt="Panel de administración, pestaña Tipos de solicitud con los checkboxes de campos obligatorios" />
           </Card>
           <Card className="grid gap-3">
             <Paso numero="4" titulo="Almacenamiento: espacio usado y limpieza">
@@ -231,6 +243,28 @@ export function Manual() {
               Si el uso llega al 75% del límite, el sistema le avisa por correo automáticamente.
             </Paso>
             <Captura src="/manual/13-admin-almacenamiento.jpg" alt="Panel de administración, pestaña Almacenamiento" />
+          </Card>
+        </div>
+      )}
+
+      {seccion === "dashboard" && (
+        <div className="grid gap-4">
+          <Card className="grid gap-3">
+            <Paso numero="1" titulo="Un panel aparte, arriba de Bandeja">
+              Si tiene el permiso correspondiente, verá "Dashboard ejecutivo" como primer enlace del menú lateral —
+              no es un tab dentro de Administración, es su propia pantalla. Muestra gestión de tickets: volumen,
+              cumplimiento de SLA y tiempos de respuesta en el rango de fechas que elija.
+            </Paso>
+            <Captura src="/manual/15-dashboard.jpg" alt="Dashboard ejecutivo con totales, embudo por estado y tendencia mensual" />
+          </Card>
+          <Card className="grid gap-2">
+            <h3 className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">Qué muestra</h3>
+            <ul className="grid gap-1.5 text-sm text-[var(--color-muted)]">
+              <li>• Totales del rango: tickets, abiertos, vencidos ahora, TPR promedio (tiempo hasta que alguien toma el caso) y tiempo de resolución promedio.</li>
+              <li>• Embudo por estado, tendencia mensual (creados vs. cerrados), y desgloses por tipo, prioridad y motivo — con el nombre real de cada catálogo, no la clave interna.</li>
+              <li>• Cumplimiento de SLA y antigüedad de los tickets aún abiertos.</li>
+              <li>• Ranking por ingeniero de SYS HIGEA (asignados, cerrados, vencidos, TPR, resolución y % a tiempo) — se calcula a partir del nombre elegido al "Tomar caso", no de la cuenta compartida.</li>
+            </ul>
           </Card>
         </div>
       )}
