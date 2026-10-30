@@ -11,6 +11,9 @@ import { ESPERANDO } from "../lib/filters";
 import { fechaCorta, fechaHora } from "../lib/fecha";
 import { IconArrowLeft, IconCheck, IconReturn, IconInbox, IconInfo, IconSend, IconUser, IconClock, IconPaperclip, IconTrash, IconEdit } from "../components/icons";
 
+const readOnlyClass =
+  "w-full rounded-[var(--radius-input)] border border-[var(--color-ink)]/20 bg-[var(--color-ink)]/5 px-3 py-2";
+
 function iniciales(nombre) {
   if (!nombre) return "?";
   const partes = nombre.trim().split(/\s+/);
@@ -194,85 +197,95 @@ export function TicketDetail() {
         )}
       </div>
 
-      <Card className="overflow-hidden !p-0">
-        <div className="flex flex-wrap items-start justify-between gap-3 bg-[var(--color-header-bg)] px-6 py-5">
-          <div>
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-3xl font-bold tracking-tight text-[var(--color-header-ink)]">{ticket.code}</h1>
-              <StatusTag estado={ticket.estado} />
-            </div>
-            <p className="mt-1 text-sm font-medium text-[var(--color-header-ink)] opacity-90">{tipos[ticket.tipo] || ticket.tipo}</p>
-            {(asunto || ticket.observacion) && (
-              <p className="mt-1 text-sm text-[var(--color-header-ink)] opacity-70">
-                {asunto ? `Factura ${asunto}` : ""}
-                {asunto && ticket.observacion ? " — " : ""}
-                {ticket.observacion}
-              </p>
-            )}
-          </div>
-          <div className="text-right text-xs text-[var(--color-header-ink)] opacity-80">
-            <div>Creado el {fechaHora(ticket.created_at)}</div>
-            {ticket.dueAt && (
-              <div className={ticket.vencido ? "font-semibold text-[#ffb4a8] opacity-100" : ""}>
-                {ticket.vencido ? "Vencido desde" : "Vence"} {fechaHora(ticket.dueAt)}
-              </div>
-            )}
-          </div>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-2xl font-bold tracking-tight">{ticket.code}</h1>
+          <StatusTag estado={ticket.estado} />
         </div>
-
-        <div className="grid grid-cols-2 gap-x-4 gap-y-4 p-6 text-sm sm:grid-cols-4">
-          <div>
-            <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-muted)]">
-              <IconUser size={16} /> Solicita
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--color-ink)]/10 text-[10px] font-semibold">
-                {iniciales(ticket.firmante)}
-              </span>
-              {ticket.firmante}
-            </div>
-          </div>
-          <div>
-            <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-muted)]">Prioridad</div>
-            <div className="flex items-center gap-1.5 capitalize">
-              <span
-                className="h-2.5 w-2.5 rounded-full"
-                style={{ background: { alta: "#e02424", normal: "#f59e0b", baja: "#16a34a" }[ticket.prioridad] }}
-              />
-              {ticket.prioridad}
-            </div>
-          </div>
-          <div>
-            <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-muted)]">
-              <IconClock size={16} /> Radicado
-            </div>
-            <div>{fechaCorta(ticket.created_at)}</div>
-          </div>
-          <div>
-            <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-muted)]">
-              <IconCheck size={16} /> Aprobado
-            </div>
-            <div>{ticket.aprobado_at ? fechaCorta(ticket.aprobado_at) : "Sin aprobación aún"}</div>
-          </div>
-          {ticket.asignado && (
-            <div>
-              <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-muted)]">
-                <IconUser size={16} /> Ingeniero SYS HIGEA
-              </div>
-              <div>{ticket.agente_higea || ticket.asignado.nombre}</div>
+        <div className="text-right text-xs text-[var(--color-muted)]">
+          <div>Creado el {fechaHora(ticket.created_at)}</div>
+          {ticket.dueAt && (
+            <div className={ticket.vencido ? "font-semibold text-[#b3362a]" : ""}>
+              {ticket.vencido ? "Vencido desde" : "Vence"} {fechaHora(ticket.dueAt)}
             </div>
           )}
         </div>
+      </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 px-6 pb-6">
+      {/* Misma estructura de campo (etiqueta + caja con borde) que TicketForm, en
+          lectura: así el detalle se ve como "la solicitud ya radicada", no como un
+          panel administrativo aparte — es la misma información, ahora fija. */}
+      <h3 className="-mb-3 text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-muted)]">
+        Datos de la solicitud
+      </h3>
+      <Card className="grid gap-4 sm:grid-cols-2">
+        <div className="text-sm">
+          <span className="mb-1 block font-medium">Tipo de solicitud</span>
+          <div className={readOnlyClass}>{tipos[ticket.tipo] || ticket.tipo}</div>
+        </div>
+        <div className="text-sm">
+          <span className="mb-1 block font-medium">Prioridad</span>
+          <div className={`${readOnlyClass} flex items-center gap-1.5 capitalize`}>
+            <span
+              className="h-2.5 w-2.5 shrink-0 rounded-full"
+              style={{ background: { alta: "#e02424", normal: "#f59e0b", baja: "#16a34a" }[ticket.prioridad] }}
+            />
+            {ticket.prioridad}
+          </div>
+        </div>
+        <div className="text-sm sm:col-span-2">
+          <span className="mb-1 block font-medium">Solicita (nombre de quien firma el oficio)</span>
+          <div className={`${readOnlyClass} flex items-center gap-2`}>
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--color-ink)]/10 text-[10px] font-semibold">
+              {iniciales(ticket.firmante)}
+            </span>
+            {ticket.firmante}
+          </div>
+        </div>
+        {(asunto || ticket.observacion) && (
+          <div className="text-sm sm:col-span-2">
+            <span className="mb-1 block font-medium">Observación general</span>
+            <div className={readOnlyClass}>
+              {asunto ? `Factura ${asunto}` : ""}
+              {asunto && ticket.observacion ? " — " : ""}
+              {ticket.observacion}
+            </div>
+          </div>
+        )}
+      </Card>
+
+      <Card className="grid grid-cols-2 gap-x-4 gap-y-4 text-sm sm:grid-cols-4">
+        <div>
+          <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-muted)]">
+            <IconClock size={16} /> Radicado
+          </div>
+          <div>{fechaCorta(ticket.created_at)}</div>
+        </div>
+        <div>
+          <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-muted)]">
+            <IconCheck size={16} /> Aprobado
+          </div>
+          <div>{ticket.aprobado_at ? fechaCorta(ticket.aprobado_at) : "Sin aprobación aún"}</div>
+        </div>
+        {ticket.asignado && (
+          <div>
+            <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-muted)]">
+              <IconUser size={16} /> Ingeniero SYS HIGEA
+            </div>
+            <div>{ticket.agente_higea || ticket.asignado.nombre}</div>
+          </div>
+        )}
+        <div className="col-span-2 sm:col-span-4">
           <p className="text-sm text-[var(--color-muted)]">{ESPERANDO[ticket.estado]}</p>
-          {puedeEditar && (
+        </div>
+        {puedeEditar && (
+          <div className="col-span-2 sm:col-span-4">
             <Button variant="ghost" onClick={() => navigate(`/tickets/${ticket.id}/editar`)}>
               <IconEdit size={14} />
               Corregir ticket
             </Button>
-          )}
-        </div>
+          </div>
+        )}
       </Card>
 
       <Card className="overflow-hidden !p-0">
