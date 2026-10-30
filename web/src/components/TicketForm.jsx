@@ -25,7 +25,11 @@ export function TicketForm({ modo, inicial, onSubmit, submitLabel }) {
   const [motivos, setMotivos] = useState([]);
   const [tipo, setTipo] = useState(inicial?.tipo || "");
   const [prioridad, setPrioridad] = useState(inicial?.prioridad || "normal");
-  const [firmante, setFirmante] = useState(inicial?.firmante || "");
+  // Al crear, se prellena con el nombre de quien está logueado (lo normal:
+  // quien radica es quien firma) — sigue siendo editable por si alguien
+  // radica en nombre de otra persona. Al editar, se respeta el firmante que
+  // ya tenía el ticket.
+  const [firmante, setFirmante] = useState(inicial?.firmante || perfil?.nombre || "");
   const [observacion, setObservacion] = useState(inicial?.observacion || "");
   const [items, setItems] = useState(
     inicial?.items?.length ? inicial.items.map(({ id, ticket_id, ...rest }) => rest) : [{ ...ITEM_VACIO }]
