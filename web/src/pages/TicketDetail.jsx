@@ -275,9 +275,6 @@ export function TicketDetail() {
             <div>{ticket.agente_higea || ticket.asignado.nombre}</div>
           </div>
         )}
-        <div className="col-span-2 sm:col-span-4">
-          <p className="text-sm text-[var(--color-muted)]">{ESPERANDO[ticket.estado]}</p>
-        </div>
         {puedeEditar && (
           <div className="col-span-2 sm:col-span-4">
             <Button variant="ghost" onClick={() => navigate(`/tickets/${ticket.id}/editar`)}>
