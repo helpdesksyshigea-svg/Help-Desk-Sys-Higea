@@ -6,7 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
-import { IconUser, IconShield, IconInbox, IconInfo, IconClock, IconSettings, IconDatabase, IconEdit, IconKey, IconTrash, IconPlus, IconCheck, IconClose, IconSend } from "../components/icons";
+import { IconUser, IconShield, IconInbox, IconInfo, IconClock, IconSettings, IconDatabase, IconEdit, IconKey, IconTrash, IconPlus, IconCheck, IconClose, IconSend, IconCopy } from "../components/icons";
 
 const inputClass =
   "w-full rounded-[var(--radius-input)] border border-[var(--color-ink)]/20 bg-[var(--color-ink)]/5 px-3 py-2 text-sm outline-none focus:border-[var(--color-ink)]";
@@ -424,6 +424,16 @@ function Roles() {
     setSeleccion((prev) => (prev.includes(clave) ? prev.filter((c) => c !== clave) : [...prev, clave]));
   }
 
+  // Precarga el formulario "Nuevo rol" con el nombre/descripción/permisos de
+  // un rol existente — el rol copiado no se toca, esto solo arma el punto de
+  // partida para crear uno nuevo con el mismo conjunto de permisos.
+  function duplicarRol(rol) {
+    setNombre(`${nombreLegible(rol.nombre)} (copia)`);
+    setDescripcion(rol.descripcion || "");
+    setSeleccion([...rol.permisos]);
+    document.getElementById("form-nuevo-rol")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   const { exito, fallo } = useToast();
 
   async function crear(e) {
@@ -472,7 +482,7 @@ function Roles() {
 
   return (
     <div className="grid gap-4">
-      <Card className="grid gap-3">
+      <Card id="form-nuevo-rol" className="grid gap-3">
         <h3 className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">Nuevo rol</h3>
         <form onSubmit={crear} className="grid gap-3 sm:grid-cols-2">
           <label className="text-sm">
@@ -521,7 +531,17 @@ function Roles() {
               </th>
               {roles.map((r) => (
                 <th key={r.id} className="px-4 py-3 text-center text-xs font-semibold">
-                  {nombreLegible(r.nombre)}
+                  <div className="flex items-center justify-center gap-1.5">
+                    {nombreLegible(r.nombre)}
+                    <button
+                      type="button"
+                      onClick={() => duplicarRol(r)}
+                      title={`Duplicar "${nombreLegible(r.nombre)}" como base de un rol nuevo`}
+                      className="rounded p-0.5 text-[var(--color-muted)] hover:bg-[var(--color-ink)]/[0.06] hover:text-[var(--color-ink)]"
+                    >
+                      <IconCopy size={13} />
+                    </button>
+                  </div>
                   {r.es_sistema && <div className="font-normal normal-case text-[var(--color-muted)]">rol de sistema</div>}
                 </th>
               ))}
