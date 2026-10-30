@@ -16,6 +16,10 @@ export function MiFirma() {
   const [errorPreview, setErrorPreview] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
+  const [recortando, setRecortando] = useState(false);
+  const [seleccion, setSeleccion] = useState(null); // {x, y, w, h} en px sobre la imagen MOSTRADA
+  const inicioArrastre = useRef(null);
+  const imgRef = useRef(null);
   const inputFirma = useRef(null);
   const { exito, fallo } = useToast();
 
@@ -48,6 +52,51 @@ export function MiFirma() {
     } finally {
       setCargandoPreview(false);
     }
+  }
+
+  function empezarArrastre(e) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    inicioArrastre.current = { x: e.clientX - rect.left, y: e.clientY - rect.top, rect };
+    setSeleccion({ x: e.clientX - rect.left, y: e.clientY - rect.top, w: 0, h: 0 });
+  }
+  function seguirArrastre(e) {
+    if (!inicioArrastre.current) return;
+    const { x: x0, y: y0, rect } = inicioArrastre.current;
+    const x1 = Math.min(Math.max(e.clientX - rect.left, 0), rect.width);
+    const y1 = Math.min(Math.max(e.clientY - rect.top, 0), rect.height);
+    setSeleccion({ x: Math.min(x0, x1), y: Math.min(y0, y1), w: Math.abs(x1 - x0), h: Math.abs(y1 - y0) });
+  }
+  function terminarArrastre() {
+    inicioArrastre.current = null;
+  }
+
+  async function aplicarRecorte() {
+    const img = imgRef.current;
+    if (!img || !seleccion || seleccion.w < 8 || seleccion.h < 8) {
+      fallo("Dibuja un recuadro sobre la parte de la firma que quieres conservar");
+      return;
+    }
+    const escalaX = img.naturalWidth / img.clientWidth;
+    const escalaY = img.naturalHeight / img.clientHeight;
+    const canvas = document.createElement("canvas");
+    canvas.width = seleccion.w * escalaX;
+    canvas.height = seleccion.h * escalaY;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(
+      img,
+      seleccion.x * escalaX,
+      seleccion.y * escalaY,
+      seleccion.w * escalaX,
+      seleccion.h * escalaY,
+      0,
+      0,
+      canvas.width,
+      canvas.height,
+    );
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+    setRecortando(false);
+    setSeleccion(null);
+    await elegirFirma(new File([blob], "firma-recortada.png", { type: "image/png" }));
   }
 
   async function guardar(e) {
@@ -117,11 +166,61 @@ export function MiFirma() {
               <div className="grid gap-3 rounded-[var(--radius-input)] border border-[var(--color-border)] p-3">
                 <div className="grid gap-1">
                   <span className="text-xs font-medium text-[var(--color-muted)]">Foto subida</span>
-                  <img src={previewNueva || firmaUrl} alt="Firma" className="h-48 w-full rounded bg-[var(--color-ink)]/5 object-contain" />
+                  <div
+                    className="relative h-48 w-full select-none overflow-hidden rounded bg-[var(--color-ink)]/5"
+                    onMouseDown={recortando ? empezarArrastre : undefined}
+                    onMouseMove={recortando ? seguirArrastre : undefined}
+                    onMouseUp={recortando ? terminarArrastre : undefined}
+                    onMouseLeave={recortando ? terminarArrastre : undefined}
+                    style={recortando ? { cursor: "crosshair" } : undefined}
+                  >
+                    <img
+                      ref={imgRef}
+                      src={previewNueva || firmaUrl}
+                      alt="Firma"
+                      draggable={false}
+                      className="h-full w-full object-contain"
+                    />
+                    {recortando && seleccion && (
+                      <div
+                        className="pointer-events-none absolute border-2 border-[var(--color-accent)] bg-[var(--color-accent)]/20"
+                        style={{ left: seleccion.x, top: seleccion.y, width: seleccion.w, height: seleccion.h }}
+                      />
+                    )}
+                  </div>
                 </div>
-                <Button type="button" variant="ghost" className="justify-self-start" onClick={() => inputFirma.current?.click()}>
-                  Cambiar firma
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" variant="ghost" onClick={() => inputFirma.current?.click()}>
+                    Cambiar firma
+                  </Button>
+                  {previewNueva && !recortando && (
+                    <Button type="button" variant="ghost" onClick={() => setRecortando(true)}>
+                      Recortar imagen
+                    </Button>
+                  )}
+                  {recortando && (
+                    <>
+                      <Button type="button" variant="accent" onClick={aplicarRecorte}>
+                        Aplicar recorte
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => {
+                          setRecortando(false);
+                          setSeleccion(null);
+                        }}
+                      >
+                        Cancelar
+                      </Button>
+                    </>
+                  )}
+                </div>
+                {recortando && (
+                  <p className="text-xs text-[var(--color-muted)]">
+                    Dibuja con el mouse un recuadro sobre la parte de la firma que quieres conservar, luego "Aplicar recorte".
+                  </p>
+                )}
                 {previewNueva && (
                   <div className="border-t border-[var(--color-border)] pt-3">
                     <span className="mb-1.5 block text-xs font-medium text-[var(--color-muted)]">Así se verá en el oficio</span>
