@@ -112,16 +112,20 @@ function tokenizarConEstilo(texto) {
   return parrafos;
 }
 
-// Igual que partirEnLineas, pero wrap de palabras con estilo mixto (negrita
-// según cada token) — cada línea resultante es un array de {texto, negrita},
-// ya agrupando palabras consecutivas del mismo estilo en un solo fragmento
-// para minimizar llamadas a drawText.
+// Reparte en líneas que caben en `anchoMax` un texto ya tokenizado por
+// tokenizarConEstilo() (palabras con su propio ancho según negrita/regular).
+// Cada línea resultante es { tokens: [{palabra, negrita}], ultima } —
+// `ultima` marca la última línea de cada párrafo (incluido un párrafo vacío,
+// que es una línea en blanco): el cuerpo del oficio va justificado como en
+// el .docx real (w:jc="both"), pero la última línea de un párrafo NUNCA se
+// estira para llenar el ancho — es la convención tipográfica estándar, y
+// además evita separaciones absurdas en líneas cortas de cierre.
 function partirEnLineasConEstilo(parrafosConEstilo, fuente, fuenteNegrita, tamano, anchoMax) {
   const anchoEspacio = fuente.widthOfTextAtSize(" ", tamano);
   const lineas = [];
   for (const parrafo of parrafosConEstilo) {
     if (parrafo.length === 0) {
-      lineas.push([]);
+      lineas.push({ tokens: [], ultima: true });
       continue;
     }
     let actual = [];
@@ -131,50 +135,47 @@ function partirEnLineasConEstilo(parrafosConEstilo, fuente, fuenteNegrita, taman
       const anchoPalabra = f.widthOfTextAtSize(tok.palabra, tamano);
       const espacio = actual.length ? anchoEspacio : 0;
       if (actual.length && anchoActual + espacio + anchoPalabra > anchoMax) {
-        lineas.push(actual);
+        lineas.push({ tokens: actual, ultima: false });
         actual = [];
         anchoActual = 0;
       }
       actual.push(tok);
       anchoActual += (actual.length > 1 ? anchoEspacio : 0) + anchoPalabra;
     }
-    if (actual.length) lineas.push(actual);
-  }
-  // Agrupa tokens consecutivos del mismo estilo en un solo fragmento de texto.
-  return lineas.map((linea) => {
-    const fragmentos = [];
-    for (const tok of linea) {
-      const ultimo = fragmentos[fragmentos.length - 1];
-      if (ultimo && ultimo.negrita === tok.negrita) ultimo.texto += ` ${tok.palabra}`;
-      else fragmentos.push({ texto: tok.palabra, negrita: tok.negrita });
-    }
-    return fragmentos;
-  });
-}
-
-// Parte un texto en líneas que caben en `anchoMax`, respetando los saltos de
-// párrafo (\n) ya presentes en la plantilla — pdf-lib no hace wrap automático.
-function partirEnLineas(texto, fuente, tamano, anchoMax) {
-  const lineas = [];
-  for (const parrafo of String(texto || "").split("\n")) {
-    if (!parrafo.trim()) {
-      lineas.push("");
-      continue;
-    }
-    const palabras = parrafo.split(/\s+/);
-    let actual = "";
-    for (const palabra of palabras) {
-      const prueba = actual ? `${actual} ${palabra}` : palabra;
-      if (fuente.widthOfTextAtSize(prueba, tamano) > anchoMax && actual) {
-        lineas.push(actual);
-        actual = palabra;
-      } else {
-        actual = prueba;
-      }
-    }
-    if (actual) lineas.push(actual);
+    if (actual.length) lineas.push({ tokens: actual, ultima: true });
   }
   return lineas;
+}
+
+// Parte un texto plano (sin negrita) en líneas con la misma forma que
+// partirEnLineasConEstilo, para que ambas rutas de dibujo del cuerpo
+// (con/sin plantilla) compartan un solo renderer justificado.
+function partirEnLineas(texto, fuente, tamano, anchoMax) {
+  const parrafos = String(texto || "")
+    .split("\n")
+    .map((p) => (p.trim() ? p.split(/\s+/).filter(Boolean).map((palabra) => ({ palabra, negrita: false })) : []));
+  return partirEnLineasConEstilo(parrafos, fuente, fuente, tamano, anchoMax);
+}
+
+// Dibuja una línea del cuerpo justificando el espacio entre palabras para
+// que llegue exacto a `anchoMax` — salvo la última línea de cada párrafo,
+// que se deja alineada a la izquierda sin estirar (ver partirEnLineasConEstilo).
+function dibujarLineaJustificada(pagina, linea, x, y, fuente, fuenteNegrita, tamano, anchoMax, color) {
+  const { tokens, ultima } = linea;
+  if (tokens.length === 0) return;
+  const anchoEspacioNormal = fuente.widthOfTextAtSize(" ", tamano);
+  const anchosPalabras = tokens.map((t) => (t.negrita ? fuenteNegrita : fuente).widthOfTextAtSize(t.palabra, tamano));
+  const anchoTotalPalabras = anchosPalabras.reduce((a, b) => a + b, 0);
+  const huecos = tokens.length - 1;
+  const anchoEspacio =
+    !ultima && huecos > 0 ? Math.max(0, (anchoMax - anchoTotalPalabras) / huecos) : anchoEspacioNormal;
+
+  let cursor = x;
+  tokens.forEach((tok, i) => {
+    const f = tok.negrita ? fuenteNegrita : fuente;
+    pagina.drawText(tok.palabra, { x: cursor, y, size: tamano, font: f, color });
+    cursor += anchosPalabras[i] + (i < tokens.length - 1 ? anchoEspacio : 0);
+  });
 }
 
 function truncar(fuente, tamano, texto, anchoMax) {
@@ -311,27 +312,21 @@ export async function construirOficioPdf({ ticket, tipoEtiqueta, plantilla, item
   const tamanoCuerpo = 10.5;
   const interlineaCuerpo = 15.84; // medido en el oficio de referencia
 
-  if (plantilla && plantilla.trim()) {
-    const textoConEstilo = reemplazarMarcadoresConEstilo(plantilla, datosPlantilla);
-    const parrafos = tokenizarConEstilo(textoConEstilo);
-    const lineas = partirEnLineasConEstilo(parrafos, fuente, fuenteNegrita, tamanoCuerpo, ANCHO_UTIL);
-    for (const linea of lineas) {
-      nuevaPaginaSiHaceFalta(interlineaCuerpo);
-      let x = MARGEN;
-      for (const fragmento of linea) {
-        const f = fragmento.negrita ? fuenteNegrita : fuente;
-        pagina.drawText(fragmento.texto, { x, y, size: tamanoCuerpo, font: f, color: NEGRO });
-        x += f.widthOfTextAtSize(fragmento.texto, tamanoCuerpo) + f.widthOfTextAtSize(" ", tamanoCuerpo);
-      }
-      y -= interlineaCuerpo;
-    }
-  } else {
-    const textoBase = `Por medio del presente se radica una solicitud de "${tipoEtiqueta}" ante SYS HIGEA, con los registros detallados a continuación.`;
-    for (const linea of partirEnLineas(textoBase, fuente, tamanoCuerpo, ANCHO_UTIL)) {
-      nuevaPaginaSiHaceFalta(interlineaCuerpo);
-      if (linea) pagina.drawText(linea, { x: MARGEN, y, size: tamanoCuerpo, font: fuente, color: NEGRO });
-      y -= interlineaCuerpo;
-    }
+  // Justificado ("both" en el .docx original) salvo la última línea de cada
+  // párrafo, que no se estira (ver dibujarLineaJustificada).
+  const lineasCuerpo =
+    plantilla && plantilla.trim()
+      ? partirEnLineasConEstilo(tokenizarConEstilo(reemplazarMarcadoresConEstilo(plantilla, datosPlantilla)), fuente, fuenteNegrita, tamanoCuerpo, ANCHO_UTIL)
+      : partirEnLineas(
+          `Por medio del presente se radica una solicitud de "${tipoEtiqueta}" ante SYS HIGEA, con los registros detallados a continuación.`,
+          fuente,
+          tamanoCuerpo,
+          ANCHO_UTIL,
+        );
+  for (const linea of lineasCuerpo) {
+    nuevaPaginaSiHaceFalta(interlineaCuerpo);
+    dibujarLineaJustificada(pagina, linea, MARGEN, y, fuente, fuenteNegrita, tamanoCuerpo, ANCHO_UTIL, NEGRO);
+    y -= interlineaCuerpo;
   }
 
   // Tabla de registros.
