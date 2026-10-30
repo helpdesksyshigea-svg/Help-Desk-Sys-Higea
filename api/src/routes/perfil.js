@@ -31,6 +31,23 @@ perfilRouter.get("/perfil", async (req, res) => {
   });
 });
 
+// Vista previa del trazo vectorizado, sin guardar nada — así la persona ve
+// si la foto quedó cortada/con ruido ANTES de confirmar, y puede subir otra
+// en vez de descubrirlo recién en un oficio ya radicado.
+perfilRouter.post("/perfil/preview-firma", upload.single("firma"), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: "Debe adjuntar una imagen" });
+  if (!TIPOS_FIRMA_PERMITIDOS.includes(req.file.mimetype)) {
+    return res.status(400).json({ error: "La firma debe ser una imagen PNG, JPEG o WebP" });
+  }
+  try {
+    const vector = await vectorizarFirma(req.file.buffer);
+    res.set("Content-Type", "image/png");
+    res.send(Buffer.from(vector.png, "base64"));
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
 perfilRouter.patch("/perfil", upload.single("firma"), async (req, res) => {
   const patch = {};
   if (req.body.identificacion !== undefined) patch.identificacion = req.body.identificacion.trim() || null;

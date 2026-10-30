@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { apiFetch } from "../lib/api";
+import { apiFetch, apiFetchBlob } from "../lib/api";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
 import { useToast } from "../context/ToastContext";
@@ -11,6 +11,9 @@ export function MiFirma() {
   const [firmaUrl, setFirmaUrl] = useState(null);
   const [firmaNueva, setFirmaNueva] = useState(null);
   const [previewNueva, setPreviewNueva] = useState(null);
+  const [previewVectorizada, setPreviewVectorizada] = useState(null);
+  const [cargandoPreview, setCargandoPreview] = useState(false);
+  const [errorPreview, setErrorPreview] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const inputFirma = useRef(null);
@@ -28,10 +31,23 @@ export function MiFirma() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function elegirFirma(archivo) {
+  async function elegirFirma(archivo) {
     if (!archivo) return;
     setFirmaNueva(archivo);
     setPreviewNueva(URL.createObjectURL(archivo));
+    setPreviewVectorizada(null);
+    setErrorPreview(null);
+    setCargandoPreview(true);
+    try {
+      const form = new FormData();
+      form.append("firma", archivo);
+      const blob = await apiFetchBlob("/perfil/preview-firma", { method: "POST", body: form });
+      setPreviewVectorizada(URL.createObjectURL(blob));
+    } catch (e) {
+      setErrorPreview(e.message);
+    } finally {
+      setCargandoPreview(false);
+    }
   }
 
   async function guardar(e) {
@@ -49,6 +65,7 @@ export function MiFirma() {
         setFirmaUrl(actualizado.firmaUrl || null);
         setFirmaNueva(null);
         setPreviewNueva(null);
+        setPreviewVectorizada(null);
       }
     } catch (e) {
       fallo(e.message);
@@ -97,11 +114,27 @@ export function MiFirma() {
               className="hidden"
             />
             {previewNueva || firmaUrl ? (
-              <div className="flex items-center gap-4 rounded-[var(--radius-input)] border border-[var(--color-border)] p-3">
-                <img src={previewNueva || firmaUrl} alt="Firma" className="h-16 max-w-[220px] object-contain" />
-                <Button type="button" variant="ghost" onClick={() => inputFirma.current?.click()}>
-                  Cambiar firma
-                </Button>
+              <div className="grid gap-3 rounded-[var(--radius-input)] border border-[var(--color-border)] p-3">
+                <div className="flex items-center gap-4">
+                  <img src={previewNueva || firmaUrl} alt="Firma" className="h-16 max-w-[220px] object-contain" />
+                  <Button type="button" variant="ghost" onClick={() => inputFirma.current?.click()}>
+                    Cambiar firma
+                  </Button>
+                </div>
+                {previewNueva && (
+                  <div className="border-t border-[var(--color-border)] pt-3">
+                    <span className="mb-1.5 block text-xs font-medium text-[var(--color-muted)]">Así se verá en el oficio</span>
+                    {cargandoPreview && <p className="text-xs text-[var(--color-muted)]">Procesando…</p>}
+                    {errorPreview && <p className="text-xs text-[#b3362a]">{errorPreview} Prueba con otra foto.</p>}
+                    {previewVectorizada && (
+                      <img
+                        src={previewVectorizada}
+                        alt="Vista previa de la firma vectorizada"
+                        className="h-16 max-w-[220px] rounded border border-[var(--color-border)] bg-white object-contain p-1"
+                      />
+                    )}
+                  </div>
+                )}
               </div>
             ) : (
               <div
@@ -117,7 +150,7 @@ export function MiFirma() {
             )}
           </div>
         </Card>
-        <Button type="submit" variant="accent" className="justify-self-start" disabled={guardando}>
+        <Button type="submit" variant="accent" className="justify-self-start" disabled={guardando || cargandoPreview || !!errorPreview}>
           {guardando ? "Guardando…" : "Guardar"}
         </Button>
       </form>
