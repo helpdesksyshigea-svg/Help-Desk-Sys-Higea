@@ -375,7 +375,7 @@ export function TicketDetail() {
             ticketId={ticket.id}
             kindsPermitidos={["soporte", "evidencia"]}
             oficioGenerado={{
-              nombre: `oficio-${ticket.code}.pdf`,
+              nombre: `Radicación ticket ${ticket.code}`,
               meta: "Oficio generado automáticamente",
               cargandoVista: cargandoOficio,
               onVer: () => descargarOficio(false),
