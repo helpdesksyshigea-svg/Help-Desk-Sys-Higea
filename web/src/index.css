@@ -23,24 +23,29 @@
   --color-canvas: #ffffff;
   --color-surface: #ffffff;
   --color-surface-hover: #f5fafa;
-  --color-header-bg: #e4f1f0;
+  --color-header-bg: #003734;
+  --color-header-ink: #ffffff;
   --color-border: #dde6e5;
   --color-accent: #003734;
   --color-accent-ink: #ffffff;
   --color-forest: #012624;
 
-  --color-state-pendiente: #5a3d94;
-  --color-state-pendiente-bg: #e7dcfa;
-  --color-state-devuelto: #8a4d00;
-  --color-state-devuelto-bg: #fbe3bc;
-  --color-state-aprobado: #1d4ba0;
-  --color-state-aprobado-bg: #d6e3fa;
-  --color-state-en_proceso: #8a4d00;
-  --color-state-en_proceso-bg: #fbe3bc;
+  /* Paleta de estado en la misma familia teal/verde de la marca — el ámbar
+     (devuelto) y el rojo (requiere_info) quedan como las dos únicas
+     excepciones deliberadas, porque ahí el color SÍ es la señal de "esto
+     necesita una acción distinta a simplemente esperar". */
+  --color-state-pendiente: #0b4a46;
+  --color-state-pendiente-bg: #dcf1ee;
+  --color-state-devuelto: #8a5600;
+  --color-state-devuelto-bg: #fbe8c7;
+  --color-state-aprobado: #003734;
+  --color-state-aprobado-bg: #d7ebe8;
+  --color-state-en_proceso: #0f5c53;
+  --color-state-en_proceso-bg: #def4ef;
   --color-state-requiere_info: #a52c20;
   --color-state-requiere_info-bg: #f9d1c9;
-  --color-state-cerrado: #1f6b2c;
-  --color-state-cerrado-bg: #d1edd6;
+  --color-state-cerrado: #012624;
+  --color-state-cerrado-bg: #dbe6e4;
 
   --radius-card: 10px;
   --radius-input: 6px;

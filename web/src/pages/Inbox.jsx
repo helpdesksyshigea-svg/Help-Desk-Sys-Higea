@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { apiFetch } from "../lib/api";
-import { filtrosPorRol, FILTRO_DEFAULT, ESPERANDO, necesitaAccion, textoSla } from "../lib/filters";
+import { filtrosPorRol, FILTRO_DEFAULT, necesitaAccion, textoSla } from "../lib/filters";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
 import { StatusTag } from "../components/StatusTag";
@@ -47,8 +47,8 @@ function iniciales(nombre) {
   return ((partes[0]?.[0] || "") + (partes[1]?.[0] || "")).toUpperCase();
 }
 
-function PrioridadChip({ color }) {
-  return <span className="block h-2.5 w-2.5 rounded-[2px]" style={{ background: color }} aria-hidden="true" />;
+function PrioridadDot({ color }) {
+  return <span className="block h-2.5 w-2.5 rounded-full" style={{ background: color }} aria-hidden="true" />;
 }
 
 export function Inbox() {
@@ -59,10 +59,18 @@ export function Inbox() {
   const filtroActivo = params.get("filtro") || FILTRO_DEFAULT[perfil?.rol] || filtros[0][0];
   const busqueda = (params.get("q") || "").trim().toLowerCase();
   const [tickets, setTickets] = useState([]);
+  const [tipos, setTipos] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
   const [exportando, setExportando] = useState(false);
   const { fallo } = useToast();
+
+  useEffect(() => {
+    apiFetch("/catalogos/tipos")
+      .then((data) => setTipos(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, []);
+  const etiquetaTipo = (clave) => tipos.find((t) => t.clave === clave)?.etiqueta || clave;
 
   async function manejarExportar() {
     setExportando(true);
@@ -187,21 +195,16 @@ export function Inbox() {
         <div className="overflow-x-auto rounded-[var(--radius-card)] border border-[var(--color-border)]">
           <table className="w-full min-w-[720px] border-collapse text-sm">
             <thead>
-              <tr className="border-b border-[var(--color-border)] bg-[var(--color-header-bg)] text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-ink)]">
+              <tr className="border-b border-[var(--color-border)] bg-[var(--color-header-bg)] text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-header-ink)]">
                 <th className="w-7 py-3 pl-4"></th>
                 <th className="py-3 pr-3">Ticket</th>
-                <th className="py-3 pr-3">Solicita</th>
-                <th className="py-3 pr-3">Esperando</th>
+                <th className="py-3 pr-3">Solicitante</th>
                 <th className="py-3 pr-3 text-right">Plazo</th>
                 <th className="py-3 pr-4 text-right">Estado</th>
               </tr>
             </thead>
             <tbody>
               {visibles.map((t) => {
-                const titulo =
-                  t.items?.map((i) => i.factura).filter(Boolean).join(", ") || t.items?.[0]?.paciente || "Sin factura";
-                const ultimoEvento = t.eventos?.[t.eventos.length - 1];
-                const snippet = ultimoEvento?.texto || t.observacion || "Sin notas adicionales";
                 const destacado = necesitaAccion(t, perfil?.rol, perfil?.id);
                 const sla = textoSla(t);
                 return (
@@ -212,32 +215,29 @@ export function Inbox() {
                   >
                     <td className="py-3.5 pl-4 align-middle">
                       <span title={`Prioridad ${PRIORIDAD_LABEL[t.prioridad] || t.prioridad}`}>
-                        <PrioridadChip color={PRIORIDAD_COLOR[t.prioridad] || "var(--color-muted)"} />
+                        <PrioridadDot color={PRIORIDAD_COLOR[t.prioridad] || "var(--color-muted)"} />
                       </span>
                     </td>
                     <td className="max-w-xs py-3.5 pr-3 align-top">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-[11px] tracking-tight text-[var(--color-muted)]">{t.code}</span>
+                      <div className={`text-base leading-tight ${destacado ? "font-bold" : "font-semibold"}`}>{t.code}</div>
+                      <div className="mt-0.5 flex items-center gap-2 truncate text-xs text-[var(--color-muted)]">
+                        <span className="truncate">{etiquetaTipo(t.tipo)}</span>
+                        <span className="opacity-60">· {hace(t.created_at)}</span>
                         {t.vencido && (
-                          <span className="rounded-[var(--radius-tag)] bg-[#f8e0dc] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#b3362a]">
+                          <span className="shrink-0 rounded-[var(--radius-tag)] bg-[#f8e0dc] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#b3362a]">
                             Vencido
                           </span>
                         )}
                       </div>
-                      <div className={`truncate ${destacado ? "font-semibold" : "font-medium"}`}>{titulo}</div>
-                      <div className="truncate text-xs text-[var(--color-muted)]">
-                        {snippet} <span className="opacity-60">· {hace(t.created_at)}</span>
-                      </div>
                     </td>
                     <td className="py-3.5 pr-3 align-top">
                       <div className="flex items-center gap-2">
-                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[var(--radius-tag)] bg-[var(--color-ink)]/[0.06] text-[10px] font-semibold text-[var(--color-ink)]">
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--color-ink)]/[0.06] text-[10px] font-semibold text-[var(--color-ink)]">
                           {iniciales(t.firmante)}
                         </span>
                         <span className="whitespace-nowrap text-xs text-[var(--color-muted)]">{t.firmante || "—"}</span>
                       </div>
                     </td>
-                    <td className="py-3.5 pr-3 align-top text-xs text-[var(--color-muted)]">{ESPERANDO[t.estado] || ""}</td>
                     <td className="py-3.5 pr-3 text-right align-top">
                       {sla ? (
                         <span
