@@ -196,7 +196,7 @@ export function Inbox() {
           <table className="w-full min-w-[720px] border-collapse text-sm">
             <thead>
               <tr className="border-b border-[var(--color-border)] bg-[var(--color-header-bg)] text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-header-ink)]">
-                <th className="w-7 py-3 pl-4"></th>
+                <th className="w-24 py-3 pl-4">Prioridad</th>
                 <th className="py-3 pr-3">Ticket</th>
                 <th className="py-3 pr-3">Tipo de solicitud</th>
                 <th className="py-3 pr-3">Solicitante</th>
@@ -214,9 +214,10 @@ export function Inbox() {
                     onClick={() => navigate(`/tickets/${t.id}`)}
                     className="cursor-pointer border-b border-[var(--color-border)] last:border-0 hover:bg-[var(--color-surface-hover)]"
                   >
-                    <td className="py-3.5 pl-4 align-middle">
-                      <span title={`Prioridad ${PRIORIDAD_LABEL[t.prioridad] || t.prioridad}`}>
+                    <td className="py-3.5 pl-4 align-top">
+                      <span className="flex items-center gap-1.5 whitespace-nowrap text-xs text-[var(--color-muted)]">
                         <PrioridadDot color={PRIORIDAD_COLOR[t.prioridad] || "var(--color-muted)"} />
+                        {PRIORIDAD_LABEL[t.prioridad] || t.prioridad}
                       </span>
                     </td>
                     <td className="max-w-xs py-3.5 pr-3 align-top">
