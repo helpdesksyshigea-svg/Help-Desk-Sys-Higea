@@ -70,11 +70,18 @@ const FILTROS_POR_ROL_DEFAULT = [
   ["todos", "Todos", () => true],
 ];
 
+// "Bandeja" (el link principal, sin ?filtro= en la URL) mostraba por
+// defecto "Requiere tu acción" — si ese filtro estaba en 0, la bandeja se
+// veía vacía aunque la persona sí tuviera tickets bajo su gestión en otro
+// estado. "Todos" es el superconjunto: siempre incluye tanto lo urgente
+// como el resto de lo que le corresponde ver a cada rol, así que la
+// bandeja nunca aparenta estar vacía sin estarlo de verdad. "Requiere tu
+// acción" sigue existiendo como pestaña aparte, con su propio aviso.
 export const FILTRO_DEFAULT = {
-  supervisora_facturacion: "accion",
-  coordinador_medico: "accion",
-  facturador: "accion",
-  higea_soporte: "accion",
+  supervisora_facturacion: "todos",
+  coordinador_medico: "todos",
+  facturador: "todos",
+  higea_soporte: "todos",
   admin: "todos",
 };
 
