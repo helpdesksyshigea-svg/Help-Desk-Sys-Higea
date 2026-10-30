@@ -242,15 +242,16 @@ ticketsRouter.post("/tickets", requirePermission("tickets.crear"), upload.single
   }
   const errorItems = await validarItems(items, tipo);
   if (errorItems) return res.status(400).json({ error: errorItems });
-  if (!req.file) {
-    return res.status(400).json({ error: "Debe adjuntar el oficio firmado para radicar el ticket" });
-  }
 
-  // Beta: el oficio generado automáticamente coexiste con el adjunto manual
-  // de arriba (sigue siendo obligatorio) — "firmaConfirmada" solo marca que
-  // la persona confirmó explícitamente su firma en el modal "Firmar oficio"
-  // antes de radicar, nunca se estampa sola.
+  // Beta: si la cuenta tiene firma digital habilitada y la persona confirmó
+  // explícitamente su firma en el modal "Firmar oficio" antes de radicar, el
+  // oficio generado automáticamente (con esa firma ya estampada) reemplaza al
+  // adjunto manual — ya no hace falta subir también un PDF escaneado. Sin esa
+  // confirmación, el adjunto manual sigue siendo obligatorio como siempre.
   const firmaConfirmada = req.user.beta_firma_oficio && payload.firmaConfirmada === true;
+  if (!req.file && !firmaConfirmada) {
+    return res.status(400).json({ error: "Debe adjuntar el oficio firmado, o confirmar su firma digital, para radicar el ticket" });
+  }
 
   // Solo el rol "médico" pasa primero por un coordinador médico; facturador (y
   // cualquier otro rol) sigue el flujo de siempre: directo a supervisora.
@@ -285,11 +286,13 @@ ticketsRouter.post("/tickets", requirePermission("tickets.crear"), upload.single
     return res.status(500).json({ error: itemsError.message });
   }
 
-  try {
-    await subirOficio(ticket.id, req.file, req.user.id);
-  } catch (e) {
-    if (!e.status) console.error(`[tickets] error subiendo oficio del ticket ${ticket.code}:`, e.message);
-    return res.status(e.status || 500).json({ error: e.message });
+  if (req.file) {
+    try {
+      await subirOficio(ticket.id, req.file, req.user.id);
+    } catch (e) {
+      if (!e.status) console.error(`[tickets] error subiendo oficio del ticket ${ticket.code}:`, e.message);
+      return res.status(e.status || 500).json({ error: e.message });
+    }
   }
 
   const textoCreado = firmaConfirmada
@@ -586,6 +589,11 @@ ticketsRouter.post("/tickets/:id/aprobar", (req, res) =>
       if (ticket.etapa_aprobacion) {
         return "Este ticket requiere primero la aprobación del coordinador médico";
       }
+      // El oficio firmado puede ser el adjunto manual de siempre, o (beta) el
+      // generado automáticamente con la firma digital del solicitante ya
+      // confirmada al radicar — cualquiera de los dos cuenta como "oficio
+      // firmado" para poder aprobar.
+      if (ticket.firma_solicitante_at) return null;
       const { data: adjuntos, error } = await supabase
         .from("ticket_adjuntos")
         .select("id")

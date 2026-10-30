@@ -96,7 +96,10 @@ export function TicketForm({ modo, inicial, onSubmit, submitLabel }) {
       setError("La factura debe tener entre 4 y 20 caracteres alfanuméricos (se permiten guiones)");
       return false;
     }
-    if (modo === "crear" && !oficio) {
+    // Con firma digital habilitada (beta), el modal "Firmar oficio" que se
+    // abre al enviar es el que exige la firma (bloquea confirmar si no hay
+    // una firma guardada) — ya no hace falta además el adjunto manual.
+    if (modo === "crear" && !oficio && !perfil?.beta_firma_oficio) {
       setError("Debe adjuntar el oficio firmado para radicar");
       return false;
     }
@@ -295,7 +298,9 @@ export function TicketForm({ modo, inicial, onSubmit, submitLabel }) {
         <Card className="grid gap-3">
           <p className="text-sm">
             {modo === "crear"
-              ? "Adjunta el oficio con firma y VoBo. Es obligatorio: no se puede radicar la solicitud sin él."
+              ? perfil?.beta_firma_oficio
+                ? "Opcional: puedes adjuntar el oficio con firma y VoBo escaneado, o confirmar tu firma digital al radicar (el oficio se genera solo)."
+                : "Adjunta el oficio con firma y VoBo. Es obligatorio: no se puede radicar la solicitud sin él."
               : "Puedes dejar el oficio que ya está adjunto, o reemplazarlo subiendo uno nuevo."}
           </p>
           <input
