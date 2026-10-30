@@ -119,7 +119,7 @@ function lineasDobles(pagina, y, x1, x2) {
  */
 const CONFIG_OFICIO_DEFAULT = {
   destinatario_nombre: "SYS SOFTWARE Y SOLUCIONES LTDA",
-  destinatario_ciudad: "Pasto Nariño",
+  destinatario_ciudad: "Pasto, Nariño",
   texto_cierre: "Agradezco de antemano su valiosa colaboración.",
   texto_despedida: "Atentamente,",
 };
@@ -194,10 +194,10 @@ export async function construirOficioPdf({ ticket, tipoEtiqueta, plantilla, item
   pagina.drawText(config.destinatario_ciudad, { x: MARGEN, y, size: 10.5, font: fuente, color: NEGRO });
   y = 792 - 211.46;
 
-  const asuntoTexto = `Asunto: ${tipoEtiqueta} — ticket ${ticket.code}.`;
-  const anchoAsuntoLabel = fuenteNegrita.widthOfTextAtSize("Asunto:", 10.5);
-  pagina.drawText("Asunto:", { x: MARGEN, y, size: 10.5, font: fuenteNegrita, color: NEGRO });
-  pagina.drawText(asuntoTexto.replace("Asunto:", "").trim(), { x: MARGEN + anchoAsuntoLabel + 4, y, size: 10.5, font: fuente, color: NEGRO });
+  const refTexto = `ticket ${ticket.code} - ${tipoEtiqueta}`;
+  const anchoRefLabel = fuenteNegrita.widthOfTextAtSize("Ref:", 10.5);
+  pagina.drawText("Ref:", { x: MARGEN, y, size: 10.5, font: fuenteNegrita, color: NEGRO });
+  pagina.drawText(refTexto, { x: MARGEN + anchoRefLabel + 4, y, size: 10.5, font: fuente, color: NEGRO });
   y = 792 - 229.388;
   pagina.drawText("Cordial saludo,", { x: MARGEN, y, size: 10.5, font: fuente, color: NEGRO });
   y = 792 - 258.218;

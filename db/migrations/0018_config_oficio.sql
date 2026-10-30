@@ -7,7 +7,7 @@ create table if not exists config_oficio (
   id boolean primary key default true,
   check (id),
   destinatario_nombre text not null default 'SYS SOFTWARE Y SOLUCIONES LTDA',
-  destinatario_ciudad text not null default 'Pasto Nariño',
+  destinatario_ciudad text not null default 'Pasto, Nariño',
   texto_cierre text not null default 'Agradezco de antemano su valiosa colaboración.',
   texto_despedida text not null default 'Atentamente,',
   updated_at timestamptz not null default now()
