@@ -52,7 +52,7 @@ function fechaCorta(iso) {
 function fechaLarga(iso) {
   const d = iso ? new Date(iso) : new Date();
   const texto = d.toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric", timeZone: "America/Bogota" });
-  return `Orito putumayo, ${texto}`;
+  return `Orito, Putumayo, ${texto}`;
 }
 
 function reemplazarMarcadores(plantilla, datos) {
