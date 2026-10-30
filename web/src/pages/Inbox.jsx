@@ -193,16 +193,22 @@ export function Inbox() {
 
       {!cargando && !error && visibles.length > 0 && (
         <div className="overflow-x-auto rounded-[var(--radius-card)] border border-[var(--color-border)]">
-          <table className="w-full min-w-[720px] border-collapse text-sm">
+          {/* table-fixed: sin esto, un "Tipo de solicitud" largo con
+              whitespace-nowrap (por el truncate de abajo) hace crecer esa
+              columna más allá de lo que el layout "auto" le asigna y se
+              desborda encima de la columna de al lado (Solicitante) en vez
+              de recortarse con "…" — table-fixed + anchos por columna hace
+              que cada <td> respete su ancho y el truncate funcione de verdad. */}
+          <table className="w-full min-w-[760px] table-fixed border-collapse text-sm">
             <thead>
               <tr className="border-b border-[var(--color-border)] bg-[var(--color-header-bg)] text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-header-ink)]">
-                <th className="w-24 py-3 pl-4">Prioridad</th>
-                <th className="py-3 pr-3">Ticket</th>
-                <th className="py-3 pr-3">Tipo de solicitud</th>
-                <th className="py-3 pr-3">Solicitante</th>
-                <th className="py-3 pr-3">Creado</th>
-                <th className="py-3 pr-3 text-right">Plazo</th>
-                <th className="py-3 pr-4 text-right">Estado</th>
+                <th className="w-20 py-3 pl-4">Prioridad</th>
+                <th className="w-36 py-3 pr-3">Ticket</th>
+                <th className="w-56 py-3 pr-3">Tipo de solicitud</th>
+                <th className="w-44 py-3 pr-3">Solicitante</th>
+                <th className="w-24 py-3 pr-3">Creado</th>
+                <th className="w-28 py-3 pr-3 text-right">Plazo</th>
+                <th className="w-40 py-3 pr-4 text-right">Estado</th>
               </tr>
             </thead>
             <tbody>
@@ -221,26 +227,28 @@ export function Inbox() {
                         {PRIORIDAD_LABEL[t.prioridad] || t.prioridad}
                       </span>
                     </td>
-                    <td className="max-w-xs py-3.5 pr-3 align-top">
-                      <div className={`text-base leading-tight ${destacado ? "font-bold" : "font-semibold"}`}>{t.code}</div>
+                    <td className="overflow-hidden py-3.5 pr-3 align-top">
+                      <div className={`truncate text-base leading-tight ${destacado ? "font-bold" : "font-semibold"}`}>{t.code}</div>
                       {t.vencido && (
                         <span className="mt-0.5 inline-block rounded-[var(--radius-tag)] bg-[#f8e0dc] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#b3362a]">
                           Vencido
                         </span>
                       )}
                     </td>
-                    <td className="max-w-[200px] py-3.5 pr-3 align-top">
-                      <span className="truncate text-sm">{etiquetaTipo(t.tipo)}</span>
+                    <td className="overflow-hidden py-3.5 pr-3 align-top">
+                      <span className="block truncate text-sm">{etiquetaTipo(t.tipo)}</span>
                     </td>
-                    <td className="py-3.5 pr-3 align-top">
-                      <div className="flex items-center gap-2">
+                    <td className="overflow-hidden py-3.5 pr-3 align-top">
+                      <div className="flex min-w-0 items-center gap-2">
                         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--color-ink)]/[0.06] text-[10px] font-semibold text-[var(--color-ink)]">
                           {iniciales(t.firmante)}
                         </span>
-                        <span className="whitespace-nowrap text-xs text-[var(--color-muted)]">{t.firmante || "—"}</span>
+                        <span className="truncate text-xs text-[var(--color-muted)]">{t.firmante || "—"}</span>
                       </div>
                     </td>
-                    <td className="whitespace-nowrap py-3.5 pr-3 align-top text-xs text-[var(--color-muted)]">{hace(t.created_at)}</td>
+                    <td className="overflow-hidden text-ellipsis whitespace-nowrap py-3.5 pr-3 align-top text-xs text-[var(--color-muted)]">
+                      {hace(t.created_at)}
+                    </td>
                     <td className="py-3.5 pr-3 text-right align-top">
                       {sla ? (
                         <span

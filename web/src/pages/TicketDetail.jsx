@@ -10,7 +10,7 @@ import { ModalFirmarOficio, oficioGeneradoDe } from "../components/ModalFirmarOf
 import { useToast } from "../context/ToastContext";
 import { esperando } from "../lib/filters";
 import { fechaCorta, fechaHora } from "../lib/fecha";
-import { IconArrowLeft, IconCheck, IconReturn, IconInbox, IconInfo, IconSend, IconUser, IconPaperclip, IconTrash, IconEdit } from "../components/icons";
+import { IconArrowLeft, IconCheck, IconReturn, IconInbox, IconInfo, IconSend, IconUser, IconPaperclip, IconTrash, IconEdit, IconEye, IconDownload } from "../components/icons";
 
 const readOnlyClass =
   "w-full rounded-[var(--radius-input)] border border-[var(--color-ink)]/20 bg-[var(--color-ink)]/5 px-3 py-2";
@@ -304,24 +304,12 @@ export function TicketDetail() {
             <div className={`${readOnlyClass} truncate`}>{ticket.agente_higea || ticket.asignado.nombre}</div>
           </div>
         )}
-        {(puedeEditar || perfil?.beta_firma_oficio) && (
+        {puedeEditar && (
           <div className="flex flex-wrap gap-2 md:col-span-2">
-            {puedeEditar && (
-              <Button variant="ghost" onClick={() => navigate(`/tickets/${ticket.id}/editar`)}>
-                <IconEdit size={14} />
-                Corregir ticket
-              </Button>
-            )}
-            {perfil?.beta_firma_oficio && (
-              <>
-                <Button variant="ghost" onClick={() => descargarOficio(false)}>
-                  Ver oficio generado
-                </Button>
-                <Button variant="ghost" onClick={() => descargarOficio(true)}>
-                  Descargar PDF
-                </Button>
-              </>
-            )}
+            <Button variant="ghost" onClick={() => navigate(`/tickets/${ticket.id}/editar`)}>
+              <IconEdit size={14} />
+              Corregir ticket
+            </Button>
           </div>
         )}
       </Card>
@@ -373,6 +361,26 @@ export function TicketDetail() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
+          {/* El oficio generado nunca se guarda como adjunto (se arma al vuelo,
+              ver api/src/lib/oficio.js) — sin esto, alguien que busca "el
+              documento" en Documentos solo ve el oficio escaneado manual (si
+              lo hay) y no encuentra el generado automáticamente. Visible para
+              cualquiera que pueda ver el ticket: no depende de si quien mira
+              tiene su propia firma digital activada, eso solo controla si esa
+              persona puede FIRMAR, no si puede REVISAR un oficio ya generado. */}
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-input)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
+            <span className="text-sm font-medium">Oficio generado automáticamente</span>
+            <div className="flex gap-2">
+              <Button variant="ghost" onClick={() => descargarOficio(false)}>
+                <IconEye size={14} />
+                Ver
+              </Button>
+              <Button variant="ghost" onClick={() => descargarOficio(true)}>
+                <IconDownload size={14} />
+                Descargar
+              </Button>
+            </div>
+          </div>
           {ticket.archivado_at && (
             <p className="mb-3 rounded-[var(--radius-input)] bg-[var(--color-ink)]/5 px-3 py-2 text-xs text-[var(--color-muted)]">
               Los documentos adjuntos de este ticket se eliminaron automáticamente el {fechaCorta(ticket.archivado_at)}{" "}
