@@ -1,4 +1,5 @@
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { PDFDocument, rgb } from "pdf-lib";
+import fontkit from "@pdf-lib/fontkit";
 import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
@@ -6,13 +7,23 @@ import { dirname, join } from "path";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const LOGO_PATH = join(__dirname, "../assets/logo-hospital-nit.png");
 const SELLO_PATH = join(__dirname, "../assets/sello-vigilado-supersalud.png");
+// El oficio de referencia del hospital (generado en Word) usa Arial. Arial
+// es una fuente con licencia de Monotype — no se puede redistribuir su
+// archivo en este repo ni en el servidor. Arimo es la alternativa libre
+// (Apache 2.0) diseñada para ser métricamente compatible con Arial: mismo
+// ancho de carácter, mismo interlineado, visualmente casi idéntica.
+const FUENTE_REGULAR_PATH = join(__dirname, "../assets/fonts/Arimo-Regular.ttf");
+const FUENTE_NEGRITA_PATH = join(__dirname, "../assets/fonts/Arimo-Bold.ttf");
 
 const PAGINA = { ancho: 612, alto: 792 }; // carta, en puntos — igual al oficio de referencia en Word
 const MARGEN = 72; // 1 pulgada, igual al margen del oficio de referencia
 const ANCHO_UTIL = PAGINA.ancho - MARGEN * 2;
 const NEGRO = rgb(0.03, 0.15, 0.14); // aprox --color-ink
 const GRIS = rgb(0.36, 0.42, 0.41); // aprox --color-muted
-const VERDE = rgb(0.29, 0.62, 0.2); // verde institucional de las líneas del membrete
+// Verde lima institucional (#92D050, el mismo "Lime" estándar de Office) —
+// medido por color de píxel directo del oficio de referencia real, no es el
+// verde más oscuro que se usó en un primer intento.
+const VERDE = rgb(146 / 255, 208 / 255, 80 / 255);
 
 const ITEM_CAMPOS = [
   { clave: "factura", etiqueta: "Factura", ancho: 0.15 },
@@ -85,11 +96,14 @@ function centrado(pagina, texto, y, fuente, tamano, color) {
   pagina.drawText(texto, { x: (PAGINA.ancho - ancho) / 2, y, size: tamano, font: fuente, color });
 }
 
-// Dos líneas verdes finas y pegadas — el mismo detalle que usa el membrete
-// real del hospital para separar el encabezado/pie del cuerpo del oficio.
-function lineasDobles(pagina, y) {
-  pagina.drawLine({ start: { x: 0, y }, end: { x: PAGINA.ancho, y }, thickness: 1.5, color: VERDE });
-  pagina.drawLine({ start: { x: 0, y: y - 3 }, end: { x: PAGINA.ancho, y: y - 3 }, thickness: 1.5, color: VERDE });
+// Dos líneas verde lima finas y pegadas — el mismo detalle que usa el
+// membrete real del hospital para separar el encabezado/pie del cuerpo del
+// oficio. No van de borde a borde de la página: el oficio real las corta a
+// un ancho específico (medido por escaneo de píxeles), distinto bajo el
+// logo (más ancho) que sobre el pie de página (más angosto).
+function lineasDobles(pagina, y, x1, x2) {
+  pagina.drawLine({ start: { x: x1, y }, end: { x: x2, y }, thickness: 1.5, color: VERDE });
+  pagina.drawLine({ start: { x: x1, y: y - 3 }, end: { x: x2, y: y - 3 }, thickness: 1.5, color: VERDE });
 }
 
 /**
@@ -106,8 +120,13 @@ function lineasDobles(pagina, y) {
 export async function construirOficioPdf({ ticket, tipoEtiqueta, plantilla, items, solicitante, aprobador }) {
   const pdf = await PDFDocument.create();
   let pagina = pdf.addPage([PAGINA.ancho, PAGINA.alto]);
-  const fuente = await pdf.embedFont(StandardFonts.Helvetica);
-  const fuenteNegrita = await pdf.embedFont(StandardFonts.HelveticaBold);
+  pdf.registerFontkit(fontkit);
+  // subset: false — con esta fuente el subsetter de pdf-lib pierde glifos
+  // (letras con tilde quedaban en blanco, probado y descartado). Sin subset
+  // el PDF pesa ~550KB en vez de unos pocos KB, pero sigue siendo mucho más
+  // liviano que el adjunto escaneado manual que reemplaza.
+  const fuente = await pdf.embedFont(readFileSync(FUENTE_REGULAR_PATH), { subset: false });
+  const fuenteNegrita = await pdf.embedFont(readFileSync(FUENTE_NEGRITA_PATH), { subset: false });
 
   let y = PAGINA.alto - 33.1; // tope del logo medido en el oficio de referencia
 
@@ -130,7 +149,7 @@ export async function construirOficioPdf({ ticket, tipoEtiqueta, plantilla, item
   } catch {
     y -= 39;
   }
-  lineasDobles(pagina, 712.3);
+  lineasDobles(pagina, 712.3, 53, 560);
 
   // Sello "Vigilado Supersalud" en el margen izquierdo. La imagen ya trae el
   // texto girado dentro de ella (alta y angosta) — se dibuja tal cual, sin
@@ -268,7 +287,7 @@ const PIE_LINEAS = [
 // importar cuánto contenido haya arriba.
 function dibujarPie(pagina, fuente) {
   // Posiciones medidas en el oficio de referencia (origen abajo, pdf-lib).
-  lineasDobles(pagina, 76.3);
+  lineasDobles(pagina, 76.3, 72, 553);
   let y = 68.1;
   for (const linea of PIE_LINEAS) {
     centrado(pagina, linea, y, fuente, 7.5, GRIS);
