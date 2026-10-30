@@ -561,17 +561,36 @@ function Roles() {
               {roles.map((r) => (
                 <th key={r.id} className="min-w-[150px] px-3 py-3 text-center font-semibold normal-case">
                   {editandoRolId === r.id ? (
-                    <input
-                      autoFocus
-                      value={nombreEditado}
-                      onChange={(e) => setNombreEditado(e.target.value)}
-                      onBlur={() => confirmarRenombrar(r)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") e.target.blur();
-                        if (e.key === "Escape") setEditandoRolId(null);
-                      }}
-                      className="w-full rounded-[var(--radius-tag)] border border-white/30 bg-white/10 px-1.5 py-0.5 text-center text-xs text-[var(--color-header-ink)] outline-none focus:border-white"
-                    />
+                    <div className="grid gap-1">
+                      <input
+                        autoFocus
+                        value={nombreEditado}
+                        onChange={(e) => setNombreEditado(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") confirmarRenombrar(r);
+                          if (e.key === "Escape") setEditandoRolId(null);
+                        }}
+                        className="w-full rounded-[var(--radius-tag)] border border-white/30 bg-white/10 px-1.5 py-0.5 text-center text-xs text-[var(--color-header-ink)] outline-none focus:border-white"
+                      />
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => confirmarRenombrar(r)}
+                          title="Guardar nombre"
+                          className="rounded p-0.5 text-[var(--color-header-ink)] hover:bg-white/10"
+                        >
+                          <IconCheck size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditandoRolId(null)}
+                          title="Cancelar"
+                          className="rounded p-0.5 text-[var(--color-header-ink)]/70 hover:bg-white/10"
+                        >
+                          <IconClose size={13} />
+                        </button>
+                      </div>
+                    </div>
                   ) : (
                     <div className="flex items-center justify-center gap-1">
                       <span className="truncate">{nombreLegible(r.nombre)}</span>
