@@ -232,48 +232,61 @@ export async function construirOficioPdf({ ticket, tipoEtiqueta, plantilla, item
   const fuente = await pdf.embedFont(readFileSync(FUENTE_REGULAR_PATH), { subset: false });
   const fuenteNegrita = await pdf.embedFont(readFileSync(FUENTE_NEGRITA_PATH), { subset: false });
 
-  let y = PAGINA.alto - 33.1; // tope del logo medido en el oficio de referencia
+  // Logo y sello se embeben una sola vez y se reutilizan en cada página —
+  // pdf-lib permite dibujar la misma imagen embebida muchas veces sin
+  // incrustar los bytes de nuevo.
+  let logo = null;
+  try {
+    logo = await pdf.embedPng(readFileSync(LOGO_PATH));
+  } catch {
+    // Si el logo no está disponible, el oficio igual se genera sin él.
+  }
+  let sello = null;
+  try {
+    sello = await pdf.embedPng(readFileSync(SELLO_PATH));
+  } catch {
+    // Si el sello no está disponible, el oficio igual se genera sin él.
+  }
 
+  // Encabezado: logo con NIT centrado + doble línea verde. Medidas exactas
+  // tomadas del oficio de referencia real (pdftoppm + escaneo de píxeles):
+  // logo ≈146×39pt, centrado; línea doble a y≈712-714pt (origen abajo). El
+  // sello "Vigilado Supersalud" va en el margen izquierdo, rotado 90° (la
+  // imagen fuente es horizontal, extraída directa del PDF real). Todo esto
+  // se repite igual en cada página del oficio — igual que en el .docx real,
+  // donde logo/línea van en el encabezado de Word y el sello en el pie (ambos
+  // se repiten en todas las hojas de una carta de más de una página).
+  function dibujarEncabezado(pag) {
+    let yEnc = PAGINA.alto - 33.1; // tope del logo medido en el oficio de referencia
+    if (logo) {
+      const logoAncho = 146;
+      const logoAlto = (logo.height / logo.width) * logoAncho;
+      pag.drawImage(logo, { x: (PAGINA.ancho - logoAncho) / 2, y: yEnc - logoAlto, width: logoAncho, height: logoAlto });
+      yEnc -= logoAlto;
+    } else {
+      yEnc -= 39;
+    }
+    lineasDobles(pag, 712.3, 53, 560);
+    if (sello) {
+      const altoDestino = 48; // ancho final de la franja ya rotada
+      const anchoDestino = (sello.width / sello.height) * altoDestino; // alto final ya rotado
+      const x0 = 12;
+      const y0 = 330;
+      pag.drawImage(sello, { x: x0 + altoDestino, y: y0, width: anchoDestino, height: altoDestino, rotate: degrees(90) });
+    }
+    return yEnc;
+  }
+
+  let y = dibujarEncabezado(pagina);
+
+  // Páginas siguientes: mismo encabezado, pero el contenido retoma justo
+  // debajo de la línea doble (sin repetir fecha/destinatario/asunto).
   function nuevaPaginaSiHaceFalta(alturaNecesaria) {
     if (y - alturaNecesaria < MARGEN + 70) {
       pagina = pdf.addPage([PAGINA.ancho, PAGINA.alto]);
-      y = PAGINA.alto - 33.1;
+      dibujarEncabezado(pagina);
+      y = 712.3 - 3 - 20;
     }
-  }
-
-  // Encabezado: logo con NIT, centrado, + doble línea verde. Medidas exactas
-  // tomadas del oficio de referencia real (pdftoppm + escaneo de píxeles):
-  // logo ≈146×39pt, centrado; línea doble a y≈712-714pt (origen abajo).
-  try {
-    const logo = await pdf.embedPng(readFileSync(LOGO_PATH));
-    const logoAncho = 146;
-    const logoAlto = (logo.height / logo.width) * logoAncho;
-    pagina.drawImage(logo, { x: (PAGINA.ancho - logoAncho) / 2, y: y - logoAlto, width: logoAncho, height: logoAlto });
-    y -= logoAlto;
-  } catch {
-    y -= 39;
-  }
-  lineasDobles(pagina, 712.3, 53, 560);
-
-  // Sello "Vigilado Supersalud" en el margen izquierdo. La imagen fuente es
-  // horizontal (extraída directa del PDF real: Word también la inserta como
-  // imagen, no como vector) — en el oficio va rotada 90° para leerse de
-  // abajo hacia arriba, igual que el original.
-  try {
-    const sello = await pdf.embedPng(readFileSync(SELLO_PATH));
-    const altoDestino = 48; // ancho final de la franja ya rotada
-    const anchoDestino = (sello.width / sello.height) * altoDestino; // alto final ya rotado
-    const x0 = 12;
-    const y0 = 330;
-    pagina.drawImage(sello, {
-      x: x0 + altoDestino,
-      y: y0,
-      width: anchoDestino,
-      height: altoDestino,
-      rotate: degrees(90),
-    });
-  } catch {
-    // Si el sello no está disponible, el oficio igual se genera sin él.
   }
 
   // Fecha, destinatario fijo (SYS HIGEA) y asunto — posiciones y espaciados
@@ -390,7 +403,8 @@ export async function construirOficioPdf({ ticket, tipoEtiqueta, plantilla, item
     fuenteNegrita,
   });
 
-  dibujarPie(pagina, fuente);
+  // El pie va en TODAS las páginas del oficio, no solo en la última.
+  for (const pag of pdf.getPages()) dibujarPie(pag, fuente);
 
   return Buffer.from(await pdf.save());
 }
