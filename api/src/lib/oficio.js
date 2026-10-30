@@ -300,11 +300,14 @@ const PIE_LINEAS = [
 // igual que el membrete real. Se dibuja en la última página usada, sin
 // importar cuánto contenido haya arriba.
 function dibujarPie(pagina, fuente) {
-  // Posiciones medidas en el oficio de referencia (origen abajo, pdf-lib).
+  // Posiciones y color medidos directo del oficio de referencia: texto negro
+  // (no gris), con más aire entre la línea verde y la primera línea de texto
+  // que lo que había antes — ambos detalles eran la diferencia visible
+  // frente al .docx original.
   lineasDobles(pagina, 76.3, 72, 553);
-  let y = 68.1;
+  let y = 63.1;
   for (const linea of PIE_LINEAS) {
-    centrado(pagina, linea, y, fuente, 7.5, GRIS);
+    centrado(pagina, linea, y, fuente, 7.5, NEGRO);
     y -= 10.3;
   }
 }
