@@ -187,7 +187,7 @@ export function Inbox() {
         <div className="overflow-x-auto rounded-[var(--radius-card)] border border-[var(--color-border)]">
           <table className="w-full min-w-[720px] border-collapse text-sm">
             <thead>
-              <tr className="border-b border-[var(--color-border)] text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-muted)]">
+              <tr className="border-b border-[var(--color-border)] bg-[var(--color-header-bg)] text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-ink)]">
                 <th className="w-7 py-3 pl-4"></th>
                 <th className="py-3 pr-3">Ticket</th>
                 <th className="py-3 pr-3">Solicita</th>

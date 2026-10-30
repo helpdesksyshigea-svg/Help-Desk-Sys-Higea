@@ -16,23 +16,24 @@
   --color-canvas: #ffffff;
   --color-surface: #ffffff;
   --color-surface-hover: #f5fafa;
+  --color-header-bg: #e4f1f0;
   --color-border: #dde6e5;
   --color-accent: #003734;
   --color-accent-ink: #ffffff;
   --color-forest: #012624;
 
-  --color-state-pendiente: #6a4fa0;
-  --color-state-pendiente-bg: #efe9f8;
-  --color-state-devuelto: #9a5b06;
-  --color-state-devuelto-bg: #fbeed6;
-  --color-state-aprobado: #3656a3;
-  --color-state-aprobado-bg: #e1e8f8;
-  --color-state-en_proceso: #9a5b06;
-  --color-state-en_proceso-bg: #fbeed6;
-  --color-state-requiere_info: #b3362a;
-  --color-state-requiere_info-bg: #f8e0dc;
-  --color-state-cerrado: #2c7536;
-  --color-state-cerrado-bg: #ddefdf;
+  --color-state-pendiente: #5a3d94;
+  --color-state-pendiente-bg: #e7dcfa;
+  --color-state-devuelto: #8a4d00;
+  --color-state-devuelto-bg: #fbe3bc;
+  --color-state-aprobado: #1d4ba0;
+  --color-state-aprobado-bg: #d6e3fa;
+  --color-state-en_proceso: #8a4d00;
+  --color-state-en_proceso-bg: #fbe3bc;
+  --color-state-requiere_info: #a52c20;
+  --color-state-requiere_info-bg: #f9d1c9;
+  --color-state-cerrado: #1f6b2c;
+  --color-state-cerrado-bg: #d1edd6;
 
   --radius-card: 10px;
   --radius-input: 6px;
