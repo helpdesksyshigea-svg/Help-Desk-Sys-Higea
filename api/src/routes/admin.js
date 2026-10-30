@@ -123,7 +123,7 @@ adminRouter.post("/admin/limpieza/ejecutar", requirePermission("config.editar"),
 adminRouter.get("/admin/usuarios", requirePermission("usuarios.gestionar"), async (req, res) => {
   const { data, error } = await supabase
     .from("usuarios")
-    .select("id, email, nombre, proveedor, codigo_interno, activo, created_at, roles(id, nombre)")
+    .select("id, email, nombre, proveedor, codigo_interno, activo, beta_firma_oficio, created_at, roles(id, nombre)")
     .order("created_at", { ascending: false });
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
@@ -164,7 +164,7 @@ adminRouter.post("/admin/usuarios", requirePermission("usuarios.gestionar"), asy
       codigo_interno: codigoInterno,
       activo: true,
     })
-    .select("id, email, nombre, proveedor, codigo_interno, activo, created_at, roles(id, nombre)")
+    .select("id, email, nombre, proveedor, codigo_interno, activo, beta_firma_oficio, created_at, roles(id, nombre)")
     .single();
   if (error) {
     console.error(`[admin] invitación enviada a ${email.trim()} (auth id ${invited.user.id}) pero falló el insert en usuarios:`, error.message);
@@ -175,12 +175,13 @@ adminRouter.post("/admin/usuarios", requirePermission("usuarios.gestionar"), asy
 });
 
 adminRouter.patch("/admin/usuarios/:id", requirePermission("usuarios.gestionar"), async (req, res) => {
-  const { rol_id, activo, nombre, proveedor, codigo_interno, email } = req.body;
+  const { rol_id, activo, nombre, proveedor, codigo_interno, email, beta_firma_oficio } = req.body;
   const patch = {};
   if (rol_id !== undefined) patch.rol_id = rol_id;
   if (activo !== undefined) patch.activo = activo;
   if (nombre !== undefined) patch.nombre = nombre;
   if (proveedor !== undefined) patch.proveedor = proveedor;
+  if (beta_firma_oficio !== undefined) patch.beta_firma_oficio = !!beta_firma_oficio;
   if (email !== undefined) {
     const valor = typeof email === "string" ? email.trim() : "";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valor)) {
@@ -206,7 +207,7 @@ adminRouter.patch("/admin/usuarios/:id", requirePermission("usuarios.gestionar")
     .from("usuarios")
     .update(patch)
     .eq("id", req.params.id)
-    .select("id, email, nombre, proveedor, codigo_interno, activo, created_at, roles(id, nombre)")
+    .select("id, email, nombre, proveedor, codigo_interno, activo, beta_firma_oficio, created_at, roles(id, nombre)")
     .single();
   if (error) {
     if (error.code === "23505") return res.status(409).json({ error: "Ese código interno ya lo tiene asignado otro usuario" });

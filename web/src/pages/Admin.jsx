@@ -221,6 +221,18 @@ function Usuarios() {
       fallo(e.message);
     }
   }
+  async function alternarFirmaDigital(u) {
+    try {
+      await apiFetch(`/admin/usuarios/${u.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ beta_firma_oficio: !u.beta_firma_oficio }),
+      });
+      exito(u.beta_firma_oficio ? `Firma digital desactivada para ${u.nombre}` : `Firma digital activada para ${u.nombre}`);
+      cargar();
+    } catch (e) {
+      fallo(e.message);
+    }
+  }
   async function guardarCodigoInterno(u, valor) {
     try {
       await apiFetch(`/admin/usuarios/${u.id}`, { method: "PATCH", body: JSON.stringify({ codigo_interno: valor || null }) });
@@ -327,6 +339,22 @@ function Usuarios() {
                       Desactivado
                     </span>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => alternarFirmaDigital(u)}
+                    title={
+                      u.beta_firma_oficio
+                        ? "Firma digital activada — clic para desactivar"
+                        : "Firma digital desactivada — clic para activar (permite firmar el oficio generado en vez de adjuntar uno escaneado)"
+                    }
+                    className={`rounded-[var(--radius-tag)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.04em] transition-colors ${
+                      u.beta_firma_oficio
+                        ? "bg-[var(--color-state-cerrado-bg)] text-[var(--color-state-cerrado)]"
+                        : "bg-[var(--color-ink)]/5 text-[var(--color-muted)] hover:bg-[var(--color-ink)]/10"
+                    }`}
+                  >
+                    Firma digital {u.beta_firma_oficio ? "activa" : "inactiva"}
+                  </button>
                 </div>
                 <div className="flex flex-wrap items-center gap-1 text-xs text-[var(--color-muted)]">
                   <CampoEditable
