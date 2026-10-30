@@ -182,6 +182,18 @@ async function cargarPlantillaTipo(tipoClave) {
   return { etiqueta: data?.etiqueta || tipoClave, plantilla_oficio: data?.plantilla_oficio || null };
 }
 
+// La tabla de registros del oficio debe mostrar la etiqueta legible del
+// motivo ("Doble facturación"), no la clave cruda guardada en ticket_items
+// ("doble_fact") — mismo criterio que ya se usa para el tipo de solicitud.
+async function cargarMotivos() {
+  const { data, error } = await supabase.from("motivos").select("clave, etiqueta");
+  if (error) {
+    console.error("[tickets] no se pudo cargar el catálogo de motivos, el oficio mostrará la clave cruda:", error.message);
+    return {};
+  }
+  return Object.fromEntries((data || []).map((m) => [m.clave, m.etiqueta]));
+}
+
 // Texto fijo del oficio (destinatario, cierre, despedida), configurable desde
 // Administración → config_oficio (migración 0018). Si la consulta falla, no
 // se bloquea la generación del PDF: oficio.js ya trae un texto por defecto.
@@ -465,6 +477,8 @@ ticketsRouter.post("/tickets/preview-oficio", requirePermission("tickets.crear")
   const { etiqueta, plantilla_oficio } = await cargarPlantillaTipo(tipo);
   const solicitante = await cargarPersonaFirma(req.user.id);
   const configOficio = await cargarConfigOficio();
+  const motivos = await cargarMotivos();
+  const itemsConMotivoLegible = items.map((item) => ({ ...item, motivo: motivos[item.motivo] || item.motivo }));
   const ticketSimulado = {
     code: "VISTA PREVIA",
     created_at: new Date().toISOString(),
@@ -477,7 +491,7 @@ ticketsRouter.post("/tickets/preview-oficio", requirePermission("tickets.crear")
     ticket: ticketSimulado,
     tipoEtiqueta: etiqueta,
     plantilla: plantilla_oficio,
-    items,
+    items: itemsConMotivoLegible,
     solicitante,
     aprobador: null,
     configOficio,
@@ -496,11 +510,13 @@ ticketsRouter.get("/tickets/:id/oficio-generado.pdf", async (req, res) => {
   const solicitante = await cargarPersonaFirma(ticket.solicitante_id);
   const aprobador = await cargarPersonaFirma(ticket.aprobacion?.decidido_por);
   const configOficio = await cargarConfigOficio();
+  const motivos = await cargarMotivos();
+  const itemsConMotivoLegible = (ticket.items || []).map((item) => ({ ...item, motivo: motivos[item.motivo] || item.motivo }));
   const pdf = await construirOficioPdf({
     ticket,
     tipoEtiqueta: etiqueta,
     plantilla: plantilla_oficio,
-    items: ticket.items,
+    items: itemsConMotivoLegible,
     solicitante,
     aprobador,
     configOficio,
