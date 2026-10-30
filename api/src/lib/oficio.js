@@ -119,7 +119,7 @@ function lineasDobles(pagina, y, x1, x2) {
  */
 const CONFIG_OFICIO_DEFAULT = {
   destinatario_nombre: "SOPORTE TÉCNICO SYS HIGEA",
-  destinatario_ciudad: "Mesa de Ayuda",
+  destinatario_ciudad: "Pasto, Nariño",
   texto_cierre: "Agradezco de antemano su valiosa colaboración.",
   texto_despedida: "Atentamente,",
 };
@@ -209,6 +209,7 @@ export async function construirOficioPdf({ ticket, tipoEtiqueta, plantilla, item
     observacion: ticket.observacion || "",
     codigo: ticket.code,
     fecha: fechaCorta(ticket.created_at),
+    cargo: solicitante?.cargo || "",
   };
   const textoBase =
     plantilla && plantilla.trim()
