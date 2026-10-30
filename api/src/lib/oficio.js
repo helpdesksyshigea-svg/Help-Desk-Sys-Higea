@@ -109,36 +109,33 @@ export async function construirOficioPdf({ ticket, tipoEtiqueta, plantilla, item
   const fuente = await pdf.embedFont(StandardFonts.Helvetica);
   const fuenteNegrita = await pdf.embedFont(StandardFonts.HelveticaBold);
 
-  let y = PAGINA.alto - 36;
+  let y = PAGINA.alto - 33.1; // tope del logo medido en el oficio de referencia
 
   function nuevaPaginaSiHaceFalta(alturaNecesaria) {
     if (y - alturaNecesaria < MARGEN + 70) {
       pagina = pdf.addPage([PAGINA.ancho, PAGINA.alto]);
-      y = PAGINA.alto - 36;
+      y = PAGINA.alto - 33.1;
     }
   }
 
-  // Encabezado: logo con NIT, centrado, + doble línea verde.
+  // Encabezado: logo con NIT, centrado, + doble línea verde. Medidas exactas
+  // tomadas del oficio de referencia real (pdftoppm + escaneo de píxeles):
+  // logo ≈146×39pt, centrado; línea doble a y≈712-714pt (origen abajo).
   try {
     const logo = await pdf.embedPng(readFileSync(LOGO_PATH));
-    const logoAncho = 160; // mismo tamaño relativo que en el oficio de referencia
+    const logoAncho = 146;
     const logoAlto = (logo.height / logo.width) * logoAncho;
     pagina.drawImage(logo, { x: (PAGINA.ancho - logoAncho) / 2, y: y - logoAlto, width: logoAncho, height: logoAlto });
-    y -= logoAlto + 10;
+    y -= logoAlto;
   } catch {
-    y -= 60;
+    y -= 39;
   }
-  lineasDobles(pagina, y);
-  y -= 30;
+  lineasDobles(pagina, 712.3);
 
-  // Sello "Vigilado Supersalud" en el margen izquierdo, girado verticalmente
-  // — igual que en el membrete real. Se ancla cerca del pie de página (no al
-  // centro vertical) para no toparse con el cierre/firmas en un oficio corto
-  // de una sola página.
+  // Sello "Vigilado Supersalud" en el margen izquierdo. La imagen ya trae el
+  // texto girado dentro de ella (alta y angosta) — se dibuja tal cual, sin
+  // rotar, respetando su proporción real (194×488px) a 48pt de ancho.
   try {
-    // La imagen del sello ya trae el texto "Vigilado Supersalud" girado
-    // dentro de ella (es alta y angosta) — se dibuja tal cual, sin rotar,
-    // para que quede vertical en el margen igual que en el oficio real.
     const sello = await pdf.embedPng(readFileSync(SELLO_PATH));
     const selloAncho = 48;
     const selloAlto = (sello.height / sello.width) * selloAncho;
@@ -152,24 +149,25 @@ export async function construirOficioPdf({ ticket, tipoEtiqueta, plantilla, item
     // Si el sello no está disponible, el oficio igual se genera sin él.
   }
 
-  // Fecha, destinatario fijo (SYS HIGEA) y asunto — misma estructura que el
-  // oficio en papel que ya usaba Facturación.
+  // Fecha, destinatario fijo (SYS HIGEA) y asunto — posiciones y espaciados
+  // medidos del oficio de referencia (pdftotext -bbox-layout).
+  y = 792 - 100.58;
   pagina.drawText(fechaLarga(ticket.created_at), { x: MARGEN, y, size: 10.5, font: fuente, color: NEGRO });
-  y -= 30;
+  y = 792 - 134.348;
   pagina.drawText("Señores:", { x: MARGEN, y, size: 10.5, font: fuente, color: NEGRO });
-  y -= 15;
+  y -= 15.84;
   pagina.drawText("SYS SOFTWARE Y SOLUCIONES LTDA", { x: MARGEN, y, size: 10.5, font: fuenteNegrita, color: NEGRO });
-  y -= 15;
+  y -= 15.84;
   pagina.drawText("Pasto Nariño", { x: MARGEN, y, size: 10.5, font: fuente, color: NEGRO });
-  y -= 26;
+  y = 792 - 211.46;
 
   const asuntoTexto = `Asunto: ${tipoEtiqueta} — ticket ${ticket.code}.`;
   const anchoAsuntoLabel = fuenteNegrita.widthOfTextAtSize("Asunto:", 10.5);
   pagina.drawText("Asunto:", { x: MARGEN, y, size: 10.5, font: fuenteNegrita, color: NEGRO });
   pagina.drawText(asuntoTexto.replace("Asunto:", "").trim(), { x: MARGEN + anchoAsuntoLabel + 4, y, size: 10.5, font: fuente, color: NEGRO });
-  y -= 26;
+  y = 792 - 229.388;
   pagina.drawText("Cordial saludo,", { x: MARGEN, y, size: 10.5, font: fuente, color: NEGRO });
-  y -= 24;
+  y = 792 - 258.218;
 
   // Cuerpo: plantilla del tipo de solicitud con los marcadores reemplazados.
   const datosPlantilla = {
@@ -185,10 +183,11 @@ export async function construirOficioPdf({ ticket, tipoEtiqueta, plantilla, item
       : `Por medio del presente se radica una solicitud de "${tipoEtiqueta}" ante SYS HIGEA, con los registros detallados a continuación.`;
 
   const tamanoCuerpo = 10.5;
+  const interlineaCuerpo = 15.84; // medido en el oficio de referencia
   for (const linea of partirEnLineas(textoBase, fuente, tamanoCuerpo, ANCHO_UTIL)) {
-    nuevaPaginaSiHaceFalta(16);
+    nuevaPaginaSiHaceFalta(interlineaCuerpo);
     if (linea) pagina.drawText(linea, { x: MARGEN, y, size: tamanoCuerpo, font: fuente, color: NEGRO });
-    y -= 16;
+    y -= interlineaCuerpo;
   }
 
   // Tabla de registros.
@@ -219,12 +218,16 @@ export async function construirOficioPdf({ ticket, tipoEtiqueta, plantilla, item
   }
 
   // Cierre y firmas: solicitante y, si ya está confirmada, la de quien aprueba.
-  y -= 24;
+  // Espaciados medidos en el oficio de referencia (interlínea ≈15.84pt entre
+  // "Agradezco..." y "Atentamente,", ≈34.3pt; firma/nombre ≈25.7pt bajo
+  // "Atentamente,").
+  y -= 20;
   nuevaPaginaSiHaceFalta(120);
   pagina.drawText("Agradezco de antemano su valiosa colaboración.", { x: MARGEN, y, size: 10.5, font: fuente, color: NEGRO });
-  y -= 30;
+  y -= 15.84;
+  y -= 34.3;
   pagina.drawText("Atentamente,", { x: MARGEN, y, size: 10.5, font: fuente, color: NEGRO });
-  y -= 14;
+  y -= 25.73;
 
   const colAncho = ANCHO_UTIL / 2 - 10;
   await dibujarFirma(pdf, pagina, {
@@ -264,11 +267,12 @@ const PIE_LINEAS = [
 // igual que el membrete real. Se dibuja en la última página usada, sin
 // importar cuánto contenido haya arriba.
 function dibujarPie(pagina, fuente) {
-  lineasDobles(pagina, 54);
-  let y = 42;
+  // Posiciones medidas en el oficio de referencia (origen abajo, pdf-lib).
+  lineasDobles(pagina, 76.3);
+  let y = 68.1;
   for (const linea of PIE_LINEAS) {
     centrado(pagina, linea, y, fuente, 7.5, GRIS);
-    y -= 10;
+    y -= 10.3;
   }
 }
 
