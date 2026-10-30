@@ -262,38 +262,40 @@ export function TicketDetail() {
         )}
       </Card>
 
-      <Card className="overflow-x-auto">
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">
+      <Card className="overflow-hidden !p-0">
+        <h3 className="px-5 pt-4 pb-3 text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-muted)]">
           Registros ({items.length})
         </h3>
-        <table className="w-full min-w-[640px] text-sm">
-          <thead>
-            <tr className="border-b border-[var(--color-border)] text-left text-xs uppercase tracking-wide text-[var(--color-muted)]">
-              <th className="w-8 pb-2 pr-3 font-semibold">#</th>
-              <th className="pb-2 pr-3 font-semibold">Factura</th>
-              <th className="pb-2 pr-3 font-semibold">Paciente</th>
-              <th className="pb-2 pr-3 font-semibold">Documento</th>
-              <th className="pb-2 pr-3 font-semibold">{ticket.tipo === "elim_hc" ? "Folio HC" : "CUPS"}</th>
-              <th className="pb-2 pr-3 font-semibold">Fecha</th>
-              <th className="pb-2 pr-3 font-semibold">Motivo</th>
-              <th className="pb-2 font-semibold">Descripción</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((item, i) => (
-              <tr key={item.id} className="border-b border-[var(--color-border)] last:border-0 align-top">
-                <td className="py-2 pr-3 text-[var(--color-muted)]">{i + 1}</td>
-                <td className="py-2 pr-3 text-xs">{item.factura || "—"}</td>
-                <td className="py-2 pr-3">{item.paciente || "—"}</td>
-                <td className="py-2 pr-3 text-xs">{item.documento || "—"}</td>
-                <td className="py-2 pr-3 text-xs">{item.cups || "—"}</td>
-                <td className="py-2 pr-3">{fechaCorta(item.fecha)}</td>
-                <td className="py-2 pr-3">{motivos[item.motivo] || item.motivo}</td>
-                <td className="py-2 text-[var(--color-muted)]">{item.descripcion || "—"}</td>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] border-collapse text-sm">
+            <thead>
+              <tr className="bg-[var(--color-header-bg)] text-left text-[11px] uppercase tracking-[0.08em] text-[var(--color-header-ink)]">
+                <th className="w-8 py-2.5 pl-5 pr-3 font-semibold">#</th>
+                <th className="py-2.5 pr-3 font-semibold">Factura</th>
+                <th className="py-2.5 pr-3 font-semibold">Paciente</th>
+                <th className="py-2.5 pr-3 font-semibold">Documento</th>
+                <th className="py-2.5 pr-3 font-semibold">{ticket.tipo === "elim_hc" ? "Folio HC" : "CUPS"}</th>
+                <th className="py-2.5 pr-3 font-semibold">Fecha</th>
+                <th className="py-2.5 pr-3 font-semibold">Motivo</th>
+                <th className="py-2.5 pr-5 font-semibold">Descripción</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {items.map((item, i) => (
+                <tr key={item.id} className="border-b border-[var(--color-border)] align-top last:border-0 hover:bg-[var(--color-surface-hover)]">
+                  <td className="py-2.5 pl-5 pr-3 text-[var(--color-muted)]">{i + 1}</td>
+                  <td className="py-2.5 pr-3 text-xs">{item.factura || "—"}</td>
+                  <td className="py-2.5 pr-3">{item.paciente || "—"}</td>
+                  <td className="py-2.5 pr-3 text-xs">{item.documento || "—"}</td>
+                  <td className="py-2.5 pr-3 text-xs">{item.cups || "—"}</td>
+                  <td className="py-2.5 pr-3">{fechaCorta(item.fecha)}</td>
+                  <td className="py-2.5 pr-3">{motivos[item.motivo] || item.motivo}</td>
+                  <td className="py-2.5 pr-5 text-[var(--color-muted)]">{item.descripcion || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
