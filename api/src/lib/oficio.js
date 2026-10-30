@@ -281,8 +281,13 @@ export async function construirOficioPdf({ ticket, tipoEtiqueta, plantilla, item
 
   // Páginas siguientes: mismo encabezado, pero el contenido retoma justo
   // debajo de la línea doble (sin repetir fecha/destinatario/asunto).
+  // PISO_CONTENIDO deja espacio justo para no chocar con el pie (su línea
+  // verde arranca en y=76.3) — antes el piso era MARGEN+70=142pt, mucho más
+  // de lo que el pie realmente necesita, y forzaba saltos de página con
+  // media hoja en blanco aunque el cierre y las firmas sí cabían.
+  const PISO_CONTENIDO = 85;
   function nuevaPaginaSiHaceFalta(alturaNecesaria) {
-    if (y - alturaNecesaria < MARGEN + 70) {
+    if (y - alturaNecesaria < PISO_CONTENIDO) {
       pagina = pdf.addPage([PAGINA.ancho, PAGINA.alto]);
       dibujarEncabezado(pagina);
       y = 712.3 - 3 - 20;
@@ -374,7 +379,11 @@ export async function construirOficioPdf({ ticket, tipoEtiqueta, plantilla, item
   // "Agradezco..." y "Atentamente,", ≈34.3pt; firma/nombre ≈25.7pt bajo
   // "Atentamente,").
   y -= 20;
-  nuevaPaginaSiHaceFalta(120);
+  // 15.84 (línea de cierre) + 34.3 (espacio hasta "Atentamente,") + 25.73
+  // (espacio hasta la firma) + ~80 (bloque de firma: línea, nombre, cargo,
+  // fecha) — el valor anterior (120) se quedaba corto frente a lo que
+  // dibujarFirma() realmente ocupa.
+  nuevaPaginaSiHaceFalta(156);
   pagina.drawText(config.texto_cierre, { x: MARGEN, y, size: 10.5, font: fuente, color: NEGRO });
   y -= 15.84;
   y -= 34.3;
