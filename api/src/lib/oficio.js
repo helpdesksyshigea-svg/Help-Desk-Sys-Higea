@@ -1,4 +1,4 @@
-import { PDFDocument, rgb } from "pdf-lib";
+import { PDFDocument, rgb, degrees } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
@@ -151,18 +151,22 @@ export async function construirOficioPdf({ ticket, tipoEtiqueta, plantilla, item
   }
   lineasDobles(pagina, 712.3, 53, 560);
 
-  // Sello "Vigilado Supersalud" en el margen izquierdo. La imagen ya trae el
-  // texto girado dentro de ella (alta y angosta) — se dibuja tal cual, sin
-  // rotar, respetando su proporción real (194×488px) a 48pt de ancho.
+  // Sello "Vigilado Supersalud" en el margen izquierdo. La imagen fuente es
+  // horizontal (extraída directa del PDF real: Word también la inserta como
+  // imagen, no como vector) — en el oficio va rotada 90° para leerse de
+  // abajo hacia arriba, igual que el original.
   try {
     const sello = await pdf.embedPng(readFileSync(SELLO_PATH));
-    const selloAncho = 48;
-    const selloAlto = (sello.height / sello.width) * selloAncho;
+    const altoDestino = 48; // ancho final de la franja ya rotada
+    const anchoDestino = (sello.width / sello.height) * altoDestino; // alto final ya rotado
+    const x0 = 12;
+    const y0 = 330;
     pagina.drawImage(sello, {
-      x: 12,
-      y: 330,
-      width: selloAncho,
-      height: selloAlto,
+      x: x0 + altoDestino,
+      y: y0,
+      width: anchoDestino,
+      height: altoDestino,
+      rotate: degrees(90),
     });
   } catch {
     // Si el sello no está disponible, el oficio igual se genera sin él.
