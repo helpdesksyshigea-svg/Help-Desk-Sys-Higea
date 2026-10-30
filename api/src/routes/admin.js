@@ -509,6 +509,29 @@ adminRouter.patch("/admin/sla/:prioridad", requirePermission("config.editar"), a
   res.json(data);
 });
 
+// ======================= Config del oficio =======================
+// Texto fijo (destinatario, cierre, despedida) del oficio generado — una
+// sola fila en config_oficio, sembrada por la migración 0018.
+
+adminRouter.get("/admin/config-oficio", requirePermission("config.editar"), async (req, res) => {
+  const { data, error } = await supabase.from("config_oficio").select("*").eq("id", true).single();
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+adminRouter.patch("/admin/config-oficio", requirePermission("config.editar"), async (req, res) => {
+  const { destinatario_nombre, destinatario_ciudad, texto_cierre, texto_despedida } = req.body;
+  const patch = { updated_at: new Date().toISOString() };
+  for (const [campo, valor] of Object.entries({ destinatario_nombre, destinatario_ciudad, texto_cierre, texto_despedida })) {
+    if (valor === undefined) continue;
+    if (!valor?.trim()) return res.status(400).json({ error: `${campo} no puede quedar vacío` });
+    patch[campo] = valor.trim();
+  }
+  const { data, error } = await supabase.from("config_oficio").update(patch).eq("id", true).select().single();
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
 // ======================= Festivos =======================
 
 adminRouter.get("/admin/festivos", requirePermission("config.editar"), async (req, res) => {

@@ -117,7 +117,17 @@ function lineasDobles(pagina, y, x1, x2) {
  * puede volver a pedir más adelante y traerá las firmas que ya se hayan
  * confirmado para entonces.
  */
-export async function construirOficioPdf({ ticket, tipoEtiqueta, plantilla, items, solicitante, aprobador }) {
+const CONFIG_OFICIO_DEFAULT = {
+  destinatario_nombre: "SYS SOFTWARE Y SOLUCIONES LTDA",
+  destinatario_ciudad: "Pasto Nariño",
+  texto_cierre: "Agradezco de antemano su valiosa colaboración.",
+  texto_despedida: "Atentamente,",
+};
+
+export async function construirOficioPdf({ ticket, tipoEtiqueta, plantilla, items, solicitante, aprobador, configOficio }) {
+  // Si no llega (p.ej. falló la consulta a config_oficio), el oficio igual se
+  // genera con el texto de siempre — nunca bloquea la generación del PDF.
+  const config = { ...CONFIG_OFICIO_DEFAULT, ...configOficio };
   const pdf = await PDFDocument.create();
   let pagina = pdf.addPage([PAGINA.ancho, PAGINA.alto]);
   pdf.registerFontkit(fontkit);
@@ -179,9 +189,9 @@ export async function construirOficioPdf({ ticket, tipoEtiqueta, plantilla, item
   y = 792 - 134.348;
   pagina.drawText("Señores:", { x: MARGEN, y, size: 10.5, font: fuente, color: NEGRO });
   y -= 15.84;
-  pagina.drawText("SYS SOFTWARE Y SOLUCIONES LTDA", { x: MARGEN, y, size: 10.5, font: fuenteNegrita, color: NEGRO });
+  pagina.drawText(config.destinatario_nombre, { x: MARGEN, y, size: 10.5, font: fuenteNegrita, color: NEGRO });
   y -= 15.84;
-  pagina.drawText("Pasto Nariño", { x: MARGEN, y, size: 10.5, font: fuente, color: NEGRO });
+  pagina.drawText(config.destinatario_ciudad, { x: MARGEN, y, size: 10.5, font: fuente, color: NEGRO });
   y = 792 - 211.46;
 
   const asuntoTexto = `Asunto: ${tipoEtiqueta} — ticket ${ticket.code}.`;
@@ -246,10 +256,10 @@ export async function construirOficioPdf({ ticket, tipoEtiqueta, plantilla, item
   // "Atentamente,").
   y -= 20;
   nuevaPaginaSiHaceFalta(120);
-  pagina.drawText("Agradezco de antemano su valiosa colaboración.", { x: MARGEN, y, size: 10.5, font: fuente, color: NEGRO });
+  pagina.drawText(config.texto_cierre, { x: MARGEN, y, size: 10.5, font: fuente, color: NEGRO });
   y -= 15.84;
   y -= 34.3;
-  pagina.drawText("Atentamente,", { x: MARGEN, y, size: 10.5, font: fuente, color: NEGRO });
+  pagina.drawText(config.texto_despedida, { x: MARGEN, y, size: 10.5, font: fuente, color: NEGRO });
   y -= 25.73;
 
   const colAncho = ANCHO_UTIL / 2 - 10;

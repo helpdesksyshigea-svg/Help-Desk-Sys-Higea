@@ -182,6 +182,18 @@ async function cargarPlantillaTipo(tipoClave) {
   return { etiqueta: data?.etiqueta || tipoClave, plantilla_oficio: data?.plantilla_oficio || null };
 }
 
+// Texto fijo del oficio (destinatario, cierre, despedida), configurable desde
+// Administración → config_oficio (migración 0018). Si la consulta falla, no
+// se bloquea la generación del PDF: oficio.js ya trae un texto por defecto.
+async function cargarConfigOficio() {
+  const { data, error } = await supabase.from("config_oficio").select("*").eq("id", true).maybeSingle();
+  if (error) {
+    console.error("[tickets] no se pudo cargar config_oficio, se usa el texto por defecto:", error.message);
+    return null;
+  }
+  return data;
+}
+
 // Trae los datos de firma de una persona (solicitante o quien aprueba) junto
 // con los bytes reales de su imagen de firma, para embeberla en el PDF — el
 // generador no pide una URL firmada, necesita el binario directamente.
@@ -449,6 +461,7 @@ ticketsRouter.post("/tickets/preview-oficio", requirePermission("tickets.crear")
   }
   const { etiqueta, plantilla_oficio } = await cargarPlantillaTipo(tipo);
   const solicitante = await cargarPersonaFirma(req.user.id);
+  const configOficio = await cargarConfigOficio();
   const ticketSimulado = {
     code: "VISTA PREVIA",
     created_at: new Date().toISOString(),
@@ -464,6 +477,7 @@ ticketsRouter.post("/tickets/preview-oficio", requirePermission("tickets.crear")
     items,
     solicitante,
     aprobador: null,
+    configOficio,
   });
   res.set("Content-Type", "application/pdf");
   res.send(pdf);
@@ -478,6 +492,7 @@ ticketsRouter.get("/tickets/:id/oficio-generado.pdf", async (req, res) => {
   const { etiqueta, plantilla_oficio } = await cargarPlantillaTipo(ticket.tipo);
   const solicitante = await cargarPersonaFirma(ticket.solicitante_id);
   const aprobador = await cargarPersonaFirma(ticket.aprobacion?.decidido_por);
+  const configOficio = await cargarConfigOficio();
   const pdf = await construirOficioPdf({
     ticket,
     tipoEtiqueta: etiqueta,
@@ -485,6 +500,7 @@ ticketsRouter.get("/tickets/:id/oficio-generado.pdf", async (req, res) => {
     items: ticket.items,
     solicitante,
     aprobador,
+    configOficio,
   });
   res.set("Content-Type", "application/pdf");
   if (req.query.descargar) {

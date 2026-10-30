@@ -18,6 +18,7 @@ const TABS = [
   { k: "motivos", l: "Motivos", icon: IconInfo },
   { k: "ingenieros", l: "Ingenieros SYS HIGEA", icon: IconShield },
   { k: "sla", l: "Plazos SLA", icon: IconClock },
+  { k: "config-oficio", l: "Texto del oficio", icon: IconSend },
   { k: "festivos", l: "Festivos", icon: IconSettings },
   { k: "almacenamiento", l: "Almacenamiento", icon: IconDatabase },
 ];
@@ -56,6 +57,7 @@ export function Admin() {
         {tab === "motivos" && <Catalogo titulo="Motivos" path="motivos" permiteEliminar />}
         {tab === "ingenieros" && <Catalogo titulo="Ingenieros SYS HIGEA" path="ingenieros" claveAutomatica permiteEliminar />}
         {tab === "sla" && <Sla />}
+        {tab === "config-oficio" && <ConfigOficio />}
         {tab === "festivos" && <Festivos />}
         {tab === "almacenamiento" && <Almacenamiento />}
       </div>
@@ -1009,6 +1011,93 @@ function Sla() {
       ))}
       </ul>
     </div>
+  );
+}
+
+// ======================= Config del oficio =======================
+// Texto fijo (destinatario, cierre, despedida) del oficio generado — se
+// guarda editando los 4 campos y pulsando "Guardar" (sin autoguardado al
+// perder foco, a diferencia de Sla: aquí varios campos se editan juntos y un
+// blur accidental a mitad de edición no debe disparar un PATCH parcial).
+function ConfigOficio() {
+  const [config, setConfig] = useState(null);
+  const [borrador, setBorrador] = useState(null);
+  const [error, setError] = useState(null);
+  const [guardando, setGuardando] = useState(false);
+  const { exito, fallo } = useToast();
+
+  async function cargar() {
+    try {
+      const data = await apiFetch("/admin/config-oficio");
+      setConfig(data);
+      setBorrador(data);
+      setError(null);
+    } catch (e) {
+      setError(`No se pudo cargar la configuración del oficio. ${e.message}`);
+    }
+  }
+  useEffect(() => {
+    cargar();
+  }, []);
+
+  const CAMPOS = [
+    { clave: "destinatario_nombre", etiqueta: "Nombre del destinatario", placeholder: "SYS SOFTWARE Y SOLUCIONES LTDA" },
+    { clave: "destinatario_ciudad", etiqueta: "Ciudad del destinatario", placeholder: "Pasto Nariño" },
+    { clave: "texto_cierre", etiqueta: "Frase de cierre", placeholder: "Agradezco de antemano su valiosa colaboración." },
+    { clave: "texto_despedida", etiqueta: "Despedida", placeholder: "Atentamente," },
+  ];
+
+  const hayCambios = config && borrador && CAMPOS.some((c) => borrador[c.clave] !== config[c.clave]);
+
+  async function guardar() {
+    setGuardando(true);
+    try {
+      const patch = Object.fromEntries(CAMPOS.map((c) => [c.clave, borrador[c.clave]]));
+      const data = await apiFetch("/admin/config-oficio", { method: "PATCH", body: JSON.stringify(patch) });
+      setConfig(data);
+      setBorrador(data);
+      exito("Texto del oficio actualizado");
+    } catch (e) {
+      fallo(e.message);
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  if (error) return <Card className="text-[#b3362a]">{error}</Card>;
+  if (!borrador) return <p className="text-[var(--color-muted)]">Cargando…</p>;
+
+  return (
+    <Card className="grid gap-4">
+      <div>
+        <h3 className="font-semibold">Texto fijo del oficio</h3>
+        <p className="text-sm text-[var(--color-muted)]">
+          Destinatario, cierre y despedida del oficio generado automáticamente. El resto del contenido (fecha, asunto,
+          cuerpo, registros) se arma por ticket.
+        </p>
+      </div>
+      {CAMPOS.map((c) => (
+        <label key={c.clave} className="grid gap-1 text-sm">
+          <span className="font-medium">{c.etiqueta}</span>
+          <input
+            value={borrador[c.clave] || ""}
+            placeholder={c.placeholder}
+            onChange={(e) => setBorrador((b) => ({ ...b, [c.clave]: e.target.value }))}
+            className={inputClass}
+          />
+        </label>
+      ))}
+      <div className="flex gap-2">
+        <Button variant="accent" disabled={!hayCambios || guardando} onClick={guardar}>
+          {guardando ? "Guardando…" : "Guardar"}
+        </Button>
+        {hayCambios && (
+          <Button variant="ghost" onClick={() => setBorrador(config)} disabled={guardando}>
+            Cancelar
+          </Button>
+        )}
+      </div>
+    </Card>
   );
 }
 
