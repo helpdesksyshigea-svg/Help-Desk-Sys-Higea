@@ -70,29 +70,46 @@ export function MiFirma() {
     inicioArrastre.current = null;
   }
 
+  // La imagen se muestra con object-contain: si su proporción no coincide
+  // con la del recuadro, queda una franja vacía arriba/abajo o a los lados
+  // (clientWidth/clientHeight son del RECUADRO completo, no del área donde
+  // realmente se dibuja la foto) — sin esto, el recorte calculado no
+  // corresponde a lo que la persona efectivamente seleccionó con el mouse.
+  function areaRenderizada(img) {
+    const cajaW = img.clientWidth;
+    const cajaH = img.clientHeight;
+    const relImg = img.naturalWidth / img.naturalHeight;
+    const relCaja = cajaW / cajaH;
+    if (relImg > relCaja) {
+      const alto = cajaW / relImg;
+      return { x: 0, y: (cajaH - alto) / 2, w: cajaW, h: alto };
+    }
+    const ancho = cajaH * relImg;
+    return { x: (cajaW - ancho) / 2, y: 0, w: ancho, h: cajaH };
+  }
+
   async function aplicarRecorte() {
     const img = imgRef.current;
     if (!img || !seleccion || seleccion.w < 8 || seleccion.h < 8) {
       fallo("Dibuja un recuadro sobre la parte de la firma que quieres conservar");
       return;
     }
-    const escalaX = img.naturalWidth / img.clientWidth;
-    const escalaY = img.naturalHeight / img.clientHeight;
+    const area = areaRenderizada(img);
+    const escala = img.naturalWidth / area.w; // == naturalHeight / area.h
+    const clamp = (v, max) => Math.min(Math.max(v, 0), max);
+    const sx = clamp((seleccion.x - area.x) * escala, img.naturalWidth);
+    const sy = clamp((seleccion.y - area.y) * escala, img.naturalHeight);
+    const sw = clamp(seleccion.w * escala, img.naturalWidth - sx);
+    const sh = clamp(seleccion.h * escala, img.naturalHeight - sy);
+    if (sw < 4 || sh < 4) {
+      fallo("El recuadro cae fuera de la foto — dibújalo sobre la firma");
+      return;
+    }
     const canvas = document.createElement("canvas");
-    canvas.width = seleccion.w * escalaX;
-    canvas.height = seleccion.h * escalaY;
+    canvas.width = sw;
+    canvas.height = sh;
     const ctx = canvas.getContext("2d");
-    ctx.drawImage(
-      img,
-      seleccion.x * escalaX,
-      seleccion.y * escalaY,
-      seleccion.w * escalaX,
-      seleccion.h * escalaY,
-      0,
-      0,
-      canvas.width,
-      canvas.height,
-    );
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
     const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
     setRecortando(false);
     setSeleccion(null);
