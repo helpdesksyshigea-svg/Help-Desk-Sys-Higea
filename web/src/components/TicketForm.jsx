@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { apiFetch } from "../lib/api";
+import { useAuth } from "../context/AuthContext";
 import { Card } from "./Card";
 import { Button } from "./Button";
+import { ModalFirmarOficio, previewOficioAlRadicar } from "./ModalFirmarOficio";
 import { IconUpload, IconPlus, IconTrash } from "./icons";
 
 export const PRIORIDADES = { alta: "Alta (1 día hábil)", normal: "Normal (2 días hábiles)", baja: "Baja (5 días hábiles)" };
@@ -16,6 +18,9 @@ const inputClass =
  * El oficio firmado es obligatorio al crear; al editar es opcional (se puede reemplazar o dejar el que ya está).
  */
 export function TicketForm({ modo, inicial, onSubmit, submitLabel }) {
+  const { perfil } = useAuth();
+  const [mostrarModalFirma, setMostrarModalFirma] = useState(false);
+  const [confirmandoFirma, setConfirmandoFirma] = useState(false);
   const [tipos, setTipos] = useState([]);
   const [motivos, setMotivos] = useState([]);
   const [tipo, setTipo] = useState(inicial?.tipo || "");
@@ -72,34 +77,50 @@ export function TicketForm({ modo, inicial, onSubmit, submitLabel }) {
     setItems((prev) => prev.filter((_, idx) => idx !== i));
   }
 
-  async function enviar(e) {
-    e.preventDefault();
-    setError(null);
+  function validar() {
     if (!firmante.trim()) {
       setError("Indique el nombre de quien firma el oficio");
-      return;
+      return false;
     }
     for (const campo of obligatorios) {
       if (items.some((item) => !item[campo]?.toString().trim())) {
         setError(`Cada registro requiere ${ETIQUETA_CAMPO[campo]}`);
-        return;
+        return false;
       }
     }
     if (items.some((item) => item.documento?.trim() && !/^\d{5,15}$/.test(item.documento.trim()))) {
       setError("El documento debe contener solo números (5 a 15 dígitos)");
-      return;
+      return false;
     }
     if (items.some((item) => item.factura?.trim() && !/^[A-Za-z0-9-]{4,20}$/.test(item.factura.trim()))) {
       setError("La factura debe tener entre 4 y 20 caracteres alfanuméricos (se permiten guiones)");
-      return;
+      return false;
     }
     if (modo === "crear" && !oficio) {
       setError("Debe adjuntar el oficio firmado para radicar");
+      return false;
+    }
+    return true;
+  }
+
+  async function enviar(e) {
+    e.preventDefault();
+    setError(null);
+    if (!validar()) return;
+    // Beta: coexiste con el adjunto manual de arriba (sigue siendo
+    // obligatorio); esto solo agrega el oficio generado automáticamente,
+    // firmado al confirmar en el modal — nunca se estampa sin que la
+    // persona lo confirme.
+    if (modo === "crear" && perfil?.beta_firma_oficio) {
+      setMostrarModalFirma(true);
       return;
     }
+    await enviarReal(false);
+  }
 
+  async function enviarReal(firmaConfirmada) {
     const form = new FormData();
-    form.append("data", JSON.stringify({ tipo, prioridad, firmante, observacion, items }));
+    form.append("data", JSON.stringify({ tipo, prioridad, firmante, observacion, items, firmaConfirmada }));
     if (oficio) form.append("oficio", oficio);
 
     setEnviando(true);
@@ -110,6 +131,13 @@ export function TicketForm({ modo, inicial, onSubmit, submitLabel }) {
     } finally {
       setEnviando(false);
     }
+  }
+
+  async function confirmarFirma() {
+    setConfirmandoFirma(true);
+    setMostrarModalFirma(false);
+    await enviarReal(true);
+    setConfirmandoFirma(false);
   }
 
   return (
@@ -328,6 +356,16 @@ export function TicketForm({ modo, inicial, onSubmit, submitLabel }) {
           {enviando ? "Enviando…" : submitLabel}
         </Button>
       </div>
+
+      {mostrarModalFirma && (
+        <ModalFirmarOficio
+          titulo="Firmar oficio"
+          cargarPreview={() => previewOficioAlRadicar({ tipo, firmante, observacion, items })}
+          onConfirmar={confirmarFirma}
+          onCancelar={() => setMostrarModalFirma(false)}
+          confirmando={confirmandoFirma || enviando}
+        />
+      )}
     </form>
   );
 }

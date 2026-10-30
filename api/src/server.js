@@ -10,6 +10,7 @@ import { adminRouter } from "./routes/admin.js";
 import { catalogosRouter } from "./routes/catalogos.js";
 import { cronRouter } from "./routes/cron.js";
 import { dashboardRouter } from "./routes/dashboard.js";
+import { perfilRouter } from "./routes/perfil.js";
 
 const app = express();
 
@@ -24,6 +25,7 @@ app.use(adminRouter);
 app.use(catalogosRouter);
 app.use(cronRouter);
 app.use(dashboardRouter);
+app.use(perfilRouter);
 
 // Manejador de errores global: sin esto, cualquier error que no se capture
 // dentro de una ruta (ej. multer rechazando un archivo por tamaño, antes de

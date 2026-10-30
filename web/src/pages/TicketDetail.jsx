@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { apiFetch } from "../lib/api";
+import { apiFetch, apiFetchBlob } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
 import { StatusTag } from "../components/StatusTag";
 import { Adjuntos } from "../components/Adjuntos";
+import { ModalFirmarOficio, oficioGeneradoDe } from "../components/ModalFirmarOficio";
 import { useToast } from "../context/ToastContext";
 import { ESPERANDO } from "../lib/filters";
 import { fechaCorta, fechaHora } from "../lib/fecha";
@@ -73,6 +74,7 @@ export function TicketDetail() {
   const [procesando, setProcesando] = useState(null); // ruta de la acción en curso, o null
   const [ingenieros, setIngenieros] = useState([]);
   const [agenteHigea, setAgenteHigea] = useState("");
+  const [accionPendienteFirma, setAccionPendienteFirma] = useState(null); // def de ACCIONES en espera de confirmar firma
 
   async function cargar() {
     try {
@@ -114,7 +116,7 @@ export function TicketDetail() {
       .catch(() => {}); // solo hace falta para tomar un caso; si falla, el selector queda vacío
   }, []);
 
-  async function accion(def) {
+  async function accion(def, firmaConfirmada = false) {
     if (def.notaObligatoria && !nota.trim()) {
       toastFallo("Esta acción requiere que escribas una nota primero");
       return;
@@ -123,10 +125,17 @@ export function TicketDetail() {
       toastFallo("Indique qué ingeniero de SYS HIGEA toma el caso");
       return;
     }
+    // Beta: "Aprobar y enviar a SYS HIGEA" se intercepta con el modal "Firmar
+    // oficio" antes de llegar aquí (ver el onClick del botón más abajo); este
+    // flag solo confirma que ya se pasó por ahí, nunca se activa solo.
+    if (def.ruta === "aprobar" && perfil?.beta_firma_oficio && !firmaConfirmada) {
+      setAccionPendienteFirma(def);
+      return;
+    }
     setProcesando(def.ruta);
     setError(null);
     try {
-      const body = { nota };
+      const body = { nota, firmaConfirmada };
       if (def.ruta === "tomar") body.agente_higea = agenteHigea;
       await apiFetch(`/tickets/${id}/${def.ruta}`, { method: "POST", body: JSON.stringify(body) });
       setNota("");
@@ -138,6 +147,30 @@ export function TicketDetail() {
       toastFallo(e.message);
     } finally {
       setProcesando(null);
+    }
+  }
+
+  async function confirmarFirmaYAprobar() {
+    const def = accionPendienteFirma;
+    setAccionPendienteFirma(null);
+    if (def) await accion(def, true);
+  }
+
+  async function descargarOficio(descargar) {
+    try {
+      const blob = await apiFetchBlob(`/tickets/${id}/oficio-generado.pdf${descargar ? "?descargar=1" : ""}`);
+      const url = URL.createObjectURL(blob);
+      if (descargar) {
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `oficio-${ticket.code}.pdf`;
+        a.click();
+      } else {
+        window.open(url, "_blank", "noopener");
+      }
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } catch (e) {
+      toastFallo(e.message);
     }
   }
 
@@ -258,12 +291,24 @@ export function TicketDetail() {
             <div className={`${readOnlyClass} truncate`}>{ticket.agente_higea || ticket.asignado.nombre}</div>
           </div>
         )}
-        {puedeEditar && (
-          <div className="md:col-span-2">
-            <Button variant="ghost" onClick={() => navigate(`/tickets/${ticket.id}/editar`)}>
-              <IconEdit size={14} />
-              Corregir ticket
-            </Button>
+        {(puedeEditar || perfil?.beta_firma_oficio) && (
+          <div className="flex flex-wrap gap-2 md:col-span-2">
+            {puedeEditar && (
+              <Button variant="ghost" onClick={() => navigate(`/tickets/${ticket.id}/editar`)}>
+                <IconEdit size={14} />
+                Corregir ticket
+              </Button>
+            )}
+            {perfil?.beta_firma_oficio && (
+              <>
+                <Button variant="ghost" onClick={() => descargarOficio(false)}>
+                  Ver oficio generado
+                </Button>
+                <Button variant="ghost" onClick={() => descargarOficio(true)}>
+                  Descargar PDF
+                </Button>
+              </>
+            )}
           </div>
         )}
       </Card>
@@ -405,6 +450,16 @@ export function TicketDetail() {
             </div>
           </div>
         </Card>
+      )}
+
+      {accionPendienteFirma && (
+        <ModalFirmarOficio
+          titulo="Firmar oficio"
+          cargarPreview={() => oficioGeneradoDe(ticket.id)}
+          onConfirmar={confirmarFirmaYAprobar}
+          onCancelar={() => setAccionPendienteFirma(null)}
+          confirmando={procesando === "aprobar"}
+        />
       )}
     </div>
   );

@@ -52,7 +52,7 @@ export function Admin() {
       <div className="grid gap-6">
         {tab === "usuarios" && <Usuarios />}
         {tab === "roles" && <Roles />}
-        {tab === "tipos" && <Catalogo titulo="Tipos de solicitud" path="tipos" camposConfigurables />}
+        {tab === "tipos" && <Catalogo titulo="Tipos de solicitud" path="tipos" camposConfigurables plantillaOficio />}
         {tab === "motivos" && <Catalogo titulo="Motivos" path="motivos" />}
         {tab === "ingenieros" && <Catalogo titulo="Ingenieros SYS HIGEA" path="ingenieros" claveAutomatica permiteEliminar />}
         {tab === "sla" && <Sla />}
@@ -608,14 +608,15 @@ function SelectorCampos({ seleccionados, onCambiar }) {
   );
 }
 
-function Catalogo({ titulo, path, claveAutomatica = false, permiteEliminar = false, camposConfigurables = false }) {
+function Catalogo({ titulo, path, claveAutomatica = false, permiteEliminar = false, camposConfigurables = false, plantillaOficio = false }) {
   const [items, setItems] = useState([]);
   const [clave, setClave] = useState("");
   const [etiqueta, setEtiqueta] = useState("");
   const [campos, setCampos] = useState(TODOS_LOS_CAMPOS);
+  const [plantilla, setPlantilla] = useState("");
   const [error, setError] = useState(null);
   const [editando, setEditando] = useState(null); // clave del item en edición, o null
-  const [edicion, setEdicion] = useState({ clave: "", etiqueta: "", campos_obligatorios: TODOS_LOS_CAMPOS });
+  const [edicion, setEdicion] = useState({ clave: "", etiqueta: "", campos_obligatorios: TODOS_LOS_CAMPOS, plantilla_oficio: "" });
 
   async function cargar() {
     try {
@@ -638,11 +639,13 @@ function Catalogo({ titulo, path, claveAutomatica = false, permiteEliminar = fal
       const claveFinal = claveAutomatica ? slugificar(etiqueta) : clave;
       const body = { clave: claveFinal, etiqueta };
       if (camposConfigurables) body.campos_obligatorios = campos;
+      if (plantillaOficio) body.plantilla_oficio = plantilla;
       await apiFetch(`/admin/${path}`, { method: "POST", body: JSON.stringify(body) });
       exito(`"${etiqueta}" agregado`);
       setClave("");
       setEtiqueta("");
       setCampos(TODOS_LOS_CAMPOS);
+      setPlantilla("");
       await cargar();
     } catch (e) {
       setError(e.message);
@@ -676,6 +679,7 @@ function Catalogo({ titulo, path, claveAutomatica = false, permiteEliminar = fal
       clave: item.clave,
       etiqueta: item.etiqueta,
       campos_obligatorios: Array.isArray(item.campos_obligatorios) ? item.campos_obligatorios : TODOS_LOS_CAMPOS,
+      plantilla_oficio: item.plantilla_oficio || "",
     });
     setError(null);
   }
@@ -685,6 +689,7 @@ function Catalogo({ titulo, path, claveAutomatica = false, permiteEliminar = fal
     try {
       const body = { nueva_clave: edicion.clave, etiqueta: edicion.etiqueta };
       if (camposConfigurables) body.campos_obligatorios = edicion.campos_obligatorios;
+      if (plantillaOficio) body.plantilla_oficio = edicion.plantilla_oficio;
       await apiFetch(`/admin/${path}/${claveOriginal}`, { method: "PATCH", body: JSON.stringify(body) });
       exito("Cambios guardados");
       setEditando(null);
@@ -721,6 +726,22 @@ function Catalogo({ titulo, path, claveAutomatica = false, permiteEliminar = fal
           <div className="grid gap-1.5 border-t border-[var(--color-border)] pt-3">
             <span className="text-xs font-medium text-[var(--color-muted)]">Campos obligatorios del registro</span>
             <SelectorCampos seleccionados={campos} onCambiar={setCampos} />
+          </div>
+        )}
+        {plantillaOficio && (
+          <div className="grid gap-1.5 border-t border-[var(--color-border)] pt-3">
+            <span className="text-xs font-medium text-[var(--color-muted)]">Plantilla del oficio generado (beta)</span>
+            <span className="text-xs text-[var(--color-muted)]">
+              Marcadores disponibles: {"{{firmante}}"}, {"{{tipo}}"}, {"{{observacion}}"}, {"{{codigo}}"}, {"{{fecha}}"}. El sistema agrega
+              automáticamente la tabla de registros y las firmas.
+            </span>
+            <textarea
+              value={plantilla}
+              onChange={(e) => setPlantilla(e.target.value)}
+              rows={4}
+              placeholder="Por medio del presente, el suscrito {{firmante}}, solicita…"
+              className={inputClass}
+            />
           </div>
         )}
         <Mensaje error={error} />
@@ -771,6 +792,17 @@ function Catalogo({ titulo, path, claveAutomatica = false, permiteEliminar = fal
                   <SelectorCampos
                     seleccionados={edicion.campos_obligatorios}
                     onCambiar={(v) => setEdicion((p) => ({ ...p, campos_obligatorios: v }))}
+                  />
+                </div>
+              )}
+              {plantillaOficio && (
+                <div className={`grid gap-1.5 pt-1 ${claveAutomatica ? "col-span-3" : "col-span-4"}`}>
+                  <span className="text-xs font-medium text-[var(--color-muted)]">Plantilla del oficio generado (beta)</span>
+                  <textarea
+                    value={edicion.plantilla_oficio}
+                    onChange={(e) => setEdicion((p) => ({ ...p, plantilla_oficio: e.target.value }))}
+                    rows={4}
+                    className={inputClass}
                   />
                 </div>
               )}

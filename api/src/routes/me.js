@@ -15,5 +15,9 @@ meRouter.get("/me", authenticate, (req, res) => {
     rol: req.user.rol,
     proveedor: req.user.proveedor,
     permisos: [...req.user.permisos],
+    identificacion: req.user.identificacion,
+    cargo: req.user.cargo,
+    tieneFirma: !!req.user.firma_path,
+    beta_firma_oficio: req.user.beta_firma_oficio,
   });
 });

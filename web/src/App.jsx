@@ -14,6 +14,7 @@ import { Admin } from "./pages/Admin";
 import { Dashboard } from "./pages/Dashboard";
 import { Ayuda } from "./pages/Ayuda";
 import { Manual } from "./pages/Manual";
+import { MiFirma } from "./pages/MiFirma";
 import { SetPassword } from "./pages/SetPassword";
 
 // El cliente de Supabase limpia el hash de la URL al construirse —apenas se
@@ -97,6 +98,7 @@ function Rutas() {
         <Route path="/tickets/:id/editar" element={<EditTicket />} />
         <Route path="/ayuda" element={<Ayuda />} />
         <Route path="/manual" element={<Manual />} />
+        <Route path="/mi-firma" element={<MiFirma />} />
         <Route
           path="/dashboard"
           element={

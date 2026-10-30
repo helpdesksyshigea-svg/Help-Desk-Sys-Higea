@@ -430,7 +430,7 @@ function catalogoRouter(path, tabla, referencia, { permiteEliminar = false, camp
   }
 }
 
-catalogoRouter("tipos", "tipos_solicitud", { tabla: "tickets", columna: "tipo" }, { camposExtra: ["campos_obligatorios"] });
+catalogoRouter("tipos", "tipos_solicitud", { tabla: "tickets", columna: "tipo" }, { camposExtra: ["campos_obligatorios", "plantilla_oficio"] });
 catalogoRouter("motivos", "motivos", { tabla: "ticket_items", columna: "motivo" });
 catalogoRouter("ingenieros", "ingenieros_higea", { tabla: "tickets", columna: "agente_higea" }, { permiteEliminar: true });
 

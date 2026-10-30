@@ -172,6 +172,14 @@ export function Sidebar() {
             </span>
           </NavLink>
         </RequirePermission>
+        {perfil?.beta_firma_oficio && (
+          <NavLink to="/mi-firma" className={({ isActive }) => itemClass(isActive)}>
+            <span className="flex items-center gap-2">
+              <IconEdit size={19} />
+              Mi firma
+            </span>
+          </NavLink>
+        )}
         <NavLink to="/manual" className={({ isActive }) => itemClass(isActive)}>
           <span className="flex items-center gap-2">
             <IconBook size={19} />

@@ -8,6 +8,7 @@ import { hashItems } from "../lib/hash.js";
 import { calcularSla } from "../lib/sla.js";
 import { construirExcelTickets } from "../lib/excel.js";
 import { notificarTransicion } from "../lib/correo.js";
+import { construirOficioPdf } from "../lib/oficio.js";
 
 const BUCKET = "adjuntos";
 const TIPOS_OFICIO_PERMITIDOS = ["application/pdf", "image/png", "image/jpeg", "image/webp"];
@@ -163,6 +164,33 @@ async function cargarTicketCompleto(id) {
   return { ...ticket, items: items || [], eventos: eventos || [], aprobacion: aprobacion || null, ...sla };
 }
 
+// ---------- oficio generado (beta): plantilla + firma de una persona ----------
+async function cargarPlantillaTipo(tipoClave) {
+  const { data, error } = await supabase.from("tipos_solicitud").select("etiqueta, plantilla_oficio").eq("clave", tipoClave).maybeSingle();
+  if (error) throw new Error(`cargando plantilla del tipo ${tipoClave}: ${error.message}`);
+  return { etiqueta: data?.etiqueta || tipoClave, plantilla_oficio: data?.plantilla_oficio || null };
+}
+
+// Trae los datos de firma de una persona (solicitante o quien aprueba) junto
+// con los bytes reales de su imagen de firma, para embeberla en el PDF — el
+// generador no pide una URL firmada, necesita el binario directamente.
+async function cargarPersonaFirma(userId) {
+  if (!userId) return null;
+  const { data: usuario, error } = await supabase
+    .from("usuarios")
+    .select("nombre, identificacion, cargo, firma_path")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error) throw new Error(`cargando datos de firma de ${userId}: ${error.message}`);
+  if (!usuario) return null;
+  let firmaBytes = null;
+  if (usuario.firma_path) {
+    const { data: archivo, error: descargaError } = await supabase.storage.from(BUCKET).download(usuario.firma_path);
+    if (!descargaError && archivo) firmaBytes = Buffer.from(await archivo.arrayBuffer());
+  }
+  return { ...usuario, firmaBytes };
+}
+
 // ---------- crear ----------
 // multipart/form-data: campo "data" = JSON {tipo, prioridad, firmante, observacion, items},
 // campo "oficio" = archivo. El oficio firmado es obligatorio para radicar, igual que en el
@@ -189,6 +217,12 @@ ticketsRouter.post("/tickets", requirePermission("tickets.crear"), upload.single
     return res.status(400).json({ error: "Debe adjuntar el oficio firmado para radicar el ticket" });
   }
 
+  // Beta: el oficio generado automáticamente coexiste con el adjunto manual
+  // de arriba (sigue siendo obligatorio) — "firmaConfirmada" solo marca que
+  // la persona confirmó explícitamente su firma en el modal "Firmar oficio"
+  // antes de radicar, nunca se estampa sola.
+  const firmaConfirmada = req.user.beta_firma_oficio && payload.firmaConfirmada === true;
+
   let ticket;
   try {
     ticket = await insertarTicketConCodigoUnico(
@@ -200,6 +234,7 @@ ticketsRouter.post("/tickets", requirePermission("tickets.crear"), upload.single
         firmante: firmante.trim(),
         observacion: observacion || null,
         enviado_at: new Date().toISOString(),
+        firma_solicitante_at: firmaConfirmada ? new Date().toISOString() : null,
       },
       req.user.codigo_interno,
     );
@@ -223,7 +258,10 @@ ticketsRouter.post("/tickets", requirePermission("tickets.crear"), upload.single
     return res.status(e.status || 500).json({ error: e.message });
   }
 
-  await registrarEvento(ticket.id, "creado", null, "pendiente", req.user.id, observacion || null);
+  const textoCreado = firmaConfirmada
+    ? [observacion, "Firma de solicitante confirmada."].filter(Boolean).join(" — ")
+    : observacion || null;
+  await registrarEvento(ticket.id, "creado", null, "pendiente", req.user.id, textoCreado);
   const completo = await cargarTicketCompleto(ticket.id);
   notificarTransicion("creado", completo, req.user.email).catch(() => {});
   res.status(201).json(completo);
@@ -372,6 +410,62 @@ ticketsRouter.get("/tickets/:id", async (req, res) => {
   res.json(ticket);
 });
 
+// ---------- oficio generado (beta) ----------
+// Se genera al vuelo en los dos endpoints de abajo — nunca se guarda en
+// Storage, así que no cuenta contra el almacenamiento del plan. Requiere el
+// mismo acceso que ver el ticket (o, para la vista previa al radicar, que el
+// ticket todavía no exista).
+ticketsRouter.post("/tickets/preview-oficio", requirePermission("tickets.crear"), async (req, res) => {
+  const { tipo, firmante, observacion, items } = req.body || {};
+  if (!tipo || !firmante?.trim() || !Array.isArray(items)) {
+    return res.status(400).json({ error: "Faltan datos para generar la vista previa (tipo, firmante, items)" });
+  }
+  const { etiqueta, plantilla_oficio } = await cargarPlantillaTipo(tipo);
+  const solicitante = await cargarPersonaFirma(req.user.id);
+  const ticketSimulado = {
+    code: "VISTA PREVIA",
+    created_at: new Date().toISOString(),
+    firmante: firmante.trim(),
+    observacion: observacion || "",
+    firma_solicitante_at: req.user.beta_firma_oficio ? new Date().toISOString() : null,
+    firma_aprobador_at: null,
+  };
+  const pdf = await construirOficioPdf({
+    ticket: ticketSimulado,
+    tipoEtiqueta: etiqueta,
+    plantilla: plantilla_oficio,
+    items,
+    solicitante,
+    aprobador: null,
+  });
+  res.set("Content-Type", "application/pdf");
+  res.send(pdf);
+});
+
+ticketsRouter.get("/tickets/:id/oficio-generado.pdf", async (req, res) => {
+  const ticket = await cargarTicketCompleto(req.params.id);
+  if (!ticket) return res.status(404).json({ error: "Ticket no encontrado" });
+  if (!req.user.permisos.has("tickets.ver_todos") && ticket.solicitante_id !== req.user.id) {
+    return res.status(403).json({ error: "No tiene permiso para ver este ticket" });
+  }
+  const { etiqueta, plantilla_oficio } = await cargarPlantillaTipo(ticket.tipo);
+  const solicitante = await cargarPersonaFirma(ticket.solicitante_id);
+  const aprobador = await cargarPersonaFirma(ticket.aprobacion?.decidido_por);
+  const pdf = await construirOficioPdf({
+    ticket,
+    tipoEtiqueta: etiqueta,
+    plantilla: plantilla_oficio,
+    items: ticket.items,
+    solicitante,
+    aprobador,
+  });
+  res.set("Content-Type", "application/pdf");
+  if (req.query.descargar) {
+    res.set("Content-Disposition", `attachment; filename="oficio-${ticket.code}.pdf"`);
+  }
+  res.send(pdf);
+});
+
 // ---------- eliminar (irreversible) ----------
 ticketsRouter.delete("/tickets/:id", requirePermission("tickets.eliminar"), async (req, res) => {
   const ticket = await cargarTicketCompleto(req.params.id);
@@ -464,7 +558,18 @@ ticketsRouter.post("/tickets/:id/aprobar", (req, res) =>
         decidido_por: req.user.id,
       });
       if (error) throw error;
-      return { aprobado_at: aprobadoAt };
+      const patch = { aprobado_at: aprobadoAt };
+      // Igual que al radicar: beta, coexiste con el oficio adjunto manual, y
+      // la firma solo se estampa si la supervisora la confirmó explícitamente
+      // en el modal "Firmar oficio".
+      if (req.user.beta_firma_oficio && req.body?.firmaConfirmada === true) {
+        patch.firma_aprobador_at = aprobadoAt;
+      }
+      return patch;
+    },
+    textoEvento(req, nota) {
+      if (!(req.user.beta_firma_oficio && req.body?.firmaConfirmada === true)) return nota || null;
+      return [nota, "Firma de aprobación confirmada."].filter(Boolean).join(" — ");
     },
   })
 );
