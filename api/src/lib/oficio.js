@@ -1,16 +1,18 @@
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb, degrees } from "pdf-lib";
 import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const LOGO_PATH = join(__dirname, "../assets/logo-hospital.png");
+const LOGO_PATH = join(__dirname, "../assets/logo-hospital-nit.png");
+const SELLO_PATH = join(__dirname, "../assets/sello-vigilado-supersalud.png");
 
 const PAGINA = { ancho: 612, alto: 792 }; // carta, en puntos
-const MARGEN = 50;
+const MARGEN = 60; // deja espacio a la izquierda para el sello "Vigilado Supersalud"
 const ANCHO_UTIL = PAGINA.ancho - MARGEN * 2;
 const NEGRO = rgb(0.03, 0.15, 0.14); // aprox --color-ink
 const GRIS = rgb(0.36, 0.42, 0.41); // aprox --color-muted
+const VERDE = rgb(0.29, 0.62, 0.2); // verde institucional de las líneas del membrete
 
 const ITEM_CAMPOS = [
   { clave: "factura", etiqueta: "Factura", ancho: 0.15 },
@@ -34,6 +36,12 @@ function fechaCorta(iso) {
     return `${dia}/${mes}/${anio}`;
   }
   return new Date(iso).toLocaleDateString("es-CO", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Bogota" });
+}
+
+function fechaLarga(iso) {
+  const d = iso ? new Date(iso) : new Date();
+  const texto = d.toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric", timeZone: "America/Bogota" });
+  return `Orito Putumayo, ${texto}`;
 }
 
 function reemplazarMarcadores(plantilla, datos) {
@@ -72,12 +80,28 @@ function truncar(fuente, tamano, texto, anchoMax) {
   return t + "…";
 }
 
+function centrado(pagina, texto, y, fuente, tamano, color) {
+  const ancho = fuente.widthOfTextAtSize(texto, tamano);
+  pagina.drawText(texto, { x: (PAGINA.ancho - ancho) / 2, y, size: tamano, font: fuente, color });
+}
+
+// Dos líneas verdes finas y pegadas — el mismo detalle que usa el membrete
+// real del hospital para separar el encabezado/pie del cuerpo del oficio.
+function lineasDobles(pagina, y) {
+  pagina.drawLine({ start: { x: 0, y }, end: { x: PAGINA.ancho, y }, thickness: 1.5, color: VERDE });
+  pagina.drawLine({ start: { x: 0, y: y - 3 }, end: { x: PAGINA.ancho, y: y - 3 }, thickness: 1.5, color: VERDE });
+}
+
 /**
  * Genera el PDF del oficio al vuelo (nunca se persiste en Storage — eso es lo
- * que ahorra espacio frente al adjunto manual escaneado). Si `solicitante`/
- * `aprobador` no tienen firma confirmada aún, esa sección del documento
- * simplemente queda sin estampar: el mismo endpoint se puede volver a pedir
- * más adelante y traerá las firmas que ya se hayan confirmado para entonces.
+ * que ahorra espacio frente al adjunto manual escaneado), replicando el
+ * formato del membrete oficial del hospital: logo con NIT centrado, doble
+ * línea verde bajo el encabezado y sobre el pie de página, datos de contacto
+ * centrados al final, y el sello "Vigilado Supersalud" en el margen
+ * izquierdo. Si `solicitante`/`aprobador` no tienen firma confirmada aún, esa
+ * sección del documento simplemente queda sin estampar: el mismo endpoint se
+ * puede volver a pedir más adelante y traerá las firmas que ya se hayan
+ * confirmado para entonces.
  */
 export async function construirOficioPdf({ ticket, tipoEtiqueta, plantilla, items, solicitante, aprobador }) {
   const pdf = await PDFDocument.create();
@@ -85,48 +109,65 @@ export async function construirOficioPdf({ ticket, tipoEtiqueta, plantilla, item
   const fuente = await pdf.embedFont(StandardFonts.Helvetica);
   const fuenteNegrita = await pdf.embedFont(StandardFonts.HelveticaBold);
 
-  let y = PAGINA.alto - MARGEN;
+  let y = PAGINA.alto - 36;
 
   function nuevaPaginaSiHaceFalta(alturaNecesaria) {
-    if (y - alturaNecesaria < MARGEN) {
+    if (y - alturaNecesaria < MARGEN + 70) {
       pagina = pdf.addPage([PAGINA.ancho, PAGINA.alto]);
-      y = PAGINA.alto - MARGEN;
+      y = PAGINA.alto - 36;
     }
   }
 
-  // Encabezado: logo + nombre del hospital + código/fecha del ticket.
+  // Encabezado: logo con NIT, centrado, + doble línea verde.
   try {
-    const logoBytes = readFileSync(LOGO_PATH);
-    const logo = await pdf.embedPng(logoBytes);
-    const logoAncho = 110;
+    const logo = await pdf.embedPng(readFileSync(LOGO_PATH));
+    const logoAncho = 230;
     const logoAlto = (logo.height / logo.width) * logoAncho;
-    pagina.drawImage(logo, { x: MARGEN, y: y - logoAlto, width: logoAncho, height: logoAlto });
+    pagina.drawImage(logo, { x: (PAGINA.ancho - logoAncho) / 2, y: y - logoAlto, width: logoAncho, height: logoAlto });
+    y -= logoAlto + 10;
   } catch {
-    // Si el logo no está disponible, el oficio igual se genera sin él.
+    y -= 60;
   }
-  pagina.drawText("E.S.E. Hospital Orito", { x: MARGEN + 120, y: y - 14, size: 12, font: fuenteNegrita, color: NEGRO });
-  pagina.drawText("Mesa de ayuda · Facturación", { x: MARGEN + 120, y: y - 30, size: 9, font: fuente, color: GRIS });
+  lineasDobles(pagina, y);
+  y -= 30;
 
-  const codigoTexto = `Oficio ref. ticket ${ticket.code}`;
-  pagina.drawText(codigoTexto, {
-    x: PAGINA.ancho - MARGEN - fuenteNegrita.widthOfTextAtSize(codigoTexto, 10),
-    y: y - 14,
-    size: 10,
-    font: fuenteNegrita,
-    color: NEGRO,
-  });
-  const fechaTexto = `Fecha: ${fechaCorta(ticket.created_at)}`;
-  pagina.drawText(fechaTexto, {
-    x: PAGINA.ancho - MARGEN - fuente.widthOfTextAtSize(fechaTexto, 9),
-    y: y - 28,
-    size: 9,
-    font: fuente,
-    color: GRIS,
-  });
+  // Sello "Vigilado Supersalud" en el margen izquierdo, girado verticalmente
+  // — igual que en el membrete real. Se ancla cerca del pie de página (no al
+  // centro vertical) para no toparse con el cierre/firmas en un oficio corto
+  // de una sola página.
+  try {
+    const sello = await pdf.embedPng(readFileSync(SELLO_PATH));
+    const selloAncho = 20;
+    const selloAlto = (sello.height / sello.width) * selloAncho;
+    pagina.drawImage(sello, {
+      x: 16,
+      y: 130,
+      width: selloAncho,
+      height: selloAlto,
+      rotate: degrees(-90),
+    });
+  } catch {
+    // Si el sello no está disponible, el oficio igual se genera sin él.
+  }
 
-  y -= 55;
-  pagina.drawLine({ start: { x: MARGEN, y }, end: { x: PAGINA.ancho - MARGEN, y }, thickness: 0.75, color: GRIS });
-  y -= 22;
+  // Fecha, destinatario fijo (SYS HIGEA) y asunto — misma estructura que el
+  // oficio en papel que ya usaba Facturación.
+  pagina.drawText(fechaLarga(ticket.created_at), { x: MARGEN, y, size: 10.5, font: fuente, color: NEGRO });
+  y -= 30;
+  pagina.drawText("Señores:", { x: MARGEN, y, size: 10.5, font: fuente, color: NEGRO });
+  y -= 15;
+  pagina.drawText("SYS SOFTWARE Y SOLUCIONES LTDA", { x: MARGEN, y, size: 10.5, font: fuenteNegrita, color: NEGRO });
+  y -= 15;
+  pagina.drawText("Pasto Nariño", { x: MARGEN, y, size: 10.5, font: fuente, color: NEGRO });
+  y -= 26;
+
+  const asuntoTexto = `Asunto: ${tipoEtiqueta} — ticket ${ticket.code}.`;
+  const anchoAsuntoLabel = fuenteNegrita.widthOfTextAtSize("Asunto:", 10.5);
+  pagina.drawText("Asunto:", { x: MARGEN, y, size: 10.5, font: fuenteNegrita, color: NEGRO });
+  pagina.drawText(asuntoTexto.replace("Asunto:", "").trim(), { x: MARGEN + anchoAsuntoLabel + 4, y, size: 10.5, font: fuente, color: NEGRO });
+  y -= 26;
+  pagina.drawText("Cordial saludo,", { x: MARGEN, y, size: 10.5, font: fuente, color: NEGRO });
+  y -= 24;
 
   // Cuerpo: plantilla del tipo de solicitud con los marcadores reemplazados.
   const datosPlantilla = {
@@ -175,9 +216,14 @@ export async function construirOficioPdf({ ticket, tipoEtiqueta, plantilla, item
     y -= 16;
   }
 
-  // Firmas: solicitante y, si ya está confirmada, la de quien aprueba.
-  y -= 26;
-  nuevaPaginaSiHaceFalta(110);
+  // Cierre y firmas: solicitante y, si ya está confirmada, la de quien aprueba.
+  y -= 24;
+  nuevaPaginaSiHaceFalta(120);
+  pagina.drawText("Agradezco de antemano su valiosa colaboración.", { x: MARGEN, y, size: 10.5, font: fuente, color: NEGRO });
+  y -= 30;
+  pagina.drawText("Atentamente,", { x: MARGEN, y, size: 10.5, font: fuente, color: NEGRO });
+  y -= 14;
+
   const colAncho = ANCHO_UTIL / 2 - 10;
   await dibujarFirma(pdf, pagina, {
     x: MARGEN,
@@ -200,7 +246,28 @@ export async function construirOficioPdf({ ticket, tipoEtiqueta, plantilla, item
     fuenteNegrita,
   });
 
+  dibujarPie(pagina, fuente);
+
   return Buffer.from(await pdf.save());
+}
+
+const PIE_LINEAS = [
+  "CALLE 9 NO 3-50 BARRIO EL VERGEL - ORITO PUTUMAYO (COLOMBIA)",
+  "Teléfonos: SECRETARIA GERENCIA: 3152484464",
+  "E-mail: secretariadegerencia@esehospitalorito.gov.co – gerencia@esehospitalorito.gov.co",
+  "https://ese-hospital-orito.micolombiadigital.gov.co/",
+];
+
+// Pie de página fijo — doble línea verde + datos de contacto centrados,
+// igual que el membrete real. Se dibuja en la última página usada, sin
+// importar cuánto contenido haya arriba.
+function dibujarPie(pagina, fuente) {
+  lineasDobles(pagina, 54);
+  let y = 42;
+  for (const linea of PIE_LINEAS) {
+    centrado(pagina, linea, y, fuente, 7.5, GRIS);
+    y -= 10;
+  }
 }
 
 async function dibujarFirma(pdf, pagina, { x, y, ancho, titulo, persona, confirmadaEn, fuente, fuenteNegrita }) {
