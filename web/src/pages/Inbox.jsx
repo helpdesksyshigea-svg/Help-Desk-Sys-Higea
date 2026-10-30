@@ -200,6 +200,7 @@ export function Inbox() {
                 <th className="py-3 pr-3">Ticket</th>
                 <th className="py-3 pr-3">Tipo de solicitud</th>
                 <th className="py-3 pr-3">Solicitante</th>
+                <th className="py-3 pr-3">Creado</th>
                 <th className="py-3 pr-3 text-right">Plazo</th>
                 <th className="py-3 pr-4 text-right">Estado</th>
               </tr>
@@ -222,14 +223,11 @@ export function Inbox() {
                     </td>
                     <td className="max-w-xs py-3.5 pr-3 align-top">
                       <div className={`text-base leading-tight ${destacado ? "font-bold" : "font-semibold"}`}>{t.code}</div>
-                      <div className="mt-0.5 flex items-center gap-2 truncate text-xs text-[var(--color-muted)]">
-                        <span className="opacity-60">{hace(t.created_at)}</span>
-                        {t.vencido && (
-                          <span className="shrink-0 rounded-[var(--radius-tag)] bg-[#f8e0dc] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#b3362a]">
-                            Vencido
-                          </span>
-                        )}
-                      </div>
+                      {t.vencido && (
+                        <span className="mt-0.5 inline-block rounded-[var(--radius-tag)] bg-[#f8e0dc] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#b3362a]">
+                          Vencido
+                        </span>
+                      )}
                     </td>
                     <td className="max-w-[200px] py-3.5 pr-3 align-top">
                       <span className="truncate text-sm">{etiquetaTipo(t.tipo)}</span>
@@ -242,6 +240,7 @@ export function Inbox() {
                         <span className="whitespace-nowrap text-xs text-[var(--color-muted)]">{t.firmante || "—"}</span>
                       </div>
                     </td>
+                    <td className="whitespace-nowrap py-3.5 pr-3 align-top text-xs text-[var(--color-muted)]">{hace(t.created_at)}</td>
                     <td className="py-3.5 pr-3 text-right align-top">
                       {sla ? (
                         <span
