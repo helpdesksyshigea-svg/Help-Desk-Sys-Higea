@@ -351,6 +351,32 @@ adminRouter.patch("/admin/roles/:id", requirePermission("roles.gestionar"), asyn
   res.json({ ok: true });
 });
 
+// Un rol de sistema nunca se puede borrar (son los 4 roles con los que el
+// flujo del hospital ya está probado); un rol personalizado tampoco si
+// todavía hay alguna cuenta usándolo — se le pide primero reasignar a esos
+// usuarios a otro rol, para no dejar cuentas con un rol_id huérfano.
+adminRouter.delete("/admin/roles/:id", requirePermission("roles.gestionar"), async (req, res) => {
+  const { data: rol, error: rolError } = await supabase.from("roles").select("*").eq("id", req.params.id).maybeSingle();
+  if (rolError && rolError.code !== "22P02") return res.status(500).json({ error: rolError.message });
+  if (!rol) return res.status(404).json({ error: "Rol no encontrado" });
+  if (rol.es_sistema) return res.status(409).json({ error: "No se puede eliminar un rol de sistema" });
+
+  const { count, error: usuariosError } = await supabase
+    .from("usuarios")
+    .select("id", { count: "exact", head: true })
+    .eq("rol_id", rol.id);
+  if (usuariosError) return res.status(500).json({ error: usuariosError.message });
+  if (count > 0) {
+    return res.status(409).json({
+      error: `No se puede eliminar: ${count} usuario${count === 1 ? "" : "s"} todavía tiene${count === 1 ? "" : "n"} este rol asignado`,
+    });
+  }
+
+  const { error: delError } = await supabase.from("roles").delete().eq("id", rol.id);
+  if (delError) return res.status(500).json({ error: delError.message });
+  res.json({ ok: true });
+});
+
 // ======================= Catálogos: tipos de solicitud y motivos =======================
 
 // `referencia` describe dónde más vive la clave de este catálogo (la tabla/columna

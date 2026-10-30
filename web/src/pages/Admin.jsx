@@ -406,6 +406,8 @@ function Roles() {
   const [seleccion, setSeleccion] = useState([]);
   const [error, setError] = useState(null);
   const [enviando, setEnviando] = useState(false);
+  const [editandoRolId, setEditandoRolId] = useState(null);
+  const [nombreEditado, setNombreEditado] = useState("");
 
   async function cargar() {
     try {
@@ -451,6 +453,35 @@ function Roles() {
       setError(e.message);
     } finally {
       setEnviando(false);
+    }
+  }
+
+  function empezarRenombrar(rol) {
+    setEditandoRolId(rol.id);
+    setNombreEditado(nombreLegible(rol.nombre));
+  }
+
+  async function confirmarRenombrar(rol) {
+    const nuevoNombre = nombreEditado.trim();
+    setEditandoRolId(null);
+    if (!nuevoNombre || nuevoNombre === nombreLegible(rol.nombre)) return;
+    try {
+      await apiFetch(`/admin/roles/${rol.id}`, { method: "PATCH", body: JSON.stringify({ nombre: nuevoNombre }) });
+      exito("Nombre del rol actualizado");
+      await cargar();
+    } catch (e) {
+      fallo(e.message);
+    }
+  }
+
+  async function eliminarRol(rol) {
+    if (!window.confirm(`Esto elimina el rol "${nombreLegible(rol.nombre)}" permanentemente. ¿Continuar?`)) return;
+    try {
+      await apiFetch(`/admin/roles/${rol.id}`, { method: "DELETE" });
+      exito(`Rol "${nombreLegible(rol.nombre)}" eliminado`);
+      await cargar();
+    } catch (e) {
+      fallo(e.message);
     }
   }
 
@@ -522,27 +553,59 @@ function Roles() {
         </form>
       </Card>
 
-      <Card className="overflow-x-auto p-0">
-        <table className="w-full text-sm">
+      <Card className="overflow-x-auto !p-0">
+        <table className="w-full border-collapse text-sm">
           <thead>
-            <tr>
-              <th className="sticky left-0 bg-[var(--color-surface)] px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">
-                Permiso
-              </th>
+            <tr className="bg-[var(--color-header-bg)] text-left text-[11px] uppercase tracking-[0.08em] text-[var(--color-header-ink)]">
+              <th className="sticky left-0 bg-[var(--color-header-bg)] px-4 py-3 font-semibold">Permiso</th>
               {roles.map((r) => (
-                <th key={r.id} className="px-4 py-3 text-center text-xs font-semibold">
-                  <div className="flex items-center justify-center gap-1.5">
-                    {nombreLegible(r.nombre)}
-                    <button
-                      type="button"
-                      onClick={() => duplicarRol(r)}
-                      title={`Duplicar "${nombreLegible(r.nombre)}" como base de un rol nuevo`}
-                      className="rounded p-0.5 text-[var(--color-muted)] hover:bg-[var(--color-ink)]/[0.06] hover:text-[var(--color-ink)]"
-                    >
-                      <IconCopy size={13} />
-                    </button>
-                  </div>
-                  {r.es_sistema && <div className="font-normal normal-case text-[var(--color-muted)]">rol de sistema</div>}
+                <th key={r.id} className="min-w-[150px] px-3 py-3 text-center font-semibold normal-case">
+                  {editandoRolId === r.id ? (
+                    <input
+                      autoFocus
+                      value={nombreEditado}
+                      onChange={(e) => setNombreEditado(e.target.value)}
+                      onBlur={() => confirmarRenombrar(r)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") e.target.blur();
+                        if (e.key === "Escape") setEditandoRolId(null);
+                      }}
+                      className="w-full rounded-[var(--radius-tag)] border border-white/30 bg-white/10 px-1.5 py-0.5 text-center text-xs text-[var(--color-header-ink)] outline-none focus:border-white"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center gap-1">
+                      <span className="truncate">{nombreLegible(r.nombre)}</span>
+                      {!r.es_sistema && (
+                        <button
+                          type="button"
+                          onClick={() => empezarRenombrar(r)}
+                          title="Renombrar rol"
+                          className="shrink-0 rounded p-0.5 text-[var(--color-header-ink)]/70 hover:bg-white/10 hover:text-[var(--color-header-ink)]"
+                        >
+                          <IconEdit size={12} />
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => duplicarRol(r)}
+                        title={`Duplicar "${nombreLegible(r.nombre)}" como base de un rol nuevo`}
+                        className="shrink-0 rounded p-0.5 text-[var(--color-header-ink)]/70 hover:bg-white/10 hover:text-[var(--color-header-ink)]"
+                      >
+                        <IconCopy size={12} />
+                      </button>
+                      {!r.es_sistema && (
+                        <button
+                          type="button"
+                          onClick={() => eliminarRol(r)}
+                          title={`Eliminar rol "${nombreLegible(r.nombre)}"`}
+                          className="shrink-0 rounded p-0.5 text-[#ffb4a8]/80 hover:bg-white/10 hover:text-[#ffb4a8]"
+                        >
+                          <IconTrash size={12} />
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {r.es_sistema && <div className="mt-0.5 text-[10px] font-normal normal-case text-[var(--color-header-ink)]/70">rol de sistema</div>}
                 </th>
               ))}
             </tr>
@@ -553,20 +616,21 @@ function Roles() {
                 <tr>
                   <td
                     colSpan={roles.length + 1}
-                    className="bg-[var(--color-canvas)] px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)] border-t border-b border-[var(--color-border)]"
+                    className="bg-[var(--color-surface-hover)] px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-muted)] border-t border-b border-[var(--color-border)]"
                   >
                     {CATEGORIAS[cat] || cat}
                   </td>
                 </tr>
                 {items.map((p) => (
-                  <tr key={p.clave} className="border-b border-[var(--color-border)] last:border-0">
-                    <td className="sticky left-0 bg-[var(--color-surface)] px-4 py-2">{p.descripcion}</td>
+                  <tr key={p.clave} className="border-b border-[var(--color-border)] last:border-0 hover:bg-[var(--color-surface-hover)]">
+                    <td className="sticky left-0 bg-[var(--color-surface)] px-4 py-2.5">{p.descripcion}</td>
                     {roles.map((r) => (
-                      <td key={r.id} className="px-4 py-2 text-center">
+                      <td key={r.id} className="px-3 py-2.5 text-center">
                         <input
                           type="checkbox"
                           checked={r.permisos.includes(p.clave)}
                           onChange={() => togglePermisoRol(r, p.clave)}
+                          className="h-4 w-4 cursor-pointer accent-[var(--color-accent)]"
                         />
                       </td>
                     ))}
