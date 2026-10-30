@@ -10,7 +10,7 @@ import { ModalFirmarOficio, oficioGeneradoDe } from "../components/ModalFirmarOf
 import { useToast } from "../context/ToastContext";
 import { esperando } from "../lib/filters";
 import { fechaCorta, fechaHora } from "../lib/fecha";
-import { IconArrowLeft, IconCheck, IconReturn, IconInbox, IconInfo, IconSend, IconUser, IconPaperclip, IconTrash, IconEdit, IconEye, IconDownload } from "../components/icons";
+import { IconArrowLeft, IconCheck, IconReturn, IconInbox, IconInfo, IconSend, IconUser, IconPaperclip, IconTrash, IconEdit } from "../components/icons";
 
 const readOnlyClass =
   "w-full rounded-[var(--radius-input)] border border-[var(--color-ink)]/20 bg-[var(--color-ink)]/5 px-3 py-2";
@@ -81,6 +81,7 @@ export function TicketDetail() {
   const [ingenieros, setIngenieros] = useState([]);
   const [agenteHigea, setAgenteHigea] = useState("");
   const [accionPendienteFirma, setAccionPendienteFirma] = useState(null); // def de ACCIONES en espera de confirmar firma
+  const [cargandoOficio, setCargandoOficio] = useState(false);
 
   async function cargar() {
     try {
@@ -163,6 +164,7 @@ export function TicketDetail() {
   }
 
   async function descargarOficio(descargar) {
+    if (!descargar) setCargandoOficio(true);
     try {
       const blob = await apiFetchBlob(`/tickets/${id}/oficio-generado.pdf${descargar ? "?descargar=1" : ""}`);
       const url = URL.createObjectURL(blob);
@@ -177,6 +179,8 @@ export function TicketDetail() {
       setTimeout(() => URL.revokeObjectURL(url), 10000);
     } catch (e) {
       toastFallo(e.message);
+    } finally {
+      setCargandoOficio(false);
     }
   }
 
@@ -361,33 +365,23 @@ export function TicketDetail() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
-          {/* El oficio generado nunca se guarda como adjunto (se arma al vuelo,
-              ver api/src/lib/oficio.js) — sin esto, alguien que busca "el
-              documento" en Documentos solo ve el oficio escaneado manual (si
-              lo hay) y no encuentra el generado automáticamente. Visible para
-              cualquiera que pueda ver el ticket: no depende de si quien mira
-              tiene su propia firma digital activada, eso solo controla si esa
-              persona puede FIRMAR, no si puede REVISAR un oficio ya generado. */}
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-input)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
-            <span className="text-sm font-medium">Oficio generado automáticamente</span>
-            <div className="flex gap-2">
-              <Button variant="ghost" onClick={() => descargarOficio(false)}>
-                <IconEye size={14} />
-                Ver
-              </Button>
-              <Button variant="ghost" onClick={() => descargarOficio(true)}>
-                <IconDownload size={14} />
-                Descargar
-              </Button>
-            </div>
-          </div>
           {ticket.archivado_at && (
             <p className="mb-3 rounded-[var(--radius-input)] bg-[var(--color-ink)]/5 px-3 py-2 text-xs text-[var(--color-muted)]">
               Los documentos adjuntos de este ticket se eliminaron automáticamente el {fechaCorta(ticket.archivado_at)}{" "}
               por antigüedad. El resto de la información queda disponible para siempre.
             </p>
           )}
-          <Adjuntos ticketId={ticket.id} kindsPermitidos={["soporte", "evidencia"]} />
+          <Adjuntos
+            ticketId={ticket.id}
+            kindsPermitidos={["soporte", "evidencia"]}
+            oficioGenerado={{
+              nombre: `oficio-${ticket.code}.pdf`,
+              meta: "Oficio generado automáticamente",
+              cargandoVista: cargandoOficio,
+              onVer: () => descargarOficio(false),
+              onDescargar: () => descargarOficio(true),
+            }}
+          />
         </Card>
 
         <Card className="grid gap-4">

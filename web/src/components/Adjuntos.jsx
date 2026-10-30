@@ -10,7 +10,12 @@ function kb(bytes) {
   return bytes > 1048576 ? (bytes / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(bytes / 1024)) + " KB";
 }
 
-export function Adjuntos({ ticketId, kindsPermitidos = ["oficio", "soporte", "evidencia"] }) {
+// `oficioGenerado`: fila sintética que se antepone a la lista real de
+// adjuntos, con la misma apariencia — el oficio generado automáticamente
+// nunca se guarda como adjunto (se arma al vuelo, ver api/src/lib/oficio.js),
+// pero quien busca "el documento" lo busca aquí, en Documentos, no en una
+// tarjeta aparte. Forma: { nombre, meta, onVer, onDescargar, cargandoVista }.
+export function Adjuntos({ ticketId, kindsPermitidos = ["oficio", "soporte", "evidencia"], oficioGenerado }) {
   const [adjuntos, setAdjuntos] = useState([]);
   const [subiendo, setSubiendo] = useState(null); // kind que se está subiendo, o null
   const [error, setError] = useState(null);
@@ -152,10 +157,38 @@ export function Adjuntos({ ticketId, kindsPermitidos = ["oficio", "soporte", "ev
     <div className="grid gap-3 rounded-[var(--radius-card)] outline-none focus:ring-2 focus:ring-[var(--color-accent)]" tabIndex={0} onPaste={pegar}>
       <h3 className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">Documentos</h3>
 
-      {adjuntos.length === 0 && <p className="text-sm text-[var(--color-muted)]">Sin documentos adjuntos.</p>}
+      {adjuntos.length === 0 && !oficioGenerado && <p className="text-sm text-[var(--color-muted)]">Sin documentos adjuntos.</p>}
 
-      {adjuntos.length > 0 && (
+      {(adjuntos.length > 0 || oficioGenerado) && (
         <ul className="grid gap-2">
+          {oficioGenerado && (
+            <li className="flex items-center gap-3 rounded-[var(--radius-card)] border border-[var(--color-border)] px-3 py-2">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-[#f8e0dc] text-[10px] font-bold text-[#b3362a]">
+                PDF
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-[var(--color-ink)]">{oficioGenerado.nombre}</p>
+                <div className="text-xs text-[var(--color-muted)]">{oficioGenerado.meta}</div>
+              </div>
+              <button
+                onClick={oficioGenerado.onVer}
+                disabled={oficioGenerado.cargandoVista}
+                aria-label={`Vista previa de ${oficioGenerado.nombre}`}
+                title="Vista previa"
+                className="shrink-0 rounded p-1.5 text-[var(--color-muted)] hover:bg-[var(--color-ink)]/[0.06] hover:text-[var(--color-ink)] disabled:opacity-50"
+              >
+                <IconEye size={16} />
+              </button>
+              <button
+                onClick={oficioGenerado.onDescargar}
+                aria-label={`Descargar ${oficioGenerado.nombre}`}
+                title="Descargar"
+                className="shrink-0 rounded p-1.5 text-[var(--color-muted)] hover:bg-[var(--color-ink)]/[0.06] hover:text-[var(--color-ink)]"
+              >
+                <IconDownload size={16} />
+              </button>
+            </li>
+          )}
           {adjuntos.map((a) => {
             const esPdf = a.tipo_mime === "application/pdf";
             return (
