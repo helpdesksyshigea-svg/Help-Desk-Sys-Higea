@@ -41,7 +41,7 @@ function fechaCorta(iso) {
 function fechaLarga(iso) {
   const d = iso ? new Date(iso) : new Date();
   const texto = d.toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric", timeZone: "America/Bogota" });
-  return `Orito Putumayo, ${texto}`;
+  return `Orito putumayo, ${texto}`;
 }
 
 function reemplazarMarcadores(plantilla, datos) {
@@ -141,7 +141,7 @@ export async function construirOficioPdf({ ticket, tipoEtiqueta, plantilla, item
     const selloAlto = (sello.height / sello.width) * selloAncho;
     pagina.drawImage(sello, {
       x: 16,
-      y: 130,
+      y: 250,
       width: selloAncho,
       height: selloAlto,
       rotate: degrees(-90),
