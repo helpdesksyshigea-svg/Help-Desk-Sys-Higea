@@ -14,56 +14,6 @@ import { IconArrowLeft, IconCheck, IconReturn, IconInbox, IconInfo, IconSend, Ic
 const readOnlyClass =
   "w-full rounded-[var(--radius-input)] border border-[var(--color-ink)]/20 bg-[var(--color-ink)]/5 px-3 py-2";
 
-const ETAPAS = ["Radicado", "Validación", "Aprobación", "Ejecución", "Finalizado"];
-// "devuelto" y "requiere_info" no tienen una etapa propia en esta línea de
-// tiempo: son una interrupción de la etapa en la que ya estaban (seguir
-// corrigiendo Validación o Ejecución), no un paso adicional del proceso.
-const ETAPA_POR_ESTADO = { pendiente: 1, devuelto: 1, aprobado: 3, en_proceso: 3, requiere_info: 3, cerrado: 4 };
-
-function ProgresoSolicitud({ estado }) {
-  const indice = ETAPA_POR_ESTADO[estado] ?? 0;
-  const terminado = estado === "cerrado";
-  const interrumpido = estado === "devuelto" || estado === "requiere_info";
-  return (
-    <div>
-      <div className="mb-2 flex justify-between gap-1 text-[11px] font-semibold uppercase tracking-[0.06em]">
-        {ETAPAS.map((etapa, i) => {
-          const completada = i < indice || (terminado && i <= indice);
-          const actual = i === indice && !terminado;
-          return (
-            <span
-              key={etapa}
-              className={
-                actual && interrumpido
-                  ? "text-[#b3362a]"
-                  : completada || actual
-                    ? "text-[var(--color-accent)]"
-                    : "text-[var(--color-muted)]"
-              }
-            >
-              {etapa}
-            </span>
-          );
-        })}
-      </div>
-      <div className="flex gap-1">
-        {ETAPAS.map((etapa, i) => {
-          const completada = i < indice || (terminado && i <= indice);
-          const actual = i === indice && !terminado;
-          return (
-            <div key={etapa} className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--color-ink)]/10">
-              <div
-                className={`h-full rounded-full ${actual && interrumpido ? "bg-[#b3362a]" : "bg-[var(--color-accent)]"}`}
-                style={{ width: completada ? "100%" : actual ? "55%" : "0%" }}
-              />
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 function iniciales(nombre) {
   if (!nombre) return "?";
   const partes = nombre.trim().split(/\s+/);
@@ -325,12 +275,8 @@ export function TicketDetail() {
             <div>{ticket.agente_higea || ticket.asignado.nombre}</div>
           </div>
         )}
-        <div className="col-span-2 sm:col-span-4 border-t border-[var(--color-border)] pt-4">
-          <h4 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-muted)]">
-            Seguimiento de la solicitud
-          </h4>
-          <ProgresoSolicitud estado={ticket.estado} />
-          <p className="mt-2.5 text-sm text-[var(--color-muted)]">{ESPERANDO[ticket.estado]}</p>
+        <div className="col-span-2 sm:col-span-4">
+          <p className="text-sm text-[var(--color-muted)]">{ESPERANDO[ticket.estado]}</p>
         </div>
         {puedeEditar && (
           <div className="col-span-2 sm:col-span-4">
