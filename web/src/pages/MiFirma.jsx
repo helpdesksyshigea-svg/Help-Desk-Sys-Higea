@@ -115,12 +115,13 @@ export function MiFirma() {
             />
             {previewNueva || firmaUrl ? (
               <div className="grid gap-3 rounded-[var(--radius-input)] border border-[var(--color-border)] p-3">
-                <div className="flex items-center gap-4">
-                  <img src={previewNueva || firmaUrl} alt="Firma" className="h-16 max-w-[220px] object-contain" />
-                  <Button type="button" variant="ghost" onClick={() => inputFirma.current?.click()}>
-                    Cambiar firma
-                  </Button>
+                <div className="grid gap-1">
+                  <span className="text-xs font-medium text-[var(--color-muted)]">Foto subida</span>
+                  <img src={previewNueva || firmaUrl} alt="Firma" className="h-48 w-full rounded bg-[var(--color-ink)]/5 object-contain" />
                 </div>
+                <Button type="button" variant="ghost" className="justify-self-start" onClick={() => inputFirma.current?.click()}>
+                  Cambiar firma
+                </Button>
                 {previewNueva && (
                   <div className="border-t border-[var(--color-border)] pt-3">
                     <span className="mb-1.5 block text-xs font-medium text-[var(--color-muted)]">Así se verá en el oficio</span>
@@ -130,7 +131,7 @@ export function MiFirma() {
                       <img
                         src={previewVectorizada}
                         alt="Vista previa de la firma vectorizada"
-                        className="h-16 max-w-[220px] rounded border border-[var(--color-border)] bg-white object-contain p-1"
+                        className="h-48 w-full rounded border border-[var(--color-border)] bg-white object-contain p-2"
                       />
                     )}
                   </div>
