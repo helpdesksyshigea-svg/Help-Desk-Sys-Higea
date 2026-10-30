@@ -9,6 +9,7 @@ export function MiFirma() {
   const [identificacion, setIdentificacion] = useState("");
   const [cargo, setCargo] = useState("");
   const [firmaUrl, setFirmaUrl] = useState(null);
+  const [tieneFirma, setTieneFirma] = useState(false);
   const [firmaNueva, setFirmaNueva] = useState(null);
   const [previewNueva, setPreviewNueva] = useState(null);
   const [previewVectorizada, setPreviewVectorizada] = useState(null);
@@ -29,6 +30,7 @@ export function MiFirma() {
         setIdentificacion(data.identificacion || "");
         setCargo(data.cargo || "");
         setFirmaUrl(data.firmaUrl || null);
+        setTieneFirma(!!data.tieneFirma);
       })
       .catch((e) => fallo(e.message))
       .finally(() => setCargando(false));
@@ -118,6 +120,18 @@ export function MiFirma() {
 
   async function guardar(e) {
     e.preventDefault();
+    if (!identificacion.trim() || !cargo.trim()) {
+      fallo("Identificación y cargo son obligatorios");
+      return;
+    }
+    if (!tieneFirma && !firmaNueva) {
+      fallo("Debes subir una imagen de tu firma");
+      return;
+    }
+    if (errorPreview) {
+      fallo("La firma que subiste no se pudo procesar — sube otra foto antes de guardar");
+      return;
+    }
     setGuardando(true);
     try {
       const form = new FormData();
@@ -129,6 +143,7 @@ export function MiFirma() {
       if (firmaNueva) {
         const actualizado = await apiFetch("/perfil");
         setFirmaUrl(actualizado.firmaUrl || null);
+        setTieneFirma(!!actualizado.tieneFirma);
         setFirmaNueva(null);
         setPreviewNueva(null);
         setPreviewVectorizada(null);
@@ -153,25 +168,27 @@ export function MiFirma() {
       <form onSubmit={guardar} className="grid gap-4">
         <Card className="grid gap-4">
           <label className="text-sm">
-            <span className="mb-1 block font-medium">Identificación</span>
+            <span className="mb-1 block font-medium">Identificación *</span>
             <input
               value={identificacion}
               onChange={(e) => setIdentificacion(e.target.value)}
+              required
               className="w-full rounded-[var(--radius-input)] border border-[var(--color-ink)]/20 bg-[var(--color-ink)]/5 px-3 py-2 text-sm outline-none focus:border-[var(--color-ink)]"
               placeholder="Número de cédula"
             />
           </label>
           <label className="text-sm">
-            <span className="mb-1 block font-medium">Cargo</span>
+            <span className="mb-1 block font-medium">Cargo *</span>
             <input
               value={cargo}
               onChange={(e) => setCargo(e.target.value)}
+              required
               className="w-full rounded-[var(--radius-input)] border border-[var(--color-ink)]/20 bg-[var(--color-ink)]/5 px-3 py-2 text-sm outline-none focus:border-[var(--color-ink)]"
               placeholder="Ej. Facturadora, Supervisora de Facturación"
             />
           </label>
           <div className="text-sm">
-            <span className="mb-1 block font-medium">Firma escaneada</span>
+            <span className="mb-1 block font-medium">Firma escaneada *</span>
             <input
               ref={inputFirma}
               type="file"
