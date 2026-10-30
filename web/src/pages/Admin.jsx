@@ -713,6 +713,20 @@ function SelectorCampos({ seleccionados, onCambiar }) {
   );
 }
 
+// Lista de marcadores reemplazables en plantilla_oficio — compartida entre el
+// formulario de "Nuevo tipo" y el de editar uno existente (antes solo el de
+// crear la mostraba). {{firmante}} y {{cargo}} salen en MAYÚSCULA y negrita
+// automáticamente dentro del oficio generado.
+function TextoAyudaMarcadores() {
+  return (
+    <span className="text-xs text-[var(--color-muted)]">
+      Marcadores disponibles: {"{{firmante}}"}, {"{{cargo}}"} (ambos en mayúscula y negrita), {"{{factura}}"} (la del primer
+      registro), {"{{tipo}}"}, {"{{observacion}}"}, {"{{codigo}}"}, {"{{fecha}}"}. El sistema agrega automáticamente la
+      tabla de registros y las firmas.
+    </span>
+  );
+}
+
 function Catalogo({ titulo, path, claveAutomatica = false, permiteEliminar = false, camposConfigurables = false, plantillaOficio = false }) {
   const [items, setItems] = useState([]);
   const [clave, setClave] = useState("");
@@ -836,14 +850,11 @@ function Catalogo({ titulo, path, claveAutomatica = false, permiteEliminar = fal
         {plantillaOficio && (
           <div className="grid gap-1.5 border-t border-[var(--color-border)] pt-3">
             <span className="text-xs font-medium text-[var(--color-muted)]">Plantilla del oficio generado (beta)</span>
-            <span className="text-xs text-[var(--color-muted)]">
-              Marcadores disponibles: {"{{firmante}}"}, {"{{tipo}}"}, {"{{observacion}}"}, {"{{codigo}}"}, {"{{fecha}}"}. El sistema agrega
-              automáticamente la tabla de registros y las firmas.
-            </span>
+            <TextoAyudaMarcadores />
             <textarea
               value={plantilla}
               onChange={(e) => setPlantilla(e.target.value)}
-              rows={4}
+              rows={6}
               placeholder="Por medio del presente, el suscrito {{firmante}}, solicita…"
               className={inputClass}
             />
@@ -903,10 +914,11 @@ function Catalogo({ titulo, path, claveAutomatica = false, permiteEliminar = fal
               {plantillaOficio && (
                 <div className={`grid gap-1.5 pt-1 ${claveAutomatica ? "col-span-3" : "col-span-4"}`}>
                   <span className="text-xs font-medium text-[var(--color-muted)]">Plantilla del oficio generado (beta)</span>
+                  <TextoAyudaMarcadores />
                   <textarea
                     value={edicion.plantilla_oficio}
                     onChange={(e) => setEdicion((p) => ({ ...p, plantilla_oficio: e.target.value }))}
-                    rows={4}
+                    rows={6}
                     className={inputClass}
                   />
                 </div>
