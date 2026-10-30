@@ -14,9 +14,9 @@ where id = true;
 -- tomada tal cual de un oficio real del hospital (Word), con el nombre de
 -- quien firma reemplazado por el marcador {{firmante}}.
 update tipos_solicitud set plantilla_oficio =
-  'Yo, {{firmante}}, en mi calidad de {{cargo}} de la E.S.E. Hospital Orito, me permito solicitar su apoyo para corregir en el sistema el registro de laboratorio de la atención relacionada a continuación, debido a una inconsistencia detectada entre el servicio efectivamente prestado y lo facturado.
+  'Yo, {{firmante}}, en mi calidad de {{cargo}} de la E.S.E. Hospital Orito, solicito su apoyo para efectuar la corrección del registro de laboratorio correspondiente a la factura {{factura}}, debido a una inconsistencia detectada en la información registrada frente al servicio efectivamente prestado.
 
-La corrección se requiere para garantizar la coherencia entre la historia clínica, los soportes de la atención y la facturación, conforme a la normatividad vigente en materia de facturación electrónica en salud y reporte de RIPS, y así prevenir glosas y devoluciones por parte de las entidades responsables de pago.
+Esta solicitud responde a la necesidad de mantener la integridad, exactitud y trazabilidad de la información institucional, de manera que exista plena concordancia entre la atención brindada, los registros de la historia clínica, los soportes correspondientes y los datos utilizados en el proceso de facturación.
 
-Una vez efectuados los ajustes, les agradecemos confirmar por este mismo medio para proceder con la validación y el envío de la factura correspondiente. Se adjuntan los soportes que respaldan la solicitud.'
+La actualización de esta información contribuirá al cumplimiento de los procedimientos institucionales y de los requerimientos normativos aplicables, minimizando el riesgo de glosas, devoluciones y objeciones por parte de las entidades responsables de pago.'
 where clave = 'elim_lab';

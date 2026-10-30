@@ -59,6 +59,99 @@ function reemplazarMarcadores(plantilla, datos) {
   return (plantilla || "").replace(/\{\{(\w+)\}\}/g, (_, clave) => (datos[clave] != null && datos[clave] !== "" ? String(datos[clave]) : ""));
 }
 
+// {{firmante}} y {{cargo}} van en MAYÚSCULA y negrita dentro del cuerpo (pedido
+// explícito del usuario, para que el nombre y el cargo de quien firma resalten
+// en medio del párrafo) — el resto de marcadores se sustituyen como texto
+// normal. Se marca el tramo resaltado con un centinela invisible (U+0001,
+// nunca aparece en texto real) para que tokenizarConEstilo() sepa dónde
+// empieza y termina la negrita sin tener que parsear HTML/Markdown.
+const CENTINELA = "\u0001";
+
+function reemplazarMarcadoresConEstilo(plantilla, datos) {
+  // Primera pasada: todos los marcadores EXCEPTO firmante/cargo (que deben
+  // quedar como el literal "{{firmante}}"/"{{cargo}}" para resolverse en la
+  // segunda pasada con su resaltado) — reemplazarMarcadores() blanquea
+  // cualquier marcador sin valor, así que no sirve pasarle firmante/cargo en
+  // `undefined`: hay que ocultárselos del regex por completo.
+  let texto = String(plantilla || "");
+  texto = texto.replace(/\{\{(\w+)\}\}/g, (m, clave) => {
+    if (clave === "firmante" || clave === "cargo") return m;
+    return datos[clave] != null && datos[clave] !== "" ? String(datos[clave]) : "";
+  });
+  for (const clave of ["firmante", "cargo"]) {
+    const valor = datos[clave];
+    texto = texto.replaceAll(`{{${clave}}}`, valor ? `${CENTINELA}${String(valor).toUpperCase()}${CENTINELA}` : "");
+  }
+  return texto;
+}
+
+// Tokeniza preservando párrafos (\n) y, dentro de cada uno, qué palabras caen
+// en un tramo marcado con CENTINELA (ver reemplazarMarcadoresConEstilo). Una
+// palabra se considera en negrita si el párrafo ya estaba "dentro" de un
+// tramo resaltado al llegar a ella, o si ella misma contiene un centinela
+// (así un nombre de una sola palabra, que abre y cierra en el mismo token,
+// igual queda marcado).
+function tokenizarConEstilo(texto) {
+  const parrafos = [];
+  for (const parrafo of String(texto || "").split("\n")) {
+    if (!parrafo.trim()) {
+      parrafos.push([]);
+      continue;
+    }
+    const tokens = [];
+    let enNegrita = false;
+    for (const crudo of parrafo.split(/\s+/)) {
+      if (!crudo) continue;
+      const partes = crudo.split(CENTINELA);
+      const negrita = enNegrita || partes.length > 1;
+      if ((partes.length - 1) % 2 === 1) enNegrita = !enNegrita;
+      tokens.push({ palabra: partes.join(""), negrita });
+    }
+    parrafos.push(tokens);
+  }
+  return parrafos;
+}
+
+// Igual que partirEnLineas, pero wrap de palabras con estilo mixto (negrita
+// según cada token) — cada línea resultante es un array de {texto, negrita},
+// ya agrupando palabras consecutivas del mismo estilo en un solo fragmento
+// para minimizar llamadas a drawText.
+function partirEnLineasConEstilo(parrafosConEstilo, fuente, fuenteNegrita, tamano, anchoMax) {
+  const anchoEspacio = fuente.widthOfTextAtSize(" ", tamano);
+  const lineas = [];
+  for (const parrafo of parrafosConEstilo) {
+    if (parrafo.length === 0) {
+      lineas.push([]);
+      continue;
+    }
+    let actual = [];
+    let anchoActual = 0;
+    for (const tok of parrafo) {
+      const f = tok.negrita ? fuenteNegrita : fuente;
+      const anchoPalabra = f.widthOfTextAtSize(tok.palabra, tamano);
+      const espacio = actual.length ? anchoEspacio : 0;
+      if (actual.length && anchoActual + espacio + anchoPalabra > anchoMax) {
+        lineas.push(actual);
+        actual = [];
+        anchoActual = 0;
+      }
+      actual.push(tok);
+      anchoActual += (actual.length > 1 ? anchoEspacio : 0) + anchoPalabra;
+    }
+    if (actual.length) lineas.push(actual);
+  }
+  // Agrupa tokens consecutivos del mismo estilo en un solo fragmento de texto.
+  return lineas.map((linea) => {
+    const fragmentos = [];
+    for (const tok of linea) {
+      const ultimo = fragmentos[fragmentos.length - 1];
+      if (ultimo && ultimo.negrita === tok.negrita) ultimo.texto += ` ${tok.palabra}`;
+      else fragmentos.push({ texto: tok.palabra, negrita: tok.negrita });
+    }
+    return fragmentos;
+  });
+}
+
 // Parte un texto en líneas que caben en `anchoMax`, respetando los saltos de
 // párrafo (\n) ya presentes en la plantilla — pdf-lib no hace wrap automático.
 function partirEnLineas(texto, fuente, tamano, anchoMax) {
@@ -203,6 +296,8 @@ export async function construirOficioPdf({ ticket, tipoEtiqueta, plantilla, item
   y = 792 - 258.218;
 
   // Cuerpo: plantilla del tipo de solicitud con los marcadores reemplazados.
+  // {{firmante}} y {{cargo}} salen en MAYÚSCULA y negrita (ver
+  // reemplazarMarcadoresConEstilo) — el resto del texto va normal.
   const datosPlantilla = {
     tipo: tipoEtiqueta,
     firmante: ticket.firmante,
@@ -210,18 +305,33 @@ export async function construirOficioPdf({ ticket, tipoEtiqueta, plantilla, item
     codigo: ticket.code,
     fecha: fechaCorta(ticket.created_at),
     cargo: solicitante?.cargo || "",
+    factura: items?.[0]?.factura || "",
   };
-  const textoBase =
-    plantilla && plantilla.trim()
-      ? reemplazarMarcadores(plantilla, datosPlantilla)
-      : `Por medio del presente se radica una solicitud de "${tipoEtiqueta}" ante SYS HIGEA, con los registros detallados a continuación.`;
 
   const tamanoCuerpo = 10.5;
   const interlineaCuerpo = 15.84; // medido en el oficio de referencia
-  for (const linea of partirEnLineas(textoBase, fuente, tamanoCuerpo, ANCHO_UTIL)) {
-    nuevaPaginaSiHaceFalta(interlineaCuerpo);
-    if (linea) pagina.drawText(linea, { x: MARGEN, y, size: tamanoCuerpo, font: fuente, color: NEGRO });
-    y -= interlineaCuerpo;
+
+  if (plantilla && plantilla.trim()) {
+    const textoConEstilo = reemplazarMarcadoresConEstilo(plantilla, datosPlantilla);
+    const parrafos = tokenizarConEstilo(textoConEstilo);
+    const lineas = partirEnLineasConEstilo(parrafos, fuente, fuenteNegrita, tamanoCuerpo, ANCHO_UTIL);
+    for (const linea of lineas) {
+      nuevaPaginaSiHaceFalta(interlineaCuerpo);
+      let x = MARGEN;
+      for (const fragmento of linea) {
+        const f = fragmento.negrita ? fuenteNegrita : fuente;
+        pagina.drawText(fragmento.texto, { x, y, size: tamanoCuerpo, font: f, color: NEGRO });
+        x += f.widthOfTextAtSize(fragmento.texto, tamanoCuerpo) + f.widthOfTextAtSize(" ", tamanoCuerpo);
+      }
+      y -= interlineaCuerpo;
+    }
+  } else {
+    const textoBase = `Por medio del presente se radica una solicitud de "${tipoEtiqueta}" ante SYS HIGEA, con los registros detallados a continuación.`;
+    for (const linea of partirEnLineas(textoBase, fuente, tamanoCuerpo, ANCHO_UTIL)) {
+      nuevaPaginaSiHaceFalta(interlineaCuerpo);
+      if (linea) pagina.drawText(linea, { x: MARGEN, y, size: tamanoCuerpo, font: fuente, color: NEGRO });
+      y -= interlineaCuerpo;
+    }
   }
 
   // Tabla de registros.
