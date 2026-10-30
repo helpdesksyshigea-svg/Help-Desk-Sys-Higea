@@ -166,7 +166,10 @@ export function Adjuntos({ ticketId, kindsPermitidos = ["oficio", "soporte", "ev
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || "No se pudo eliminar el archivo");
+        // Incluir el status ayuda a diagnosticar: un error genérico sin esto
+        // se ve igual venga de un 403 (sin permiso), un 409 (ticket cerrado)
+        // o un fallo real del servidor.
+        throw new Error(body.error || `No se pudo eliminar el archivo (${res.status})`);
       }
       await cargar();
     } catch (e) {
