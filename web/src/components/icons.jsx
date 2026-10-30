@@ -178,3 +178,9 @@ export const IconLogin = (p) => (
     <path d="M3 12h13M11 7l5 5-5 5" />
   </Svg>
 );
+export const IconSignature = (p) => (
+  <Svg {...p}>
+    <path d="M3 17c2-1 3-3 4-5.5S8.5 6 10 6s1 3-.5 6S6 18 7.5 18s3-2.5 5-5.5 3.5-4 5-2.5-1 4 .5 5.5 3-.5 3-.5" />
+    <path d="M3 21h18" />
+  </Svg>
+);

@@ -6,7 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
-import { IconUser, IconShield, IconInbox, IconInfo, IconClock, IconSettings, IconDatabase, IconEdit, IconKey, IconTrash, IconPlus, IconCheck, IconClose, IconSend, IconCopy } from "../components/icons";
+import { IconUser, IconShield, IconInbox, IconInfo, IconClock, IconSettings, IconDatabase, IconEdit, IconKey, IconTrash, IconPlus, IconCheck, IconClose, IconSend, IconCopy, IconSignature } from "../components/icons";
 
 const inputClass =
   "w-full rounded-[var(--radius-input)] border border-[var(--color-ink)]/20 bg-[var(--color-ink)]/5 px-3 py-2 text-sm outline-none focus:border-[var(--color-ink)]";
@@ -312,7 +312,7 @@ function Usuarios() {
       </Card>
 
       <div className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border)]">
-        <div className="hidden grid-cols-[1fr_88px_160px_170px] items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)] sm:grid">
+        <div className="hidden grid-cols-[1fr_88px_160px_210px] items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)] sm:grid">
           <span>Usuario</span>
           <span className="text-center">Código</span>
           <span>Rol</span>
@@ -322,7 +322,7 @@ function Usuarios() {
           {usuarios.map((u) => (
             <li
               key={u.id}
-              className={`grid grid-cols-1 items-center gap-2 px-4 py-3 sm:grid-cols-[1fr_88px_160px_170px] sm:gap-3 ${
+              className={`grid grid-cols-1 items-center gap-2 px-4 py-3 sm:grid-cols-[1fr_88px_160px_210px] sm:gap-3 ${
                 !u.activo ? "opacity-60" : ""
               }`}
             >
@@ -339,22 +339,6 @@ function Usuarios() {
                       Desactivado
                     </span>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => alternarFirmaDigital(u)}
-                    title={
-                      u.beta_firma_oficio
-                        ? "Firma digital activada — clic para desactivar"
-                        : "Firma digital desactivada — clic para activar (permite firmar el oficio generado en vez de adjuntar uno escaneado)"
-                    }
-                    className={`rounded-[var(--radius-tag)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.04em] transition-colors ${
-                      u.beta_firma_oficio
-                        ? "bg-[var(--color-state-cerrado-bg)] text-[var(--color-state-cerrado)]"
-                        : "bg-[var(--color-ink)]/5 text-[var(--color-muted)] hover:bg-[var(--color-ink)]/10"
-                    }`}
-                  >
-                    Firma digital {u.beta_firma_oficio ? "activa" : "inactiva"}
-                  </button>
                 </div>
                 <div className="flex flex-wrap items-center gap-1 text-xs text-[var(--color-muted)]">
                   <CampoEditable
@@ -401,6 +385,13 @@ function Usuarios() {
               <div className="flex flex-nowrap items-center justify-end gap-1">
                 <Button variant={u.activo ? "danger" : "ghost"} onClick={() => alternarActivo(u)} title={u.activo ? "Desactivar" : "Activar"}>
                   {u.activo ? <IconClose size={14} /> : <IconCheck size={14} />}
+                </Button>
+                <Button
+                  variant={u.beta_firma_oficio ? "accent" : "ghost"}
+                  onClick={() => alternarFirmaDigital(u)}
+                  title={u.beta_firma_oficio ? "Firma digital activada — clic para desactivar" : "Activar firma digital para el oficio generado"}
+                >
+                  <IconSignature size={14} />
                 </Button>
                 <Button
                   variant="ghost"
