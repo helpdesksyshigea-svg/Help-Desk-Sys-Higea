@@ -8,7 +8,14 @@
   del ticket conservan su paleta semáforo aparte, para no competir con el
   acento de acción.
 */
-@theme {
+/*
+  "static" (no tree-shakeable): varios tokens de aquí abajo (los
+  --color-state-*) se referencian desde JSX con plantillas dinámicas
+  (`var(--color-state-${estado})`), que Tailwind no puede resolver en
+  tiempo de build — sin "static" los descarta del CSS final por no verlos
+  usados en ninguna clase literal, y el pill de estado se queda sin color.
+*/
+@theme static {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
 
   --color-ink: #012624;
