@@ -4,9 +4,34 @@ import { useAuth } from "../context/AuthContext";
 import { apiFetch } from "../lib/api";
 import { filtrosPorRol } from "../lib/filters";
 import { RequirePermission } from "./RequirePermission";
-import { IconInbox, IconDashboard, IconSettings, IconInfo, IconClock, IconCheck, IconAlert, IconDatabase, IconBook } from "./icons";
+import {
+  IconInbox,
+  IconDashboard,
+  IconSettings,
+  IconInfo,
+  IconClock,
+  IconCheck,
+  IconAlert,
+  IconDatabase,
+  IconBook,
+  IconSend,
+  IconReturn,
+  IconEdit,
+  IconEye,
+} from "./icons";
 
-const ICONOS = { accion: IconAlert, vencidos: IconClock, todos: IconCheck };
+const ICONOS = {
+  accion: IconAlert,
+  vencidos: IconClock,
+  pendiente: IconClock,
+  higea: IconSend,
+  abiertos: IconInbox,
+  en_proceso: IconEdit,
+  requiere_info: IconInfo,
+  devueltos: IconReturn,
+  cerrados: IconCheck,
+  todos: IconEye,
+};
 
 function kb(bytes) {
   if (bytes > 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + " MB";
@@ -64,12 +89,17 @@ export function Sidebar() {
     };
   }, []);
 
-  const itemClass = (activo) =>
-    `flex min-w-0 items-center justify-between gap-2 rounded-[var(--radius-button)] px-3 py-2 text-sm font-medium transition-colors ${
-      activo
-        ? "bg-[var(--color-accent)] text-[var(--color-accent-ink)]"
-        : "text-[var(--color-ink)] hover:bg-[var(--color-ink)]/[0.05]"
+  const itemClass = (activo, alerta) => {
+    const base = "flex min-w-0 items-center justify-between gap-2 rounded-[var(--radius-button)] px-3 py-2.5 text-sm font-medium transition-colors";
+    if (alerta) {
+      return `${base} ${
+        activo ? "bg-[#b3362a] text-white" : "bg-[#fbe6e3] text-[#b3362a] hover:bg-[#f6cdc5]"
+      }`;
+    }
+    return `${base} ${
+      activo ? "bg-[var(--color-accent)] text-[var(--color-accent-ink)]" : "text-[var(--color-ink)] hover:bg-[var(--color-ink)]/[0.05]"
     }`;
+  };
 
   return (
     <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-[var(--color-border)] bg-[var(--color-canvas)] px-3 py-4 md:flex">
@@ -83,7 +113,7 @@ export function Sidebar() {
         <RequirePermission permisos={["reportes.ver_dashboard"]}>
           <NavLink to="/dashboard" className={({ isActive }) => itemClass(isActive)}>
             <span className="flex items-center gap-2">
-              <IconDashboard size={16} />
+              <IconDashboard size={19} />
               Dashboard ejecutivo
             </span>
           </NavLink>
@@ -91,7 +121,7 @@ export function Sidebar() {
 
         <NavLink to="/" end className={({ isActive }) => itemClass(isActive && !params.get("filtro"))}>
           <span className="flex min-w-0 items-center gap-2">
-            <IconInbox size={16} className="shrink-0" />
+            <IconInbox size={19} className="shrink-0" />
             <span className="truncate">Bandeja</span>
           </span>
           <span className="shrink-0 text-xs opacity-70">{tickets.length || ""}</span>
@@ -102,20 +132,23 @@ export function Sidebar() {
             const Icono = ICONOS[clave] || IconClock;
             const total = tickets.filter(fn).length;
             // "Requiere tu acción" con pendientes reales se marca aparte de la
-            // selección normal (lima = "estás viendo esto"): el conteo en rojo
-            // con parpadeo es la única señal de "esto necesita tu atención
-            // ahora", para que no se pierda entre el resto de filtros en 0.
+            // selección normal: fondo rojo sólido (relleno completo, no solo
+            // texto) es la única señal de "esto necesita tu atención ahora",
+            // para que no se pierda entre el resto de filtros en 0.
             const esAlerta = clave === "accion" && total > 0;
+            const activo = filtroActivo === clave;
             return (
-              <NavLink key={clave} to={`/?filtro=${clave}`} className={() => itemClass(filtroActivo === clave)}>
+              <NavLink key={clave} to={`/?filtro=${clave}`} className={() => itemClass(activo, esAlerta)}>
                 <span className="flex min-w-0 flex-1 items-center gap-2">
-                  <Icono size={14} className={`shrink-0 ${esAlerta ? "text-[#b3362a]" : ""}`} />
-                  <span className={`min-w-0 flex-1 truncate ${esAlerta ? "text-[#b3362a]" : ""}`}>{etiqueta}</span>
+                  <Icono size={19} className="shrink-0" />
+                  <span className="min-w-0 flex-1 truncate">{etiqueta}</span>
                 </span>
                 <span
                   className={
                     esAlerta
-                      ? "shrink-0 animate-pulse rounded-full bg-[#b3362a] px-1.5 py-0.5 text-[10px] font-bold text-white"
+                      ? `shrink-0 rounded-[var(--radius-tag)] px-1.5 py-0.5 text-[10px] font-bold ${
+                          activo ? "animate-pulse bg-white text-[#b3362a]" : "animate-pulse bg-[#b3362a] text-white"
+                        }`
                       : "shrink-0 text-xs opacity-70"
                   }
                 >
@@ -134,20 +167,20 @@ export function Sidebar() {
         <RequirePermission permisos={["usuarios.gestionar", "roles.gestionar"]}>
           <NavLink to="/admin" className={({ isActive }) => itemClass(isActive)}>
             <span className="flex items-center gap-2">
-              <IconSettings size={16} />
+              <IconSettings size={19} />
               Administración
             </span>
           </NavLink>
         </RequirePermission>
         <NavLink to="/manual" className={({ isActive }) => itemClass(isActive)}>
           <span className="flex items-center gap-2">
-            <IconBook size={16} />
+            <IconBook size={19} />
             Manual de usuario
           </span>
         </NavLink>
         <NavLink to="/ayuda" className={({ isActive }) => itemClass(isActive)}>
           <span className="flex items-center gap-2">
-            <IconInfo size={16} />
+            <IconInfo size={19} />
             Ayuda
           </span>
         </NavLink>
