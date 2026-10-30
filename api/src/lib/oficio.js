@@ -118,8 +118,8 @@ function lineasDobles(pagina, y, x1, x2) {
  * confirmado para entonces.
  */
 const CONFIG_OFICIO_DEFAULT = {
-  destinatario_nombre: "SYS SOFTWARE Y SOLUCIONES LTDA",
-  destinatario_ciudad: "Pasto, Nariño",
+  destinatario_nombre: "SOPORTE TÉCNICO SYS HIGEA",
+  destinatario_ciudad: "Mesa de Ayuda",
   texto_cierre: "Agradezco de antemano su valiosa colaboración.",
   texto_despedida: "Atentamente,",
 };
