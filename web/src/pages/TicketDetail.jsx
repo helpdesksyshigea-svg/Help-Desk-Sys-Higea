@@ -8,7 +8,7 @@ import { StatusTag } from "../components/StatusTag";
 import { Adjuntos } from "../components/Adjuntos";
 import { ModalFirmarOficio, oficioGeneradoDe } from "../components/ModalFirmarOficio";
 import { useToast } from "../context/ToastContext";
-import { ESPERANDO } from "../lib/filters";
+import { esperando } from "../lib/filters";
 import { fechaCorta, fechaHora } from "../lib/fecha";
 import { IconArrowLeft, IconCheck, IconReturn, IconInbox, IconInfo, IconSend, IconUser, IconPaperclip, IconTrash, IconEdit } from "../components/icons";
 
@@ -22,8 +22,13 @@ function iniciales(nombre) {
 }
 
 const ACCIONES = [
-  { ruta: "aprobar", permiso: "tickets.aprobar", estados: ["pendiente"], label: "Aprobar y enviar a SYS HIGEA", icon: IconCheck, variant: "accent", notaObligatoria: false, exito: "Ticket aprobado y enviado a SYS HIGEA" },
-  { ruta: "devolver", permiso: "tickets.devolver", estados: ["pendiente"], label: "Devolver al facturador", icon: IconReturn, variant: "danger", notaObligatoria: true, exito: "Ticket devuelto al facturador" },
+  // Primera instancia, solo para tickets radicados por un médico (ticket.etapa_aprobacion
+  // === "coordinador_medico"): el coordinador médico revisa antes que cualquier
+  // supervisora pueda actuar — ver etapaRequerida/etapaBloqueada en el filtro "disponibles".
+  { ruta: "aprobar-coordinador", permiso: "tickets.aprobar_coordinador", estados: ["pendiente"], etapaRequerida: "coordinador_medico", label: "Aprobar como coordinador médico", icon: IconCheck, variant: "accent", notaObligatoria: false, exito: "Ticket aprobado, enviado a facturación" },
+  { ruta: "devolver-coordinador", permiso: "tickets.devolver_coordinador", estados: ["pendiente"], etapaRequerida: "coordinador_medico", label: "Devolver al médico", icon: IconReturn, variant: "danger", notaObligatoria: true, exito: "Ticket devuelto al médico" },
+  { ruta: "aprobar", permiso: "tickets.aprobar", estados: ["pendiente"], etapaBloqueada: "coordinador_medico", label: "Aprobar y enviar a SYS HIGEA", icon: IconCheck, variant: "accent", notaObligatoria: false, exito: "Ticket aprobado y enviado a SYS HIGEA" },
+  { ruta: "devolver", permiso: "tickets.devolver", estados: ["pendiente"], etapaBloqueada: "coordinador_medico", label: "Devolver al facturador", icon: IconReturn, variant: "danger", notaObligatoria: true, exito: "Ticket devuelto al facturador" },
   { ruta: "tomar", permiso: "tickets.tomar", estados: ["aprobado"], label: "Tomar caso", icon: IconInbox, variant: "accent", notaObligatoria: false, exito: "Caso tomado" },
   { ruta: "pedir-info", permiso: "tickets.pedir_info", estados: ["en_proceso"], label: "Pedir información", icon: IconInfo, variant: "ghost", notaObligatoria: true, exito: "Se solicitó información al facturador", requiereAsignado: true },
   { ruta: "responder-info", permiso: "tickets.responder_info", estados: ["requiere_info"], label: "Responder a SYS HIGEA", icon: IconSend, variant: "ghost", notaObligatoria: true, exito: "Respuesta enviada a SYS HIGEA" },
@@ -34,8 +39,9 @@ const ACCIONES = [
 
 const EVENTO_LABEL = {
   creado: "Ticket radicado",
+  aprobado_coordinador: "Aprobado por coordinador médico",
   aprobado: "Aprobado",
-  devuelto: "Devuelto al facturador",
+  devuelto: "Devuelto",
   editado: "Corregido y reenviado",
   tomado: "Caso tomado por SYS HIGEA",
   liberado: "Caso liberado, vuelve a estar disponible",
@@ -50,7 +56,7 @@ const EVENTO_LABEL = {
 // cuenta (facturador/supervisora) — "tomado"/"cerrado" ya llevan el nombre
 // del ingeniero en el texto, porque "por" ahí es la cuenta compartida de
 // SYS HIGEA, no la persona real.
-const EVENTOS_CON_AUTOR = new Set(["creado", "aprobado", "devuelto", "editado", "respondido", "reabierto"]);
+const EVENTOS_CON_AUTOR = new Set(["creado", "aprobado_coordinador", "aprobado", "devuelto", "editado", "respondido", "reabierto"]);
 
 function etiquetaEvento(ev) {
   const base = EVENTO_LABEL[ev.tipo_evento] || ev.tipo_evento;
@@ -197,12 +203,19 @@ export function TicketDetail() {
     if (a.soloAsignado && ticket.asignado_a !== perfil.id) return true;
     return false;
   };
-  const disponibles = ACCIONES.filter((a) => tienePermiso(a.permiso) && a.estados.includes(ticket.estado) && !bloqueadoParaMi(a));
+  const disponibles = ACCIONES.filter(
+    (a) =>
+      tienePermiso(a.permiso) &&
+      a.estados.includes(ticket.estado) &&
+      !bloqueadoParaMi(a) &&
+      (!a.etapaRequerida || ticket.etapa_aprobacion === a.etapaRequerida) &&
+      (!a.etapaBloqueada || ticket.etapa_aprobacion !== a.etapaBloqueada),
+  );
 
   const esSolicitante = perfil.id === ticket.solicitante_id && tienePermiso("tickets.crear");
   const puedeEditar =
     (esSolicitante && ["pendiente", "devuelto"].includes(ticket.estado)) ||
-    (tienePermiso("tickets.aprobar") && ticket.estado === "devuelto");
+    ((tienePermiso("tickets.aprobar") || tienePermiso("tickets.aprobar_coordinador")) && ticket.estado === "devuelto");
 
   const items = Array.isArray(ticket.items) ? ticket.items : [];
   const eventos = Array.isArray(ticket.eventos) ? ticket.eventos : [];
@@ -403,7 +416,7 @@ export function TicketDetail() {
 
       {tienePermisoAccion && disponibles.length === 0 && (
         <Card className="text-sm text-[var(--color-muted)]">
-          No tienes ninguna acción disponible mientras el ticket esté <b>{ESPERANDO[ticket.estado]?.toLowerCase()}</b>.
+          No tienes ninguna acción disponible mientras el ticket esté <b>{esperando(ticket)?.toLowerCase()}</b>.
         </Card>
       )}
 

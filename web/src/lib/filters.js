@@ -12,6 +12,12 @@
 // en cero aunque sí tuviera tickets pendientes de aprobar.
 function rolBase(rol) {
   if (rol?.includes("supervisora")) return "supervisora_facturacion";
+  if (rol === "coordinador_medico") return "coordinador_medico";
+  // El médico radica y responde solicitudes de información igual que un
+  // facturador — mismo set de filtros de bandeja, la diferencia está en que
+  // su ticket pasa primero por el coordinador médico (eso lo decide el backend
+  // con etapa_aprobacion, no la bandeja).
+  if (rol === "medico") return "facturador";
   if (rol === "higea_soporte" || rol === "facturador" || rol === "admin") return rol;
   return null;
 }
@@ -44,6 +50,14 @@ export function filtrosPorRol(rol, userId) {
         ["cerrados", "Cerrados", (t) => t.estado === "cerrado"],
         ["todos", "Todos", () => true],
       ],
+      coordinador_medico: [
+        ["accion", "Requiere tu acción", (t) => necesitaAccion(t, "coordinador_medico", userId)],
+        ["facturacion", "En facturación", (t) => t.estado === "pendiente" && !t.etapa_aprobacion],
+        ["higea", "En SYS HIGEA", (t) => ["aprobado", "en_proceso", "requiere_info"].includes(t.estado)],
+        ["devueltos", "Devueltos", (t) => t.estado === "devuelto"],
+        ["cerrados", "Cerrados", (t) => t.estado === "cerrado"],
+        ["todos", "Todos", () => true],
+      ],
       admin: [["todos", "Todos", () => true]],
     }[base] || FILTROS_POR_ROL_DEFAULT
   );
@@ -58,15 +72,23 @@ const FILTROS_POR_ROL_DEFAULT = [
 
 export const FILTRO_DEFAULT = {
   supervisora_facturacion: "accion",
+  coordinador_medico: "accion",
   facturador: "accion",
   higea_soporte: "accion",
   admin: "todos",
 };
 
 // "Esperando a quién" por estado — mismo texto para cualquier rol que mire el ticket.
+export function esperando(ticket) {
+  if (ticket.estado === "pendiente" && ticket.etapa_aprobacion === "coordinador_medico") {
+    return "Esperando aprobación del coordinador médico";
+  }
+  return ESPERANDO[ticket.estado];
+}
+
 export const ESPERANDO = {
-  pendiente: "Esperando aprobación",
-  devuelto: "Esperando corrección de Facturación",
+  pendiente: "Esperando aprobación de facturación",
+  devuelto: "Esperando corrección de quien radicó",
   aprobado: "Esperando que SYS HIGEA tome el caso",
   en_proceso: "En gestión de SYS HIGEA",
   requiere_info: "Esperando respuesta de Facturación",
@@ -75,13 +97,18 @@ export const ESPERANDO = {
 
 // Un rol "necesita actuar" sobre un ticket si el estado actual es el que a ese
 // rol le toca mover. Los roles combinados (ej. supervisora_admin) heredan el
-// comportamiento del rol base cuyo nombre contienen.
+// comportamiento del rol base cuyo nombre contienen. Para "pendiente", quien
+// actúa depende de etapa_aprobacion: mientras valga "coordinador_medico" le
+// toca al coordinador, no a supervisora; una vez se limpia (o nunca se fijó,
+// como con facturador), le toca a cualquier supervisora.
 export function necesitaAccion(ticket, rol, userId) {
   const esSupervisora = rol?.includes("supervisora");
+  const esCoordinador = rol === "coordinador_medico";
   const esHigea = rol === "higea_soporte";
-  const esFacturador = rol === "facturador";
+  const esFacturador = rol === "facturador" || rol === "medico";
   return (
-    (esSupervisora && ticket.estado === "pendiente") ||
+    (esSupervisora && ticket.estado === "pendiente" && !ticket.etapa_aprobacion) ||
+    (esCoordinador && ticket.estado === "pendiente" && ticket.etapa_aprobacion === "coordinador_medico") ||
     (esHigea && ticket.estado === "aprobado") ||
     (esHigea && ticket.estado === "en_proceso" && userId && ticket.asignado_a === userId) ||
     (esFacturador && ["devuelto", "requiere_info"].includes(ticket.estado))

@@ -6,6 +6,8 @@ const ROL_LABELS = {
   supervisora_admin: "Supervisora / Administradora",
   facturador: "Facturador",
   higea_soporte: "Soporte Técnico (SYS HIGEA)",
+  medico: "Médico",
+  coordinador_medico: "Coordinador Médico",
 };
 
 export function nombreLegible(nombre) {

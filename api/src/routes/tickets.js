@@ -156,12 +156,23 @@ async function cargarTicketCompleto(id) {
     .eq("ticket_id", id)
     .order("created_at", { ascending: true });
   if (eventosError) throw new Error(`cargando eventos del ticket ${id}: ${eventosError.message}`);
-  const { data: aprobacion, error: aprobacionError } = await supabase.from("aprobaciones").select("*").eq("ticket_id", id).maybeSingle();
-  if (aprobacionError) throw new Error(`cargando aprobación del ticket ${id}: ${aprobacionError.message}`);
+  // Puede haber hasta dos filas por ticket: la del coordinador médico (etapa
+  // "coordinador_medico") y la final de supervisora (etapa "final") — ya no es
+  // una sola decisión por ticket, así que no se puede usar .maybeSingle() aquí.
+  const { data: aprobaciones, error: aprobacionError } = await supabase.from("aprobaciones").select("*").eq("ticket_id", id);
+  if (aprobacionError) throw new Error(`cargando aprobaciones del ticket ${id}: ${aprobacionError.message}`);
+  const aprobacionFinal = (aprobaciones || []).find((a) => a.etapa === "final") || null;
   const { data: slaConfig, error: slaError } = await supabase.from("sla_config").select("*").eq("prioridad", ticket.prioridad).maybeSingle();
   if (slaError) throw new Error(`cargando SLA '${ticket.prioridad}': ${slaError.message}`);
   const sla = await calcularSla(ticket, eventos || [], slaConfig?.dias_habiles ?? 2);
-  return { ...ticket, items: items || [], eventos: eventos || [], aprobacion: aprobacion || null, ...sla };
+  return {
+    ...ticket,
+    items: items || [],
+    eventos: eventos || [],
+    aprobacion: aprobacionFinal,
+    aprobaciones: aprobaciones || [],
+    ...sla,
+  };
 }
 
 // ---------- oficio generado (beta): plantilla + firma de una persona ----------
@@ -229,6 +240,10 @@ ticketsRouter.post("/tickets", requirePermission("tickets.crear"), upload.single
   // antes de radicar, nunca se estampa sola.
   const firmaConfirmada = req.user.beta_firma_oficio && payload.firmaConfirmada === true;
 
+  // Solo el rol "médico" pasa primero por un coordinador médico; facturador (y
+  // cualquier otro rol) sigue el flujo de siempre: directo a supervisora.
+  const etapaAprobacion = req.user.rol === "medico" ? "coordinador_medico" : null;
+
   let ticket;
   try {
     ticket = await insertarTicketConCodigoUnico(
@@ -236,6 +251,7 @@ ticketsRouter.post("/tickets", requirePermission("tickets.crear"), upload.single
         tipo,
         prioridad,
         estado: "pendiente",
+        etapa_aprobacion: etapaAprobacion,
         solicitante_id: req.user.id,
         firmante: firmante.trim(),
         observacion: observacion || null,
@@ -352,7 +368,12 @@ ticketsRouter.patch("/tickets/:id", upload.single("oficio"), async (req, res) =>
 const ESTADOS_PRE_APROBACION = ["pendiente", "devuelto"];
 
 function puedeVerEstadosPreAprobacion(user) {
-  return user.permisos.has("tickets.aprobar") || user.permisos.has("tickets.devolver");
+  return (
+    user.permisos.has("tickets.aprobar") ||
+    user.permisos.has("tickets.devolver") ||
+    user.permisos.has("tickets.aprobar_coordinador") ||
+    user.permisos.has("tickets.devolver_coordinador")
+  );
 }
 
 function filtrarVisibles(tickets, user) {
@@ -543,6 +564,12 @@ ticketsRouter.post("/tickets/:id/aprobar", (req, res) =>
     tipoEvento: "aprobado",
     notaObligatoria: false,
     async validar(ticket) {
+      // Si el ticket lo radicó un médico, primero necesita el visto bueno del
+      // coordinador médico (ver POST /tickets/:id/aprobar-coordinador) — una
+      // supervisora no puede saltarse ese paso.
+      if (ticket.etapa_aprobacion) {
+        return "Este ticket requiere primero la aprobación del coordinador médico";
+      }
       const { data: adjuntos, error } = await supabase
         .from("ticket_adjuntos")
         .select("id")
@@ -556,13 +583,17 @@ ticketsRouter.post("/tickets/:id/aprobar", (req, res) =>
     },
     async efecto(ticket, req) {
       const aprobadoAt = new Date().toISOString();
-      const { error } = await supabase.from("aprobaciones").upsert({
-        ticket_id: ticket.id,
-        decision: "aprobado",
-        hash_items: hashItems(ticket.items),
-        nota: req.body?.nota || null,
-        decidido_por: req.user.id,
-      });
+      const { error } = await supabase.from("aprobaciones").upsert(
+        {
+          ticket_id: ticket.id,
+          etapa: "final",
+          decision: "aprobado",
+          hash_items: hashItems(ticket.items),
+          nota: req.body?.nota || null,
+          decidido_por: req.user.id,
+        },
+        { onConflict: "ticket_id,etapa" },
+      );
       if (error) throw error;
       const patch = { aprobado_at: aprobadoAt };
       // Igual que al radicar: beta, coexiste con el oficio adjunto manual, y
@@ -587,6 +618,81 @@ ticketsRouter.post("/tickets/:id/devolver", (req, res) =>
     nuevoEstado: "devuelto",
     tipoEvento: "devuelto",
     notaObligatoria: true,
+    async validar(ticket) {
+      if (ticket.etapa_aprobacion) {
+        return "Este ticket requiere primero la revisión del coordinador médico";
+      }
+      return null;
+    },
+  })
+);
+
+// Primera instancia de aprobación para tickets radicados por un médico: el
+// coordinador médico revisa antes de que pase a supervisora de facturación.
+// No cambia tickets.estado (sigue "pendiente") — solo libera etapa_aprobacion
+// para que el POST /aprobar normal (cualquier supervisora) ya pueda actuar.
+ticketsRouter.post("/tickets/:id/aprobar-coordinador", (req, res) =>
+  transicion(req, res, {
+    permiso: "tickets.aprobar_coordinador",
+    estadosValidos: ["pendiente"],
+    nuevoEstado: "pendiente",
+    tipoEvento: "aprobado_coordinador",
+    notaObligatoria: false,
+    async validar(ticket) {
+      if (ticket.etapa_aprobacion !== "coordinador_medico") {
+        return "Este ticket no está pendiente de aprobación del coordinador médico";
+      }
+      return null;
+    },
+    async efecto(ticket, req) {
+      const { error } = await supabase.from("aprobaciones").upsert(
+        {
+          ticket_id: ticket.id,
+          etapa: "coordinador_medico",
+          decision: "aprobado",
+          nota: req.body?.nota || null,
+          decidido_por: req.user.id,
+        },
+        { onConflict: "ticket_id,etapa" },
+      );
+      if (error) throw error;
+      return { etapa_aprobacion: null };
+    },
+    textoEvento(req, nota) {
+      return nota ? `Aprobado por coordinador médico — ${nota}` : "Aprobado por coordinador médico";
+    },
+  })
+);
+
+ticketsRouter.post("/tickets/:id/devolver-coordinador", (req, res) =>
+  transicion(req, res, {
+    permiso: "tickets.devolver_coordinador",
+    estadosValidos: ["pendiente"],
+    nuevoEstado: "devuelto",
+    tipoEvento: "devuelto",
+    notaObligatoria: true,
+    async validar(ticket) {
+      if (ticket.etapa_aprobacion !== "coordinador_medico") {
+        return "Este ticket no está pendiente de revisión del coordinador médico";
+      }
+      return null;
+    },
+    async efecto(ticket, req) {
+      const { error } = await supabase.from("aprobaciones").upsert(
+        {
+          ticket_id: ticket.id,
+          etapa: "coordinador_medico",
+          decision: "devuelto",
+          nota: req.body?.nota || null,
+          decidido_por: req.user.id,
+        },
+        { onConflict: "ticket_id,etapa" },
+      );
+      if (error) throw error;
+      // etapa_aprobacion se deja intacta ("coordinador_medico"): al corregir y
+      // reenviar, el ticket vuelve a este mismo paso, no salta a supervisora.
+      return {};
+    },
   })
 );
 

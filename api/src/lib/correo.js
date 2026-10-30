@@ -55,6 +55,7 @@ const ASUNTOS = {
   respondido: (code) => `[Mesa de ayuda] Facturación respondió sobre el ticket ${code}`,
   cerrado: (code) => `[Mesa de ayuda] Ticket ${code} cerrado`,
   reabierto: (code) => `[Mesa de ayuda] Ticket ${code} reabierto`,
+  aprobado_coordinador: (code) => `[Mesa de ayuda] Ticket ${code} aprobado por coordinador médico, esperando aprobación de facturación`,
 };
 
 // Punto único llamado desde las transiciones de tickets.js. Resuelve destinatarios
@@ -68,6 +69,13 @@ export async function notificarTransicion(evento, ticket, solicitanteEmail) {
 
     let destinatarios = [];
     if (evento === "creado") {
+      // Un ticket radicado por un médico espera primero al coordinador médico,
+      // no a supervisora — mismo criterio que usa tickets.js para decidir
+      // etapa_aprobacion al crear el ticket.
+      destinatarios = await correosConPermiso(
+        ticket.etapa_aprobacion === "coordinador_medico" ? "tickets.aprobar_coordinador" : "tickets.aprobar",
+      );
+    } else if (evento === "aprobado_coordinador") {
       destinatarios = await correosConPermiso("tickets.aprobar");
     } else if (evento === "aprobado" || evento === "reabierto") {
       destinatarios = [...(await correosConPermiso("tickets.tomar")), solicitanteEmail];
