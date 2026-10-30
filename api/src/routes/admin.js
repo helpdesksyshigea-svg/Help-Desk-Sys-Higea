@@ -381,7 +381,7 @@ adminRouter.delete("/admin/roles/:id", requirePermission("roles.gestionar"), asy
 
 // `referencia` describe dónde más vive la clave de este catálogo (la tabla/columna
 // de tickets que la usa), para poder renombrarla en cascada sin dejar tickets huérfanos.
-function catalogoRouter(path, tabla, referencia, { permiteEliminar = false, camposExtra = [] } = {}) {
+function catalogoRouter(path, tabla, referencia, { permiteEliminar = false, verificarUsoAntesDeEliminar = false, camposExtra = [] } = {}) {
   adminRouter.get(`/admin/${path}`, requirePermission("config.editar"), async (req, res) => {
     const { data, error } = await supabase.from(tabla).select("*").order("etiqueta");
     if (error) return res.status(500).json({ error: error.message });
@@ -443,21 +443,47 @@ function catalogoRouter(path, tabla, referencia, { permiteEliminar = false, camp
     res.json(data);
   });
 
-  // Solo para catálogos donde el valor que queda en los tickets ya es texto
-  // independiente de la clave (ej. ingenieros: se guarda el nombre, no la
-  // clave), así que borrar la fila del catálogo no deja tickets huérfanos.
-  // tipos/motivos NO lo habilitan — ahí la clave sí queda referenciada.
+  // Ingenieros guarda el nombre en los tickets, no la clave (texto ya
+  // independiente del catálogo), así que borrar la fila nunca deja tickets
+  // huérfanos ahí. Tipos y motivos sí guardan la clave tal cual en
+  // tickets.tipo / ticket_items.motivo — borrar una clave en uso dejaría esos
+  // registros apuntando a nada, así que primero se verifica que no esté en
+  // uso (mismo criterio que ya usa DELETE /admin/roles/:id con usuarios
+  // asignados); si está en uso, la única opción es desactivarla.
   if (permiteEliminar) {
     adminRouter.delete(`/admin/${path}/:clave`, requirePermission("config.editar"), async (req, res) => {
-      const { error } = await supabase.from(tabla).delete().eq("clave", req.params.clave);
+      const clave = req.params.clave;
+      if (verificarUsoAntesDeEliminar) {
+        const { count, error: countError } = await supabase
+          .from(referencia.tabla)
+          .select("*", { count: "exact", head: true })
+          .eq(referencia.columna, clave);
+        if (countError) return res.status(500).json({ error: countError.message });
+        if (count > 0) {
+          return res.status(409).json({
+            error: `No se puede eliminar: ${count} registro(s) ya usan '${clave}'. Desactívala en su lugar.`,
+          });
+        }
+      }
+      const { error } = await supabase.from(tabla).delete().eq("clave", clave);
       if (error) return res.status(500).json({ error: error.message });
       res.json({ ok: true });
     });
   }
 }
 
-catalogoRouter("tipos", "tipos_solicitud", { tabla: "tickets", columna: "tipo" }, { camposExtra: ["campos_obligatorios", "plantilla_oficio"] });
-catalogoRouter("motivos", "motivos", { tabla: "ticket_items", columna: "motivo" });
+catalogoRouter(
+  "tipos",
+  "tipos_solicitud",
+  { tabla: "tickets", columna: "tipo" },
+  { permiteEliminar: true, verificarUsoAntesDeEliminar: true, camposExtra: ["campos_obligatorios", "plantilla_oficio"] },
+);
+catalogoRouter(
+  "motivos",
+  "motivos",
+  { tabla: "ticket_items", columna: "motivo" },
+  { permiteEliminar: true, verificarUsoAntesDeEliminar: true },
+);
 catalogoRouter("ingenieros", "ingenieros_higea", { tabla: "tickets", columna: "agente_higea" }, { permiteEliminar: true });
 
 // ======================= SLA =======================

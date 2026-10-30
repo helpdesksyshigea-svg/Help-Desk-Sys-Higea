@@ -52,8 +52,8 @@ export function Admin() {
       <div className="grid gap-6">
         {tab === "usuarios" && <Usuarios />}
         {tab === "roles" && <Roles />}
-        {tab === "tipos" && <Catalogo titulo="Tipos de solicitud" path="tipos" camposConfigurables plantillaOficio />}
-        {tab === "motivos" && <Catalogo titulo="Motivos" path="motivos" />}
+        {tab === "tipos" && <Catalogo titulo="Tipos de solicitud" path="tipos" camposConfigurables plantillaOficio permiteEliminar />}
+        {tab === "motivos" && <Catalogo titulo="Motivos" path="motivos" permiteEliminar />}
         {tab === "ingenieros" && <Catalogo titulo="Ingenieros SYS HIGEA" path="ingenieros" claveAutomatica permiteEliminar />}
         {tab === "sla" && <Sla />}
         {tab === "festivos" && <Festivos />}
