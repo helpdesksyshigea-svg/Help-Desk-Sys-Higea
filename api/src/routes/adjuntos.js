@@ -136,6 +136,54 @@ adjuntosRouter.patch("/tickets/:id/adjuntos/:adjuntoId", async (req, res) => {
   res.json(actualizado);
 });
 
+// ---------- eliminar ----------
+// Puede eliminarlo quien lo subió (corrige su propio error) o quien ya tiene
+// visibilidad total del ticket (supervisora/admin/SYS HIGEA) — no cualquiera
+// que simplemente pueda ver el ticket. Un ticket cerrado no permite borrar
+// adjuntos: son la evidencia del cierre, igual de inmutables que el resto
+// del historial (ticket_eventos ya es append-only por el mismo motivo).
+adjuntosRouter.delete("/tickets/:id/adjuntos/:adjuntoId", async (req, res) => {
+  const { data: adjunto, error: findError } = await supabase
+    .from("ticket_adjuntos")
+    .select("ticket_id, storage_path, nombre_original, subido_por, kind")
+    .eq("id", req.params.adjuntoId)
+    .maybeSingle();
+  if (findError) return res.status(500).json({ error: findError.message });
+  if (!adjunto || adjunto.ticket_id !== req.params.id) {
+    return res.status(404).json({ error: "Adjunto no encontrado" });
+  }
+
+  const { data: ticket, error: ticketError } = await supabase.from("tickets").select("estado").eq("id", req.params.id).maybeSingle();
+  if (ticketError) return res.status(500).json({ error: ticketError.message });
+  if (!ticket) return res.status(404).json({ error: "Ticket no encontrado" });
+
+  const puedeEliminar = adjunto.subido_por === req.user.id || req.user.permisos.has("tickets.ver_todos");
+  if (!puedeEliminar) {
+    return res.status(403).json({ error: "No tiene permiso para eliminar este adjunto" });
+  }
+  if (ticket.estado === "cerrado") {
+    return res.status(409).json({ error: "No se pueden eliminar adjuntos de un ticket cerrado" });
+  }
+
+  const { error: rmError } = await supabase.storage.from(BUCKET).remove([adjunto.storage_path]);
+  if (rmError) console.error(`[adjuntos] no se pudo retirar ${adjunto.storage_path} de Storage:`, rmError.message);
+
+  const { error: deleteError } = await supabase.from("ticket_adjuntos").delete().eq("id", req.params.adjuntoId);
+  if (deleteError) return res.status(500).json({ error: deleteError.message });
+
+  const { error: eventoError } = await supabase.from("ticket_eventos").insert({
+    ticket_id: req.params.id,
+    tipo_evento: "adjunto_eliminado",
+    estado_anterior: ticket.estado,
+    estado_nuevo: ticket.estado,
+    por: req.user.id,
+    texto: `Adjunto eliminado: ${adjunto.nombre_original} (${adjunto.kind})`,
+  });
+  if (eventoError) console.error(`[adjuntos] adjunto eliminado, pero falló el evento de historial:`, eventoError.message);
+
+  res.json({ ok: true });
+});
+
 // ---------- url firmada para ver/descargar ----------
 adjuntosRouter.get("/tickets/:id/adjuntos/:adjuntoId/url", async (req, res) => {
   if (!(await puedeVerTicket(req, req.params.id))) {

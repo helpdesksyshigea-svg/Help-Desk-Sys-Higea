@@ -50,6 +50,7 @@ const EVENTO_LABEL = {
   cerrado: "Cerrado",
   reabierto: "Reabierto",
   adjunto_subido: "Documento adjuntado",
+  adjunto_eliminado: "Documento eliminado",
 };
 
 // Solo para eventos donde "por" en la BD es una persona con su propia

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { IconDownload, IconEye, IconClose } from "./icons";
+import { IconDownload, IconEye, IconClose, IconTrash } from "./icons";
 import { fechaCorta } from "../lib/fecha";
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -23,6 +23,7 @@ export function Adjuntos({ ticketId, kindsPermitidos = ["oficio", "soporte", "ev
   const [cargandoVista, setCargandoVista] = useState(null); // adjuntoId que está cargando la vista previa
   const [editandoId, setEditandoId] = useState(null);
   const [nombreEditado, setNombreEditado] = useState("");
+  const [eliminandoId, setEliminandoId] = useState(null);
   const inputs = useRef({});
 
   async function cargar() {
@@ -153,6 +154,28 @@ export function Adjuntos({ ticketId, kindsPermitidos = ["oficio", "soporte", "ev
     }
   }
 
+  async function eliminar(adjunto) {
+    if (!window.confirm(`¿Eliminar "${adjunto.nombre_original}"? Esta acción no se puede deshacer.`)) return;
+    setEliminandoId(adjunto.id);
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      const res = await fetch(`${API_URL}/tickets/${ticketId}/adjuntos/${adjunto.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "No se pudo eliminar el archivo");
+      }
+      await cargar();
+    } catch (e) {
+      setError(e.message || "No se pudo eliminar el archivo. Verifique su conexión e inténtelo de nuevo.");
+    } finally {
+      setEliminandoId(null);
+    }
+  }
+
   return (
     <div className="grid gap-3 rounded-[var(--radius-card)] outline-none focus:ring-2 focus:ring-[var(--color-accent)]" tabIndex={0} onPaste={pegar}>
       <h3 className="text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">Documentos</h3>
@@ -246,6 +269,15 @@ export function Adjuntos({ ticketId, kindsPermitidos = ["oficio", "soporte", "ev
                   className="shrink-0 rounded p-1.5 text-[var(--color-muted)] hover:bg-[var(--color-ink)]/[0.06] hover:text-[var(--color-ink)]"
                 >
                   <IconDownload size={16} />
+                </button>
+                <button
+                  onClick={() => eliminar(a)}
+                  disabled={eliminandoId === a.id}
+                  aria-label={`Eliminar ${a.nombre_original}`}
+                  title="Eliminar"
+                  className="shrink-0 rounded p-1.5 text-[var(--color-muted)] hover:bg-[#f8e0dc] hover:text-[#b3362a] disabled:opacity-50"
+                >
+                  <IconTrash size={16} />
                 </button>
               </li>
             );
