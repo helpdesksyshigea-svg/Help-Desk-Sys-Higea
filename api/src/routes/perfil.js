@@ -3,6 +3,7 @@ import multer from "multer";
 import { conManejoAsync } from "../lib/asyncRouter.js";
 import { supabase } from "../config/supabase.js";
 import { authenticate } from "../middleware/auth.js";
+import { vectorizarFirma } from "../lib/firmaVector.js";
 
 export const perfilRouter = conManejoAsync(Router());
 perfilRouter.use(authenticate);
@@ -23,7 +24,9 @@ perfilRouter.get("/perfil", async (req, res) => {
   res.json({
     identificacion: req.user.identificacion,
     cargo: req.user.cargo,
-    tieneFirma: !!req.user.firma_path,
+    // El vector (firma_svg) es lo que realmente se estampa en el oficio — la
+    // imagen de abajo (firmaUrl) es solo la vista previa de lo que se subió.
+    tieneFirma: !!req.user.firma_svg,
     firmaUrl,
   });
 });
@@ -46,6 +49,17 @@ perfilRouter.patch("/perfil", upload.single("firma"), async (req, res) => {
     if (subidaError) return res.status(500).json({ error: `No se pudo subir la firma: ${subidaError.message}` });
     patch.firma_path = storagePath;
     if (anterior) await supabase.storage.from(BUCKET).remove([anterior]);
+
+    // Se vectoriza una sola vez, aquí — no en cada generación del oficio
+    // (ver firmaVector.js). Si falla (ej. foto sin contraste suficiente), se
+    // guarda igual la imagen original arriba, pero se avisa que el oficio no
+    // podrá estampar la firma hasta que suba una que sí se pueda procesar.
+    try {
+      const vector = await vectorizarFirma(req.file.buffer);
+      patch.firma_svg = JSON.stringify(vector);
+    } catch (e) {
+      return res.status(400).json({ error: e.message });
+    }
   }
 
   if (Object.keys(patch).length > 0) {

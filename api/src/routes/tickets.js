@@ -178,17 +178,23 @@ async function cargarPersonaFirma(userId) {
   if (!userId) return null;
   const { data: usuario, error } = await supabase
     .from("usuarios")
-    .select("nombre, identificacion, cargo, firma_path")
+    .select("nombre, identificacion, cargo, firma_svg")
     .eq("id", userId)
     .maybeSingle();
   if (error) throw new Error(`cargando datos de firma de ${userId}: ${error.message}`);
   if (!usuario) return null;
-  let firmaBytes = null;
-  if (usuario.firma_path) {
-    const { data: archivo, error: descargaError } = await supabase.storage.from(BUCKET).download(usuario.firma_path);
-    if (!descargaError && archivo) firmaBytes = Buffer.from(await archivo.arrayBuffer());
+  // firma_svg es el trazo vectorial ya calculado al subir la firma (ver
+  // lib/firmaVector.js) — no hace falta ir a Storage a buscar una imagen en
+  // cada generación del oficio.
+  let firma_svg = null;
+  if (usuario.firma_svg) {
+    try {
+      firma_svg = JSON.parse(usuario.firma_svg);
+    } catch {
+      firma_svg = null;
+    }
   }
-  return { ...usuario, firmaBytes };
+  return { ...usuario, firma_svg };
 }
 
 // ---------- crear ----------

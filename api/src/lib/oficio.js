@@ -205,16 +205,15 @@ export async function construirOficioPdf({ ticket, tipoEtiqueta, plantilla, item
 
 async function dibujarFirma(pdf, pagina, { x, y, ancho, titulo, persona, confirmadaEn, fuente, fuenteNegrita }) {
   let yFirma = y;
-  if (persona?.firma_path && confirmadaEn && persona.firmaBytes) {
-    try {
-      const imagen = await pdf.embedPng(persona.firmaBytes);
-      const alturaImg = 45;
-      const anchoImg = Math.min(ancho, (imagen.width / imagen.height) * alturaImg);
-      pagina.drawImage(imagen, { x, y: yFirma - alturaImg + 10, width: anchoImg, height: alturaImg });
-      yFirma -= alturaImg - 2;
-    } catch {
-      yFirma -= 36;
-    }
+  // La firma es un trazo vectorial (ver lib/firmaVector.js), no una imagen:
+  // se dibuja directamente como path, a un tamaño fijo (altoDestino), así
+  // toda firma sale del mismo tamaño sin importar la resolución original.
+  if (persona?.firma_svg && confirmadaEn) {
+    const altoDestino = 42;
+    const anchoMax = Math.min(ancho, 160);
+    const escala = Math.min(altoDestino / persona.firma_svg.alto, anchoMax / persona.firma_svg.ancho);
+    pagina.drawSvgPath(persona.firma_svg.path, { x, y: yFirma - 8, scale: escala, color: NEGRO });
+    yFirma -= persona.firma_svg.alto * escala + 6;
   } else {
     yFirma -= 36;
   }
