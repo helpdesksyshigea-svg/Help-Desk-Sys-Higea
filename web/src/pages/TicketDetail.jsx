@@ -9,7 +9,7 @@ import { Adjuntos } from "../components/Adjuntos";
 import { useToast } from "../context/ToastContext";
 import { ESPERANDO } from "../lib/filters";
 import { fechaCorta, fechaHora } from "../lib/fecha";
-import { IconArrowLeft, IconCheck, IconReturn, IconInbox, IconInfo, IconSend, IconUser, IconClock, IconPaperclip, IconTrash, IconEdit } from "../components/icons";
+import { IconArrowLeft, IconCheck, IconReturn, IconInbox, IconInfo, IconSend, IconUser, IconPaperclip, IconTrash, IconEdit } from "../components/icons";
 
 const readOnlyClass =
   "w-full rounded-[var(--radius-input)] border border-[var(--color-ink)]/20 bg-[var(--color-ink)]/5 px-3 py-2";
@@ -218,12 +218,12 @@ export function TicketDetail() {
       <h3 className="-mb-3 text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-muted)]">
         Datos de la solicitud
       </h3>
-      <Card className="grid gap-4 sm:grid-cols-2">
-        <div className="text-sm">
+      <Card className="grid gap-4 md:grid-cols-2">
+        <div className="min-w-0 text-sm">
           <span className="mb-1 block font-medium">Tipo de solicitud</span>
-          <div className={readOnlyClass}>{tipos[ticket.tipo] || ticket.tipo}</div>
+          <div className={`${readOnlyClass} truncate`}>{tipos[ticket.tipo] || ticket.tipo}</div>
         </div>
-        <div className="text-sm">
+        <div className="min-w-0 text-sm">
           <span className="mb-1 block font-medium">Prioridad</span>
           <div className={`${readOnlyClass} flex items-center gap-1.5 capitalize`}>
             <span
@@ -233,17 +233,17 @@ export function TicketDetail() {
             {ticket.prioridad}
           </div>
         </div>
-        <div className="text-sm sm:col-span-2">
+        <div className="min-w-0 text-sm md:col-span-2">
           <span className="mb-1 block font-medium">Solicita (nombre de quien firma el oficio)</span>
-          <div className={`${readOnlyClass} flex items-center gap-2`}>
+          <div className={`${readOnlyClass} flex min-w-0 items-center gap-2`}>
             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--color-ink)]/10 text-[10px] font-semibold">
               {iniciales(ticket.firmante)}
             </span>
-            {ticket.firmante}
+            <span className="truncate">{ticket.firmante}</span>
           </div>
         </div>
         {(asunto || ticket.observacion) && (
-          <div className="text-sm sm:col-span-2">
+          <div className="min-w-0 text-sm md:col-span-2">
             <span className="mb-1 block font-medium">Observación general</span>
             <div className={readOnlyClass}>
               {asunto ? `Factura ${asunto}` : ""}
@@ -252,31 +252,14 @@ export function TicketDetail() {
             </div>
           </div>
         )}
-      </Card>
-
-      <Card className="grid grid-cols-2 gap-x-4 gap-y-4 text-sm sm:grid-cols-4">
-        <div>
-          <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-muted)]">
-            <IconClock size={16} /> Radicado
-          </div>
-          <div>{fechaCorta(ticket.created_at)}</div>
-        </div>
-        <div>
-          <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-muted)]">
-            <IconCheck size={16} /> Aprobado
-          </div>
-          <div>{ticket.aprobado_at ? fechaCorta(ticket.aprobado_at) : "Sin aprobación aún"}</div>
-        </div>
         {ticket.asignado && (
-          <div>
-            <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-muted)]">
-              <IconUser size={16} /> Ingeniero SYS HIGEA
-            </div>
-            <div>{ticket.agente_higea || ticket.asignado.nombre}</div>
+          <div className="min-w-0 text-sm md:col-span-2">
+            <span className="mb-1 block font-medium">Ingeniero SYS HIGEA</span>
+            <div className={`${readOnlyClass} truncate`}>{ticket.agente_higea || ticket.asignado.nombre}</div>
           </div>
         )}
         {puedeEditar && (
-          <div className="col-span-2 sm:col-span-4">
+          <div className="md:col-span-2">
             <Button variant="ghost" onClick={() => navigate(`/tickets/${ticket.id}/editar`)}>
               <IconEdit size={14} />
               Corregir ticket
@@ -294,34 +277,34 @@ export function TicketDetail() {
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-ink)]/10 text-xs font-semibold text-[var(--color-ink)]">
               {i + 1}
             </span>
-            <div className="grid gap-3 sm:grid-cols-4">
-              <div className="text-sm">
+            <div className="grid gap-3 md:grid-cols-4">
+              <div className="min-w-0 text-sm">
                 <span className="mb-1 block font-medium">Factura</span>
-                <div className={readOnlyClass}>{item.factura || "—"}</div>
+                <div className={`${readOnlyClass} truncate`}>{item.factura || "—"}</div>
               </div>
-              <div className="text-sm">
+              <div className="min-w-0 text-sm">
                 <span className="mb-1 block font-medium">Paciente</span>
-                <div className={readOnlyClass}>{item.paciente || "—"}</div>
+                <div className={`${readOnlyClass} truncate`}>{item.paciente || "—"}</div>
               </div>
-              <div className="text-sm">
+              <div className="min-w-0 text-sm">
                 <span className="mb-1 block font-medium">Documento</span>
-                <div className={readOnlyClass}>{item.documento || "—"}</div>
+                <div className={`${readOnlyClass} truncate`}>{item.documento || "—"}</div>
               </div>
-              <div className="text-sm">
+              <div className="min-w-0 text-sm">
                 <span className="mb-1 block font-medium">{ticket.tipo === "elim_hc" ? "Folio HC" : "CUPS"}</span>
-                <div className={readOnlyClass}>{item.cups || "—"}</div>
+                <div className={`${readOnlyClass} truncate`}>{item.cups || "—"}</div>
               </div>
             </div>
-            <div className="grid gap-3 sm:grid-cols-[160px_1fr_1fr]">
-              <div className="text-sm">
+            <div className="grid gap-3 md:grid-cols-[160px_1fr_1fr]">
+              <div className="min-w-0 text-sm">
                 <span className="mb-1 block font-medium">Fecha</span>
-                <div className={readOnlyClass}>{fechaCorta(item.fecha)}</div>
+                <div className={`${readOnlyClass} truncate`}>{fechaCorta(item.fecha)}</div>
               </div>
-              <div className="text-sm">
+              <div className="min-w-0 text-sm">
                 <span className="mb-1 block font-medium">Motivo</span>
-                <div className={readOnlyClass}>{motivos[item.motivo] || item.motivo || "—"}</div>
+                <div className={`${readOnlyClass} truncate`}>{motivos[item.motivo] || item.motivo || "—"}</div>
               </div>
-              <div className="text-sm">
+              <div className="min-w-0 text-sm">
                 <span className="mb-1 block font-medium">Descripción</span>
                 <div className={readOnlyClass}>{item.descripcion || "—"}</div>
               </div>
