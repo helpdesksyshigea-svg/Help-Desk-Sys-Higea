@@ -10,7 +10,7 @@ const ESTADOS = {
 export function StatusTag({ estado }) {
   return (
     <span
-      className="inline-flex items-center rounded-[var(--radius-tag)] px-2 py-0.5 text-xs font-semibold"
+      className="inline-flex items-center rounded-[var(--radius-tag)] px-2 py-1 text-[11px] font-semibold uppercase tracking-wide"
       style={{
         color: `var(--color-state-${estado})`,
         backgroundColor: `var(--color-state-${estado}-bg)`,
