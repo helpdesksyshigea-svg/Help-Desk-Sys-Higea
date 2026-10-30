@@ -14,6 +14,56 @@ import { IconArrowLeft, IconCheck, IconReturn, IconInbox, IconInfo, IconSend, Ic
 const readOnlyClass =
   "w-full rounded-[var(--radius-input)] border border-[var(--color-ink)]/20 bg-[var(--color-ink)]/5 px-3 py-2";
 
+const ETAPAS = ["Radicado", "Validación", "Aprobación", "Ejecución", "Finalizado"];
+// "devuelto" y "requiere_info" no tienen una etapa propia en esta línea de
+// tiempo: son una interrupción de la etapa en la que ya estaban (seguir
+// corrigiendo Validación o Ejecución), no un paso adicional del proceso.
+const ETAPA_POR_ESTADO = { pendiente: 1, devuelto: 1, aprobado: 3, en_proceso: 3, requiere_info: 3, cerrado: 4 };
+
+function ProgresoSolicitud({ estado }) {
+  const indice = ETAPA_POR_ESTADO[estado] ?? 0;
+  const terminado = estado === "cerrado";
+  const interrumpido = estado === "devuelto" || estado === "requiere_info";
+  return (
+    <div>
+      <div className="mb-2 flex justify-between gap-1 text-[11px] font-semibold uppercase tracking-[0.06em]">
+        {ETAPAS.map((etapa, i) => {
+          const completada = i < indice || (terminado && i <= indice);
+          const actual = i === indice && !terminado;
+          return (
+            <span
+              key={etapa}
+              className={
+                actual && interrumpido
+                  ? "text-[#b3362a]"
+                  : completada || actual
+                    ? "text-[var(--color-accent)]"
+                    : "text-[var(--color-muted)]"
+              }
+            >
+              {etapa}
+            </span>
+          );
+        })}
+      </div>
+      <div className="flex gap-1">
+        {ETAPAS.map((etapa, i) => {
+          const completada = i < indice || (terminado && i <= indice);
+          const actual = i === indice && !terminado;
+          return (
+            <div key={etapa} className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--color-ink)]/10">
+              <div
+                className={`h-full rounded-full ${actual && interrumpido ? "bg-[#b3362a]" : "bg-[var(--color-accent)]"}`}
+                style={{ width: completada ? "100%" : actual ? "55%" : "0%" }}
+              />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function iniciales(nombre) {
   if (!nombre) return "?";
   const partes = nombre.trim().split(/\s+/);
@@ -275,8 +325,12 @@ export function TicketDetail() {
             <div>{ticket.agente_higea || ticket.asignado.nombre}</div>
           </div>
         )}
-        <div className="col-span-2 sm:col-span-4">
-          <p className="text-sm text-[var(--color-muted)]">{ESPERANDO[ticket.estado]}</p>
+        <div className="col-span-2 sm:col-span-4 border-t border-[var(--color-border)] pt-4">
+          <h4 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-muted)]">
+            Seguimiento de la solicitud
+          </h4>
+          <ProgresoSolicitud estado={ticket.estado} />
+          <p className="mt-2.5 text-sm text-[var(--color-muted)]">{ESPERANDO[ticket.estado]}</p>
         </div>
         {puedeEditar && (
           <div className="col-span-2 sm:col-span-4">
@@ -288,41 +342,50 @@ export function TicketDetail() {
         )}
       </Card>
 
-      <Card className="overflow-hidden !p-0">
-        <h3 className="px-5 pt-4 pb-3 text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-muted)]">
+      <div className="grid gap-3">
+        <h3 className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-muted)]">
           Registros ({items.length})
         </h3>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] border-collapse text-sm">
-            <thead>
-              <tr className="bg-[var(--color-header-bg)] text-left text-[11px] uppercase tracking-[0.08em] text-[var(--color-header-ink)]">
-                <th className="w-8 py-2.5 pl-5 pr-3 font-semibold">#</th>
-                <th className="py-2.5 pr-3 font-semibold">Factura</th>
-                <th className="py-2.5 pr-3 font-semibold">Paciente</th>
-                <th className="py-2.5 pr-3 font-semibold">Documento</th>
-                <th className="py-2.5 pr-3 font-semibold">{ticket.tipo === "elim_hc" ? "Folio HC" : "CUPS"}</th>
-                <th className="py-2.5 pr-3 font-semibold">Fecha</th>
-                <th className="py-2.5 pr-3 font-semibold">Motivo</th>
-                <th className="py-2.5 pr-5 font-semibold">Descripción</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item, i) => (
-                <tr key={item.id} className="border-b border-[var(--color-border)] align-top last:border-0 hover:bg-[var(--color-surface-hover)]">
-                  <td className="py-2.5 pl-5 pr-3 text-[var(--color-muted)]">{i + 1}</td>
-                  <td className="py-2.5 pr-3 text-xs">{item.factura || "—"}</td>
-                  <td className="py-2.5 pr-3">{item.paciente || "—"}</td>
-                  <td className="py-2.5 pr-3 text-xs">{item.documento || "—"}</td>
-                  <td className="py-2.5 pr-3 text-xs">{item.cups || "—"}</td>
-                  <td className="py-2.5 pr-3">{fechaCorta(item.fecha)}</td>
-                  <td className="py-2.5 pr-3">{motivos[item.motivo] || item.motivo}</td>
-                  <td className="py-2.5 pr-5 text-[var(--color-muted)]">{item.descripcion || "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+        {items.map((item, i) => (
+          <Card key={item.id} className="grid gap-3">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-ink)]/10 text-xs font-semibold text-[var(--color-ink)]">
+              {i + 1}
+            </span>
+            <div className="grid gap-3 sm:grid-cols-4">
+              <div className="text-sm">
+                <span className="mb-1 block font-medium">Factura</span>
+                <div className={readOnlyClass}>{item.factura || "—"}</div>
+              </div>
+              <div className="text-sm">
+                <span className="mb-1 block font-medium">Paciente</span>
+                <div className={readOnlyClass}>{item.paciente || "—"}</div>
+              </div>
+              <div className="text-sm">
+                <span className="mb-1 block font-medium">Documento</span>
+                <div className={readOnlyClass}>{item.documento || "—"}</div>
+              </div>
+              <div className="text-sm">
+                <span className="mb-1 block font-medium">{ticket.tipo === "elim_hc" ? "Folio HC" : "CUPS"}</span>
+                <div className={readOnlyClass}>{item.cups || "—"}</div>
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-[160px_1fr_1fr]">
+              <div className="text-sm">
+                <span className="mb-1 block font-medium">Fecha</span>
+                <div className={readOnlyClass}>{fechaCorta(item.fecha)}</div>
+              </div>
+              <div className="text-sm">
+                <span className="mb-1 block font-medium">Motivo</span>
+                <div className={readOnlyClass}>{motivos[item.motivo] || item.motivo || "—"}</div>
+              </div>
+              <div className="text-sm">
+                <span className="mb-1 block font-medium">Descripción</span>
+                <div className={readOnlyClass}>{item.descripcion || "—"}</div>
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
