@@ -559,7 +559,7 @@ function Roles() {
             <tr className="bg-[var(--color-header-bg)] text-left text-[11px] uppercase tracking-[0.08em] text-[var(--color-header-ink)]">
               <th className="sticky left-0 bg-[var(--color-header-bg)] px-4 py-3 font-semibold">Permiso</th>
               {roles.map((r) => (
-                <th key={r.id} className="min-w-[150px] px-3 py-3 text-center font-semibold normal-case">
+                <th key={r.id} className="min-w-[108px] px-1.5 py-3 text-center text-[10px] font-semibold normal-case">
                   {editandoRolId === r.id ? (
                     <div className="grid gap-1">
                       <input
