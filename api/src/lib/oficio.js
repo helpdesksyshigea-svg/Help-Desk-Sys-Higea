@@ -1,4 +1,4 @@
-import { PDFDocument, StandardFonts, rgb, degrees } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
@@ -7,8 +7,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const LOGO_PATH = join(__dirname, "../assets/logo-hospital-nit.png");
 const SELLO_PATH = join(__dirname, "../assets/sello-vigilado-supersalud.png");
 
-const PAGINA = { ancho: 612, alto: 792 }; // carta, en puntos
-const MARGEN = 60; // deja espacio a la izquierda para el sello "Vigilado Supersalud"
+const PAGINA = { ancho: 612, alto: 792 }; // carta, en puntos — igual al oficio de referencia en Word
+const MARGEN = 72; // 1 pulgada, igual al margen del oficio de referencia
 const ANCHO_UTIL = PAGINA.ancho - MARGEN * 2;
 const NEGRO = rgb(0.03, 0.15, 0.14); // aprox --color-ink
 const GRIS = rgb(0.36, 0.42, 0.41); // aprox --color-muted
@@ -121,7 +121,7 @@ export async function construirOficioPdf({ ticket, tipoEtiqueta, plantilla, item
   // Encabezado: logo con NIT, centrado, + doble línea verde.
   try {
     const logo = await pdf.embedPng(readFileSync(LOGO_PATH));
-    const logoAncho = 230;
+    const logoAncho = 160; // mismo tamaño relativo que en el oficio de referencia
     const logoAlto = (logo.height / logo.width) * logoAncho;
     pagina.drawImage(logo, { x: (PAGINA.ancho - logoAncho) / 2, y: y - logoAlto, width: logoAncho, height: logoAlto });
     y -= logoAlto + 10;
@@ -136,15 +136,17 @@ export async function construirOficioPdf({ ticket, tipoEtiqueta, plantilla, item
   // centro vertical) para no toparse con el cierre/firmas en un oficio corto
   // de una sola página.
   try {
+    // La imagen del sello ya trae el texto "Vigilado Supersalud" girado
+    // dentro de ella (es alta y angosta) — se dibuja tal cual, sin rotar,
+    // para que quede vertical en el margen igual que en el oficio real.
     const sello = await pdf.embedPng(readFileSync(SELLO_PATH));
-    const selloAncho = 20;
+    const selloAncho = 48;
     const selloAlto = (sello.height / sello.width) * selloAncho;
     pagina.drawImage(sello, {
-      x: 16,
-      y: 250,
+      x: 12,
+      y: 330,
       width: selloAncho,
       height: selloAlto,
-      rotate: degrees(-90),
     });
   } catch {
     // Si el sello no está disponible, el oficio igual se genera sin él.
