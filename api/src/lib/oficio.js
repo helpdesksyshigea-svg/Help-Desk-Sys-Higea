@@ -380,10 +380,15 @@ export async function construirOficioPdf({ ticket, tipoEtiqueta, plantilla, item
   // "Atentamente,").
   y -= 20;
   // 15.84 (línea de cierre) + 34.3 (espacio hasta "Atentamente,") + 25.73
-  // (espacio hasta la firma) + ~80 (bloque de firma: línea, nombre, cargo,
-  // fecha) — el valor anterior (120) se quedaba corto frente a lo que
-  // dibujarFirma() realmente ocupa.
-  nuevaPaginaSiHaceFalta(156);
+  // (espacio hasta la firma) + el bloque de firma en sí — que mide MUY
+  // distinto según el caso: ~80pt si ya está confirmada (imagen + nombre +
+  // cargo + fecha) o apenas ~50pt si sigue "pendiente de confirmación" (solo
+  // esa frase, ver dibujarFirma). Reservar siempre el peor caso (80) hacía
+  // saltar de página oficios cortos que sí cabían enteros en una sola hoja
+  // — con un registro y una plantilla de 3 párrafos ya alcanzaba a quedar
+  // apenas 6pt corto del piso de seguridad.
+  const hayFirmaConfirmada = Boolean(ticket.firma_solicitante_at || ticket.firma_aprobador_at);
+  nuevaPaginaSiHaceFalta(15.84 + 34.3 + 25.73 + (hayFirmaConfirmada ? 80 : 50));
   pagina.drawText(config.texto_cierre, { x: MARGEN, y, size: 10.5, font: fuente, color: NEGRO });
   y -= 15.84;
   y -= 34.3;
