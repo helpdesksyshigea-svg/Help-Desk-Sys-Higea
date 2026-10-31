@@ -52,7 +52,7 @@ function IndicadorAlmacenamiento() {
     <NavLink
       to="/admin?tab=almacenamiento"
       className={`flex items-center gap-2 rounded-[var(--radius-button)] px-3 py-2.5 text-sm font-medium hover:bg-[var(--color-ink)]/[0.05] ${
-        alerta ? "text-[#b3362a] hover:text-[#b3362a]" : "text-[var(--color-muted)] hover:text-[var(--color-ink)]"
+        alerta ? "text-[var(--color-danger)] hover:text-[var(--color-danger)]" : "text-[var(--color-muted)] hover:text-[var(--color-ink)]"
       }`}
       title={`Almacenamiento: ${kb(datos.storage.bytes)} de ${kb(datos.storage.limite)}${alerta ? " — por encima del 75%" : ""}`}
     >
@@ -107,7 +107,7 @@ export function Sidebar({ abierto = false, onCerrar }) {
     const base = "flex min-w-0 items-center justify-between gap-2 rounded-[var(--radius-button)] px-3 py-2.5 text-sm font-medium transition-colors";
     if (alerta) {
       return `${base} ${
-        activo ? "bg-[#b3362a] text-white" : "bg-[#fbe6e3] text-[#b3362a] hover:bg-[#f6cdc5]"
+        activo ? "bg-[var(--color-danger)] text-white" : "bg-[#fbe6e3] text-[var(--color-danger)] hover:bg-[#f6cdc5]"
       }`;
     }
     return `${base} ${
@@ -177,7 +177,7 @@ export function Sidebar({ abierto = false, onCerrar }) {
                   className={
                     esAlerta
                       ? `shrink-0 rounded-[var(--radius-tag)] px-1.5 py-0.5 text-[10px] font-bold ${
-                          activo ? "animate-pulse bg-white text-[#b3362a]" : "animate-pulse bg-[#b3362a] text-white"
+                          activo ? "animate-pulse bg-white text-[var(--color-danger)]" : "animate-pulse bg-[var(--color-danger)] text-white"
                         }`
                       : "shrink-0 text-xs opacity-70"
                   }

@@ -144,13 +144,13 @@ function FormularioContrasena({ onGuardar, onCancelar }) {
       <Button type="button" variant="ghost" onClick={onCancelar} title="Cancelar">
         <IconClose size={14} />
       </Button>
-      {error && <p className="text-xs text-[#b3362a] sm:col-span-4">{error}</p>}
+      {error && <p className="text-xs text-[var(--color-danger)] sm:col-span-4">{error}</p>}
     </form>
   );
 }
 
 function Mensaje({ error, ok }) {
-  if (error) return <p className="text-sm text-[#b3362a]">{error}</p>;
+  if (error) return <p className="text-sm text-[var(--color-danger)]">{error}</p>;
   if (ok) return <p className="text-sm text-[var(--color-state-cerrado)]">{ok}</p>;
   return null;
 }
@@ -334,7 +334,7 @@ function Usuarios() {
                     onGuardar={(v) => guardarCampo(u, "nombre", v, "Nombre")}
                   />
                   {!u.activo && (
-                    <span className="rounded-[var(--radius-tag)] bg-[#f8e0dc] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.04em] text-[#b3362a]">
+                    <span className="rounded-[var(--radius-tag)] bg-[var(--color-danger-bg)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--color-danger)]">
                       Desactivado
                     </span>
                   )}
@@ -631,7 +631,7 @@ function Roles() {
                           type="button"
                           onClick={() => eliminarRol(r)}
                           title={`Eliminar rol "${nombreLegible(r.nombre)}"`}
-                          className="shrink-0 rounded p-0.5 text-[#ffb4a8]/80 hover:bg-white/10 hover:text-[#ffb4a8]"
+                          className="shrink-0 rounded p-0.5 text-[var(--color-danger-on-dark)]/80 hover:bg-white/10 hover:text-[var(--color-danger-on-dark)]"
                         >
                           <IconTrash size={12} />
                         </button>
@@ -1013,7 +1013,7 @@ function Sla() {
         <span>Prioridad</span>
         <span>Plazo</span>
       </div>
-      {error && <p className="p-4 text-sm text-[#b3362a]">{error}</p>}
+      {error && <p className="p-4 text-sm text-[var(--color-danger)]">{error}</p>}
       <ul className="divide-y divide-[var(--color-border)]">
       {config.map((c) => (
         <li key={c.prioridad} className="flex items-center justify-between gap-3 px-4 py-3">
@@ -1088,7 +1088,7 @@ function ConfigOficio() {
     }
   }
 
-  if (error) return <Card className="text-[#b3362a]">{error}</Card>;
+  if (error) return <Card className="text-[var(--color-danger)]">{error}</Card>;
   if (!borrador) return <p className="text-[var(--color-muted)]">Cargando…</p>;
 
   return (

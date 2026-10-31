@@ -10,6 +10,7 @@ import { Adjuntos } from "../components/Adjuntos";
 import { ModalFirmarOficio, oficioGeneradoDe } from "../components/ModalFirmarOficio";
 import { useToast } from "../context/ToastContext";
 import { esperando } from "../lib/filters";
+import { PRIORIDAD_COLOR } from "../lib/prioridad";
 import { fechaCorta, fechaHora } from "../lib/fecha";
 import { IconArrowLeft, IconCheck, IconReturn, IconInbox, IconInfo, IconSend, IconUser, IconPaperclip, IconTrash, IconEdit } from "../components/icons";
 
@@ -223,7 +224,7 @@ export function TicketDetail() {
     }
   }
 
-  if (error && !ticket) return <Card className="text-[#b3362a]">{error}</Card>;
+  if (error && !ticket) return <Card className="text-[var(--color-danger)]">{error}</Card>;
   if (!ticket) return <p className="text-[var(--color-muted)]">Cargando…</p>;
 
   const tienePermisoAccion = ACCIONES.some((a) => tienePermiso(a.permiso));
@@ -264,7 +265,7 @@ export function TicketDetail() {
           <button
             onClick={eliminarTicket}
             disabled={procesando === "eliminar"}
-            className="inline-flex items-center gap-1.5 text-sm text-[#b3362a] transition-colors hover:underline disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 text-sm text-[var(--color-danger)] transition-colors hover:underline disabled:opacity-50"
           >
             <IconTrash size={14} />
             {procesando === "eliminar" ? "Eliminando…" : "Eliminar ticket"}
@@ -280,7 +281,7 @@ export function TicketDetail() {
         <div className="text-right text-xs text-[var(--color-muted)]">
           <div>Creado el {fechaHora(ticket.created_at)}</div>
           {ticket.dueAt && (
-            <div className={ticket.vencido ? "font-semibold text-[#b3362a]" : ""}>
+            <div className={ticket.vencido ? "font-semibold text-[var(--color-danger)]" : ""}>
               {ticket.vencido ? "Vencido desde" : "Vence"} {fechaHora(ticket.dueAt)}
             </div>
           )}
@@ -303,7 +304,7 @@ export function TicketDetail() {
           <div className={`${readOnlyClass} flex items-center gap-1.5 capitalize`}>
             <span
               className="h-2.5 w-2.5 shrink-0 rounded-full"
-              style={{ background: { alta: "#e02424", normal: "#f59e0b", baja: "#16a34a" }[ticket.prioridad] }}
+              style={{ background: PRIORIDAD_COLOR[ticket.prioridad] }}
             />
             {ticket.prioridad}
           </div>
@@ -441,7 +442,7 @@ export function TicketDetail() {
         </Card>
       </div>
 
-      {error && <p className="text-sm text-[#b3362a]">{error}</p>}
+      {error && <p className="text-sm text-[var(--color-danger)]">{error}</p>}
 
       {tienePermisoAccion && disponibles.length === 0 && (
         <Card className="text-sm text-[var(--color-muted)]">

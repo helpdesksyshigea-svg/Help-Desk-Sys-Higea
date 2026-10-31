@@ -198,7 +198,7 @@ export function Adjuntos({ ticketId, kindsPermitidos = ["oficio", "soporte", "ev
         <ul className="grid gap-2">
           {oficioGenerado && (
             <li className="flex items-center gap-3 rounded-[var(--radius-card)] border border-[var(--color-border)] px-3 py-2">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-[#f8e0dc] text-[10px] font-bold text-[#b3362a]">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-[var(--color-danger-bg)] text-[10px] font-bold text-[var(--color-danger)]">
                 PDF
               </span>
               <div className="min-w-0 flex-1">
@@ -233,7 +233,7 @@ export function Adjuntos({ ticketId, kindsPermitidos = ["oficio", "soporte", "ev
               >
                 <span
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded text-[10px] font-bold ${
-                    esPdf ? "bg-[#f8e0dc] text-[#b3362a]" : "bg-[var(--color-ink)]/10 text-[var(--color-muted)]"
+                    esPdf ? "bg-[var(--color-danger-bg)] text-[var(--color-danger)]" : "bg-[var(--color-ink)]/10 text-[var(--color-muted)]"
                   }`}
                 >
                   {esPdf ? "PDF" : "IMG"}
@@ -287,7 +287,7 @@ export function Adjuntos({ ticketId, kindsPermitidos = ["oficio", "soporte", "ev
                   disabled={eliminandoId === a.id}
                   aria-label={`Eliminar ${a.nombre_original}`}
                   title="Eliminar"
-                  className="shrink-0 rounded p-1.5 text-[var(--color-muted)] hover:bg-[#f8e0dc] hover:text-[#b3362a] disabled:opacity-50"
+                  className="shrink-0 rounded p-1.5 text-[var(--color-muted)] hover:bg-[var(--color-danger-bg)] hover:text-[var(--color-danger)] disabled:opacity-50"
                 >
                   <IconTrash size={16} />
                 </button>
@@ -329,7 +329,7 @@ export function Adjuntos({ ticketId, kindsPermitidos = ["oficio", "soporte", "ev
         ))}
       </div>
 
-      {error && <p className="text-sm text-[#b3362a]">{error}</p>}
+      {error && <p className="text-sm text-[var(--color-danger)]">{error}</p>}
 
       {vista && (
         <div

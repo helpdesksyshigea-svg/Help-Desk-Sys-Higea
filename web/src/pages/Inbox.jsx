@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { apiFetch } from "../lib/api";
 import { filtrosPorRol, FILTRO_DEFAULT, necesitaAccion, textoSla } from "../lib/filters";
+import { PRIORIDAD_COLOR } from "../lib/prioridad";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
 import { StatusTag } from "../components/StatusTag";
@@ -43,7 +44,6 @@ async function exportarExcel() {
 }
 
 const PRIORIDAD_LABEL = { alta: "Alta", normal: "Normal", baja: "Baja" };
-const PRIORIDAD_COLOR = { alta: "#e02424", normal: "#f59e0b", baja: "#16a34a" };
 
 function hace(iso) {
   const horas = (Date.now() - new Date(iso)) / 36e5;
@@ -336,7 +336,7 @@ export function Inbox() {
                     <td className="overflow-hidden py-3.5 pr-3 align-top">
                       <div className={`truncate text-base leading-tight ${destacado ? "font-bold" : "font-semibold"}`}>{t.code}</div>
                       {t.vencido && (
-                        <span className="mt-0.5 inline-block rounded-[var(--radius-tag)] bg-[#f8e0dc] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#b3362a]">
+                        <span className="mt-0.5 inline-block rounded-[var(--radius-tag)] bg-[var(--color-danger-bg)] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--color-danger)]">
                           Vencido
                         </span>
                       )}
@@ -358,7 +358,7 @@ export function Inbox() {
                     <td className="py-3.5 pr-3 text-right align-top">
                       {sla ? (
                         <span
-                          className={`font-variant-numeric-tabular text-xs ${sla.urgente ? "font-semibold text-[#b3362a]" : "text-[var(--color-muted)]"}`}
+                          className={`font-variant-numeric-tabular text-xs ${sla.urgente ? "font-semibold text-[var(--color-danger)]" : "text-[var(--color-muted)]"}`}
                           style={{ fontVariantNumeric: "tabular-nums" }}
                         >
                           {sla.texto}

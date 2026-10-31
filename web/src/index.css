@@ -30,6 +30,18 @@
   --color-accent-ink: #ffffff;
   --color-forest: #012624;
 
+  /* Rojo de error/peligro, repetido antes como hex suelto en botones de
+     eliminar, adjuntos inválidos y mensajes de error. -ink reutiliza el
+     mismo tono porque ya es suficientemente oscuro para texto chico sobre
+     fondo claro (igual que sem-critical-ink). -bg es el tinte claro para
+     fondos. -on-dark es la única variante que no sigue ese patrón: texto de
+     peligro sobre el header oscuro (--color-header-bg) necesita un rojo más
+     claro para contraste, en vez del oscuro de -ink. */
+  --color-danger: #b3362a;
+  --color-danger-ink: #b3362a;
+  --color-danger-bg: #f8e0dc;
+  --color-danger-on-dark: #ffb4a8;
+
   /* Paleta de estado en la misma familia teal/verde de la marca — el ámbar
      (devuelto) y el rojo (requiere_info) quedan como las dos únicas
      excepciones deliberadas, porque ahí el color SÍ es la señal de "esto
@@ -84,6 +96,11 @@
   --color-chart-neutral: #8a9e9a;
 
   --radius-panel: 14px;
+  /* Chips, botones, tarjetas chicas y badges del dashboard usaban 8px/9px/10px
+     mezclados sin motivo (empate 12/12 entre 8 y 10, variación de copy-paste,
+     no un sistema de dos tamaños deliberado) — se consolidan en un solo valor
+     intermedio. */
+  --radius-panel-sm: 9px;
   --shadow-panel: 0 1px 2px rgb(7 59 56 / 0.05), 0 1px 3px rgb(7 59 56 / 0.03);
   --shadow-panel-hover: 0 2px 8px rgb(7 59 56 / 0.07);
 

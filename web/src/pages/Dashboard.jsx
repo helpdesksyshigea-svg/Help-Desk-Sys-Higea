@@ -14,6 +14,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "../lib/api";
 import { fechaCorta, fechaHora } from "../lib/fecha";
 import { Skeleton } from "../components/Skeleton";
+import { Select } from "../components/Select";
 import {
   IconActivity,
   IconAlert,
@@ -242,7 +243,7 @@ export function Dashboard() {
               <button
                 type="button"
                 onClick={limpiarFiltros}
-                className="inline-flex items-center gap-1.5 rounded-[10px] px-3 text-[13px] font-semibold text-dash-muted transition-colors hover:bg-dash-surface hover:text-dash-ink"
+                className="inline-flex items-center gap-1.5 rounded-[var(--radius-panel-sm)] px-3 text-[13px] font-semibold text-dash-muted transition-colors hover:bg-dash-surface hover:text-dash-ink"
               >
                 <IconClose size={14} /> Limpiar
               </button>
@@ -253,7 +254,7 @@ export function Dashboard() {
               disabled={cargando}
               aria-label="Actualizar datos"
               title="Actualizar datos"
-              className="inline-flex w-11 items-center justify-center rounded-[10px] border border-dash-border bg-dash-surface text-dash-ink shadow-panel transition-colors hover:border-brand-action/40 hover:text-brand-action disabled:opacity-60"
+              className="inline-flex w-11 items-center justify-center rounded-[var(--radius-panel-sm)] border border-dash-border bg-dash-surface text-dash-ink shadow-panel transition-colors hover:border-brand-action/40 hover:text-brand-action disabled:opacity-60"
             >
               <IconRefresh size={16} className={cargando ? "animate-spin" : ""} />
             </button>
@@ -262,7 +263,7 @@ export function Dashboard() {
               onClick={() => datos && exportarResumenCsv(datos, ETIQUETAS_ESTADO)}
               disabled={!datos}
               title="Descargar en CSV los mismos indicadores que se ven en pantalla"
-              className="inline-flex items-center gap-2 rounded-[10px] bg-brand-deep px-4 text-[13px] font-semibold text-white shadow-panel transition-all hover:bg-brand-action active:scale-[0.98] disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-[var(--radius-panel-sm)] bg-brand-deep px-4 text-[13px] font-semibold text-white shadow-panel transition-all hover:bg-brand-action active:scale-[0.98] disabled:opacity-50"
             >
               <IconDownload size={15} /> Exportar
             </button>
@@ -280,24 +281,24 @@ export function Dashboard() {
         >
           <label className="grid gap-1 text-[12px] font-medium text-dash-muted">
             Desde
-            <input type="date" value={desde} max={hasta} onChange={(e) => setDesde(e.target.value)} className="rounded-[8px] border border-dash-border bg-dash-bg px-3 py-1.5 text-[13px] text-dash-ink outline-none focus:border-brand-action" />
+            <input type="date" value={desde} max={hasta} onChange={(e) => setDesde(e.target.value)} className="rounded-[var(--radius-panel-sm)] border border-dash-border bg-dash-bg px-3 py-1.5 text-[13px] text-dash-ink outline-none focus:border-brand-action" />
           </label>
           <label className="grid gap-1 text-[12px] font-medium text-dash-muted">
             Hasta
-            <input type="date" value={hasta} min={desde} onChange={(e) => setHasta(e.target.value)} className="rounded-[8px] border border-dash-border bg-dash-bg px-3 py-1.5 text-[13px] text-dash-ink outline-none focus:border-brand-action" />
+            <input type="date" value={hasta} min={desde} onChange={(e) => setHasta(e.target.value)} className="rounded-[var(--radius-panel-sm)] border border-dash-border bg-dash-bg px-3 py-1.5 text-[13px] text-dash-ink outline-none focus:border-brand-action" />
           </label>
-          <button type="submit" className="rounded-[8px] bg-brand-action px-4 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-brand-deep">
+          <button type="submit" className="rounded-[var(--radius-panel-sm)] bg-brand-action px-4 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-brand-deep">
             Aplicar
           </button>
         </form>
       )}
 
       {error && (
-        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-[10px] border border-sem-critical/30 bg-sem-critical-bg px-4 py-3 text-[13px] text-sem-critical-ink">
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-panel-sm)] border border-sem-critical/30 bg-sem-critical-bg px-4 py-3 text-[13px] text-sem-critical-ink">
           <span className="flex items-center gap-2">
             <IconAlert size={16} /> {error}
           </span>
-          <button type="button" onClick={() => cargar()} className="rounded-[8px] border border-sem-critical/30 bg-dash-surface px-3 py-1 font-semibold hover:bg-white">
+          <button type="button" onClick={() => cargar()} className="rounded-[var(--radius-panel-sm)] border border-sem-critical/30 bg-dash-surface px-3 py-1 font-semibold hover:bg-white">
             Reintentar
           </button>
         </div>
@@ -315,29 +316,27 @@ export function Dashboard() {
 }
 
 // Selector compacto estilo "caja": etiqueta chica arriba, valor elegido abajo.
+// Envuelve <Select> (componente propio) en vez de un <select> nativo.
 function SelectorCompacto({ etiqueta, valor, onChange, opciones, todos, destacar, ancho }) {
   const activo = destacar && valor;
+  const opcionesSelect = [
+    ...(todos != null ? [{ value: "", label: todos }] : []),
+    ...opciones.map((o) => ({ value: o.valor, label: o.etiqueta })),
+  ];
   return (
-    <label
-      className={`relative flex min-w-[132px] flex-1 cursor-pointer flex-col rounded-[10px] border bg-dash-surface px-3 py-1.5 shadow-panel transition-colors hover:border-brand-action/40 sm:flex-none ${
+    <div
+      className={`relative flex min-w-[132px] flex-1 flex-col rounded-[var(--radius-panel-sm)] border bg-dash-surface px-3 py-1.5 shadow-panel transition-colors hover:border-brand-action/40 sm:flex-none ${
         ancho ? "sm:min-w-[170px]" : ""
       } ${activo ? "border-brand-action/60 ring-2 ring-brand-soft" : "border-dash-border"}`}
     >
       <span className="text-[11px] font-medium leading-4 text-dash-muted">{etiqueta}</span>
-      <select
+      <Select
         value={valor}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full cursor-pointer appearance-none bg-transparent pr-5 text-[13px] font-semibold leading-5 text-dash-ink outline-none"
-      >
-        {todos != null && <option value="">{todos}</option>}
-        {opciones.map((o) => (
-          <option key={o.valor} value={o.valor}>
-            {o.etiqueta}
-          </option>
-        ))}
-      </select>
-      <IconChevronDown size={14} className="pointer-events-none absolute bottom-2.5 right-2.5 text-dash-muted" />
-    </label>
+        onChange={onChange}
+        options={opcionesSelect}
+        className="[&>button]:border-0 [&>button]:bg-transparent [&>button]:px-0 [&>button]:py-0 [&>button]:text-[13px] [&>button]:font-semibold [&>button]:leading-5 [&>button]:text-dash-ink"
+      />
+    </div>
   );
 }
 
@@ -553,9 +552,9 @@ function CentroAlertas({ alertas }) {
             return (
               <li
                 key={a.id}
-                className="flex items-start gap-3 rounded-[10px] border border-dash-border px-3 py-2.5 transition-colors hover:bg-dash-bg"
+                className="flex items-start gap-3 rounded-[var(--radius-panel-sm)] border border-dash-border px-3 py-2.5 transition-colors hover:bg-dash-bg"
               >
-                <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px]" style={{ background: s.bg, color: s.ink }}>
+                <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--radius-panel-sm)]" style={{ background: s.bg, color: s.ink }}>
                   <Icono size={16} />
                 </span>
                 <div className="min-w-0 flex-1">
@@ -579,7 +578,7 @@ function CentroAlertas({ alertas }) {
         <button
           type="button"
           onClick={() => setTodas((v) => !v)}
-          className="mt-2 inline-flex items-center gap-1 rounded-[8px] px-2 py-1 text-[12.5px] font-semibold text-brand-action transition-colors hover:bg-brand-soft"
+          className="mt-2 inline-flex items-center gap-1 rounded-[var(--radius-panel-sm)] px-2 py-1 text-[12.5px] font-semibold text-brand-action transition-colors hover:bg-brand-soft"
         >
           {todas ? "Mostrar menos" : `Ver todas (${alertas.length})`}
           {todas ? <IconChevronUp size={14} /> : <IconArrowRight size={14} />}
@@ -634,7 +633,7 @@ function PanelSla({ sla }) {
 
 function FilaSlaSimple({ icono: Icono, color, etiqueta, valor, fuerte, critico }) {
   return (
-    <li className={`flex items-center justify-between gap-3 rounded-[8px] px-2 py-1 ${fuerte ? "bg-dash-bg" : ""}`}>
+    <li className={`flex items-center justify-between gap-3 rounded-[var(--radius-panel-sm)] px-2 py-1 ${fuerte ? "bg-dash-bg" : ""}`}>
       <span className={`flex min-w-0 items-center gap-2 text-[13px] ${fuerte ? "font-medium text-dash-muted" : "text-dash-ink"}`}>
         {Icono ? (
           <span className="shrink-0" style={{ color }}>
@@ -667,7 +666,7 @@ function PanelAntiguedad({ aging }) {
       />
       <AntiguedadBarras datos={aging} />
       {mayor && mayor.total > 0 && (
-        <div className="mt-3 flex items-start gap-2 rounded-[10px] bg-sem-critical-bg px-3 py-2 text-[12.5px] text-sem-critical-ink">
+        <div className="mt-3 flex items-start gap-2 rounded-[var(--radius-panel-sm)] bg-sem-critical-bg px-3 py-2 text-[12.5px] text-sem-critical-ink">
           <IconOctagonAlert size={15} className="mt-px shrink-0" />
           <span>
             <b className="font-semibold">{nf.format(mayor.total)}</b> {mayor.total === 1 ? "ticket lleva" : "tickets llevan"} {mayor.etiqueta.toLowerCase()} abiertos ({pct(mayor.total, total)}% de los abiertos).
@@ -794,7 +793,7 @@ function TablaIngenieros({ agentes }) {
             {filas.map((a) => {
               const nivel = nivelCumplimiento(a.pctCumplimiento);
               return (
-                <li key={a.agente} className="rounded-[10px] border border-dash-border p-3">
+                <li key={a.agente} className="rounded-[var(--radius-panel-sm)] border border-dash-border p-3">
                   <div className="flex items-center justify-between gap-2">
                     <span className="flex min-w-0 items-center gap-2">
                       <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-soft text-[11px] font-semibold text-brand-deep">{iniciales(a.agente)}</span>
@@ -837,7 +836,7 @@ function TablaIngenieros({ agentes }) {
 function Etapa({ desde, hasta, horasEtapa }) {
   return (
     <div className="flex min-w-0 flex-1 flex-col items-stretch gap-2 sm:flex-row sm:items-center">
-      <span className="rounded-[8px] border border-dash-border bg-dash-bg px-2.5 py-1.5 text-center text-[12.5px] font-medium text-dash-ink">{desde}</span>
+      <span className="rounded-[var(--radius-panel-sm)] border border-dash-border bg-dash-bg px-2.5 py-1.5 text-center text-[12.5px] font-medium text-dash-ink">{desde}</span>
       <span className="flex flex-1 items-center gap-1.5 text-dash-muted sm:flex-col sm:gap-0">
         <span className="text-[13px] font-semibold tabular-nums text-dash-ink">{horas(horasEtapa)}</span>
         <span className="flex w-full items-center">
@@ -845,7 +844,7 @@ function Etapa({ desde, hasta, horasEtapa }) {
           <IconArrowRight size={14} className="shrink-0 rotate-90 sm:rotate-0" />
         </span>
       </span>
-      {hasta && <span className="rounded-[8px] border border-dash-border bg-dash-bg px-2.5 py-1.5 text-center text-[12.5px] font-medium text-dash-ink">{hasta}</span>}
+      {hasta && <span className="rounded-[var(--radius-panel-sm)] border border-dash-border bg-dash-bg px-2.5 py-1.5 text-center text-[12.5px] font-medium text-dash-ink">{hasta}</span>}
     </div>
   );
 }

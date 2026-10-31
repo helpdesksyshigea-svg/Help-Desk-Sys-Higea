@@ -134,7 +134,7 @@ export function Select({
     <label className="text-sm">
       <span className="mb-1 block font-medium">
         {label}
-        {required && <span className="text-[#b3362a]"> *</span>}
+        {required && <span className="text-[var(--color-danger)]"> *</span>}
       </span>
       {campo}
     </label>

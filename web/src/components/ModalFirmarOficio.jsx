@@ -76,7 +76,7 @@ export function ModalFirmarOficio({ titulo, cargarPreview, onConfirmar, onCancel
             </div>
           )}
           {!faltaFirma && cargando && <p className="p-8 text-center text-sm text-[var(--color-muted)]">Generando vista previa…</p>}
-          {!faltaFirma && error && <p className="p-8 text-center text-sm text-[#b3362a]">{error}</p>}
+          {!faltaFirma && error && <p className="p-8 text-center text-sm text-[var(--color-danger)]">{error}</p>}
           {!faltaFirma && !cargando && !error && url && (
             <iframe src={url} title="Vista previa del oficio" className="h-[70vh] w-full rounded" />
           )}

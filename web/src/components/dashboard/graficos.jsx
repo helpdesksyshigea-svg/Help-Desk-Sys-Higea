@@ -74,7 +74,7 @@ export function Donut({ datos, etiquetaTotal = "tickets", resaltado = null, vaci
             key={d.clave}
             onMouseEnter={() => setActivo(d.clave)}
             onMouseLeave={() => setActivo(null)}
-            className={`flex items-center justify-between gap-3 rounded-[8px] px-2 py-1.5 text-[13px] transition-colors ${
+            className={`flex items-center justify-between gap-3 rounded-[var(--radius-panel-sm)] px-2 py-1.5 text-[13px] transition-colors ${
               foco === d.clave ? "bg-dash-track" : "hover:bg-dash-bg"
             } ${foco && foco !== d.clave ? "opacity-55" : ""}`}
           >
@@ -101,7 +101,7 @@ export function BarraHorizontal({ etiqueta, total, maximo, totalGeneral, color =
   const ancho = maximo ? Math.max(1.5, (total / maximo) * 100) : 0;
   return (
     <div
-      className={`grid gap-1 rounded-[8px] px-2 py-1.5 transition-all duration-200 hover:bg-dash-bg ${atenuado ? "opacity-40" : ""} ${resaltado ? "bg-brand-soft/60" : ""}`}
+      className={`grid gap-1 rounded-[var(--radius-panel-sm)] px-2 py-1.5 transition-all duration-200 hover:bg-dash-bg ${atenuado ? "opacity-40" : ""} ${resaltado ? "bg-brand-soft/60" : ""}`}
       title={`${etiqueta}: ${nf.format(total)}${totalGeneral ? ` (${pct(total, totalGeneral)}%)` : ""}`}
     >
       <div className="flex items-baseline justify-between gap-3 text-[13px]">
@@ -147,7 +147,7 @@ export function ListaBarras({ items, claveDe, color, resaltado, vacio = "Sin reg
         <button
           type="button"
           onClick={() => setTodos((v) => !v)}
-          className="mt-1 inline-flex items-center gap-1 justify-self-start rounded-[8px] px-2 py-1 text-[12.5px] font-semibold text-brand-action transition-colors hover:bg-brand-soft"
+          className="mt-1 inline-flex items-center gap-1 justify-self-start rounded-[var(--radius-panel-sm)] px-2 py-1 text-[12.5px] font-semibold text-brand-action transition-colors hover:bg-brand-soft"
         >
           {todos ? "Mostrar menos" : `${textoVerTodos} (${items.length})`}
           {todos ? <IconChevronUp size={14} /> : <IconArrowRight size={14} />}
@@ -287,7 +287,7 @@ export function TendenciaMensual({ datos }) {
             </svg>
             {d && (
               <div
-                className="pointer-events-none absolute top-1 z-20 w-48 rounded-[10px] border border-dash-border bg-dash-surface px-3 py-2 text-[12.5px] shadow-lg"
+                className="pointer-events-none absolute top-1 z-20 w-48 rounded-[var(--radius-panel-sm)] border border-dash-border bg-dash-surface px-3 py-2 text-[12.5px] shadow-lg"
                 style={{ left: Math.min(Math.max(0, PAD.izq + activo * banda + banda / 2 - 96), W - 192) }}
               >
                 <p className="font-semibold text-dash-ink">

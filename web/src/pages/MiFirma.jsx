@@ -270,7 +270,7 @@ export function MiFirma() {
                   <div className="border-t border-[var(--color-border)] pt-3">
                     <span className="mb-1.5 block text-xs font-medium text-[var(--color-muted)]">Así se verá en el oficio</span>
                     {cargandoPreview && <p className="text-xs text-[var(--color-muted)]">Procesando…</p>}
-                    {errorPreview && <p className="text-xs text-[#b3362a]">{errorPreview}</p>}
+                    {errorPreview && <p className="text-xs text-[var(--color-danger)]">{errorPreview}</p>}
                     {previewVectorizada && (
                       <img
                         src={previewVectorizada}

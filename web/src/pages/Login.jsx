@@ -102,13 +102,13 @@ export function Login({ enlaceVencido = false }) {
         </label>
 
         {enlaceVencido && (
-          <p className="mb-4 rounded-[var(--radius-input)] bg-[#f8e0dc] px-3 py-2 text-sm text-[#b3362a]">
+          <p className="mb-4 rounded-[var(--radius-input)] bg-[var(--color-danger-bg)] px-3 py-2 text-sm text-[var(--color-danger)]">
             El enlace que usó ya expiró o ya fue utilizado. Pida al administrador que le envíe uno nuevo, o use "¿Olvidó su
             contraseña?" abajo si ya tiene cuenta.
           </p>
         )}
         {error && (
-          <p className="mb-4 rounded-[var(--radius-input)] bg-[#f8e0dc] px-3 py-2 text-sm text-[#b3362a]">{error}</p>
+          <p className="mb-4 rounded-[var(--radius-input)] bg-[var(--color-danger-bg)] px-3 py-2 text-sm text-[var(--color-danger)]">{error}</p>
         )}
         {recuperado && (
           <p className="mb-4 rounded-[var(--radius-input)] bg-[var(--color-accent)]/20 px-3 py-2 text-sm">

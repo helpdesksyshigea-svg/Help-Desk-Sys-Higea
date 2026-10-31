@@ -60,7 +60,7 @@ export function InfoTip({ texto, lado = "izquierda" }) {
       {pos && (
         <span
           role="tooltip"
-          className="pointer-events-none fixed z-50 rounded-[10px] bg-brand-deep px-3 py-2 text-left text-[12px] font-normal normal-case leading-snug tracking-normal text-white shadow-lg"
+          className="pointer-events-none fixed z-50 rounded-[var(--radius-panel-sm)] bg-brand-deep px-3 py-2 text-left text-[12px] font-normal normal-case leading-snug tracking-normal text-white shadow-lg"
           style={{ left: pos.left, top: pos.top, bottom: pos.bottom, width: pos.ancho }}
         >
           {texto}
@@ -90,7 +90,7 @@ export function PanelTitulo({ titulo, subtitulo, icono: Icono, info, accion, inf
     <header className="mb-4 flex items-start justify-between gap-3">
       <div className="flex min-w-0 items-start gap-2.5">
         {Icono && (
-          <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] bg-brand-soft text-brand-action">
+          <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-[var(--radius-panel-sm)] bg-brand-soft text-brand-action">
             <Icono size={15} />
           </span>
         )}
@@ -128,7 +128,7 @@ export function BloqueTitulo({ titulo, descripcion, numero }) {
 
 export function EstadoVacio({ children, icono: Icono }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-2 rounded-[10px] border border-dashed border-dash-border px-4 py-8 text-center">
+    <div className="flex flex-col items-center justify-center gap-2 rounded-[var(--radius-panel-sm)] border border-dashed border-dash-border px-4 py-8 text-center">
       {Icono && (
         <span className="flex h-8 w-8 items-center justify-center rounded-full bg-dash-track text-dash-muted">
           <Icono size={16} />
@@ -162,7 +162,7 @@ export function KpiCard({ etiqueta, sigla, valor, unidad, icono: Icono, estado, 
         </p>
         {Icono && (
           <span
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px]"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--radius-panel-sm)]"
             style={{ background: destacado ? "var(--color-dash-surface)" : "var(--color-brand-soft)", color: destacado ? s.ink : "var(--color-brand-action)" }}
           >
             <Icono size={16} />
@@ -187,7 +187,7 @@ export function KpiCard({ etiqueta, sigla, valor, unidad, icono: Icono, estado, 
 export function MiniStat({ etiqueta, valor, nivel, nota }) {
   const s = nivel ? SEVERIDAD[nivel] : null;
   return (
-    <div className="min-w-0 rounded-[10px] border border-dash-border bg-dash-bg/60 px-3 py-2.5">
+    <div className="min-w-0 rounded-[var(--radius-panel-sm)] border border-dash-border bg-dash-bg/60 px-3 py-2.5">
       <div className="flex items-center gap-1.5 text-[12px] text-dash-muted">
         {s && <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: s.color }} aria-hidden="true" />}
         <span>{etiqueta}</span>

@@ -84,7 +84,7 @@ export function SetPassword() {
               />
             </label>
             {error && (
-              <p className="mb-4 rounded-[var(--radius-input)] bg-[#f8e0dc] px-3 py-2 text-sm text-[#b3362a]">{error}</p>
+              <p className="mb-4 rounded-[var(--radius-input)] bg-[var(--color-danger-bg)] px-3 py-2 text-sm text-[var(--color-danger)]">{error}</p>
             )}
             <Button variant="accent" type="submit" disabled={guardando} className="w-full justify-center">
               <IconKey size={15} />

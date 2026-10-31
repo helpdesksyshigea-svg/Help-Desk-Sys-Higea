@@ -251,7 +251,7 @@ export function TicketForm({ modo, inicial, onSubmit, submitLabel }) {
                   type="button"
                   onClick={() => quitarItem(i)}
                   aria-label="Quitar registro"
-                  className="rounded p-1 text-[var(--color-muted)] hover:bg-[#f8e0dc] hover:text-[#b3362a]"
+                  className="rounded p-1 text-[var(--color-muted)] hover:bg-[var(--color-danger-bg)] hover:text-[var(--color-danger)]"
                 >
                   <IconTrash size={15} />
                 </button>
@@ -394,7 +394,7 @@ export function TicketForm({ modo, inicial, onSubmit, submitLabel }) {
         </Card>
       </div>
 
-      {error && <p className="text-sm text-[#b3362a]">{error}</p>}
+      {error && <p className="text-sm text-[var(--color-danger)]">{error}</p>}
 
       <div>
         <Button type="submit" variant="accent" disabled={enviando}>
