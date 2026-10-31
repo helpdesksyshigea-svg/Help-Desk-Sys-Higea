@@ -102,13 +102,25 @@ dashboardRouter.get("/dashboard/resumen", requirePermission("reportes.ver_dashbo
 
   const ids = tickets.map((t) => t.id);
 
+  // aprobaciones.motivo_devolucion viene de la migración 0023: si todavía no
+  // se ha corrido, pedir esa columna rompería el dashboard entero por un 400
+  // de PostgREST, así que se reintenta sin ella en vez de fallar.
+  async function cargarAprobacionesRows() {
+    try {
+      return await enLotesDe("aprobaciones", "ticket_id, etapa, decision, decidido_por, created_at, motivo_devolucion", ids);
+    } catch (err) {
+      console.error("[dashboard] no se pudo cargar aprobaciones.motivo_devolucion (¿falta la migración 0023?), se reintenta sin esa columna:", err.message);
+      return enLotesDe("aprobaciones", "ticket_id, etapa, decision, decidido_por, created_at", ids);
+    }
+  }
+
   const [eventos, slaConfigRowsResult, festivos, tiposRowsResult, items, aprobacionesRows] = await Promise.all([
     enLotesDe("ticket_eventos", "ticket_id, tipo_evento, estado_anterior, estado_nuevo, created_at", ids),
     supabase.from("sla_config").select("prioridad, dias_habiles"),
     festivosComo(),
     supabase.from("tipos_solicitud").select("clave, etiqueta"),
     enLotesDe("ticket_items", "ticket_id, motivo", ids),
-    enLotesDe("aprobaciones", "ticket_id, etapa, decision, decidido_por, created_at", ids),
+    cargarAprobacionesRows(),
   ]);
   const { data: slaConfigRows, error: sErr } = slaConfigRowsResult;
   const { data: tiposRows, error: tiposErr } = tiposRowsResult;
@@ -118,8 +130,17 @@ dashboardRouter.get("/dashboard/resumen", requirePermission("reportes.ver_dashbo
   const { data: motivosRows, error: motivosErr } = await supabase.from("motivos").select("clave, etiqueta");
   if (motivosErr) return res.status(500).json({ error: motivosErr.message });
 
+  // Igual que motivos: si la tabla motivos_devolucion todavía no existe
+  // (falta la migración 0023), no se bloquea el dashboard, solo queda vacío
+  // (ver causasDevolucion más abajo).
+  const { data: motivosDevolucionRows, error: motivosDevolucionErr } = await supabase.from("motivos_devolucion").select("clave, etiqueta");
+  if (motivosDevolucionErr) {
+    console.error("[dashboard] no se pudo cargar motivos_devolucion (¿falta la migración 0023?):", motivosDevolucionErr.message);
+  }
+
   const etiquetaTipo = Object.fromEntries((tiposRows || []).map((t) => [t.clave, t.etiqueta]));
   const etiquetaMotivo = Object.fromEntries((motivosRows || []).map((m) => [m.clave, m.etiqueta]));
+  const etiquetaMotivoDevolucion = Object.fromEntries((motivosDevolucionRows || []).map((m) => [m.clave, m.etiqueta]));
   const etiquetaPrioridad = { alta: "Alta", normal: "Normal", baja: "Baja" };
 
   const diasHabilesPorPrioridad = {};
@@ -353,6 +374,25 @@ dashboardRouter.get("/dashboard/resumen", requirePermission("reportes.ver_dashbo
     : { data: [], error: null };
   if (supErr) return res.status(500).json({ error: supErr.message });
   const nombreUsuario = Object.fromEntries((supervisorasRows || []).map((u) => [u.id, u.nombre]));
+  // ---- Causas de devolución (migración 0023): cuenta cada devolución
+  // (cualquier etapa — coordinador médico o supervisora) por su
+  // motivo_devolucion, con la etiqueta legible del catálogo, igual que
+  // porMotivo arriba. Las devoluciones de antes de este cambio no tienen
+  // motivo_devolucion (quedó null): se cuentan aparte en "Sin motivo
+  // registrado" en vez de descartarse silenciosamente.
+  const devueltasEnRango = (aprobacionesRows || []).filter(
+    (a) => a.decision === "devuelto" && a.created_at >= desde && a.created_at <= hasta,
+  );
+  const SIN_MOTIVO = "Sin motivo registrado";
+  const conteoCausas = {};
+  for (const a of devueltasEnRango) {
+    const clave = a.motivo_devolucion || SIN_MOTIVO;
+    conteoCausas[clave] = (conteoCausas[clave] || 0) + 1;
+  }
+  const causasDevolucion = Object.entries(conteoCausas)
+    .map(([clave, total]) => ({ etiqueta: clave === SIN_MOTIVO ? SIN_MOTIVO : etiquetaMotivoDevolucion[clave] || clave, total }))
+    .sort((a, b) => b.total - a.total);
+
   const porSupervisora = Object.values(porSupervisoraMapa)
     .map((s) => ({
       nombre: nombreUsuario[s.decidido_por] || s.decidido_por,
@@ -404,6 +444,7 @@ dashboardRouter.get("/dashboard/resumen", requirePermission("reportes.ver_dashbo
       pctDevolucion: totalFinal ? Number(((devueltosFinal / totalFinal) * 100).toFixed(1)) : null,
     },
     porSupervisora,
+    causasDevolucion,
     colaPendiente: {
       total: (colaRows || []).length,
       vencidos: colaVencidos,

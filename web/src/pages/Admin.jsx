@@ -16,6 +16,7 @@ const TABS = [
   { k: "roles", l: "Roles", icon: IconShield },
   { k: "tipos", l: "Tipos de solicitud", icon: IconInbox },
   { k: "motivos", l: "Motivos", icon: IconInfo },
+  { k: "motivos-devolucion", l: "Motivos de devolución", icon: IconInfo },
   { k: "ingenieros", l: "Ingenieros SYS HIGEA", icon: IconShield },
   { k: "sla", l: "Plazos SLA", icon: IconClock },
   { k: "config-oficio", l: "Texto del oficio", icon: IconSend },
@@ -55,6 +56,7 @@ export function Admin() {
         {tab === "roles" && <Roles />}
         {tab === "tipos" && <Catalogo titulo="Tipos de solicitud" path="tipos" camposConfigurables plantillaOficio permiteEliminar />}
         {tab === "motivos" && <Catalogo titulo="Motivos" path="motivos" permiteEliminar />}
+        {tab === "motivos-devolucion" && <Catalogo titulo="Motivos de devolución" path="motivos-devolucion" permiteEliminar />}
         {tab === "ingenieros" && <Catalogo titulo="Ingenieros SYS HIGEA" path="ingenieros" claveAutomatica permiteEliminar />}
         {tab === "sla" && <Sla />}
         {tab === "config-oficio" && <ConfigOficio />}

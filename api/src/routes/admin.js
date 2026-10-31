@@ -513,6 +513,12 @@ catalogoRouter(
   { permiteEliminar: true, verificarUsoAntesDeEliminar: true },
 );
 catalogoRouter("ingenieros", "ingenieros_higea", { tabla: "tickets", columna: "agente_higea" }, { permiteEliminar: true });
+catalogoRouter(
+  "motivos-devolucion",
+  "motivos_devolucion",
+  { tabla: "aprobaciones", columna: "motivo_devolucion" },
+  { permiteEliminar: true, verificarUsoAntesDeEliminar: true },
+);
 
 // ======================= SLA =======================
 

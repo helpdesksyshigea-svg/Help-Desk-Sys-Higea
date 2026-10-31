@@ -37,6 +37,8 @@ const ACCIONES = [
   { ruta: "reabrir", permiso: "tickets.reabrir", estados: ["cerrado"], label: "Reabrir", icon: IconReturn, variant: "danger", notaObligatoria: true, exito: "Ticket reabierto" },
 ];
 
+const RUTAS_DEVOLVER = new Set(["devolver", "devolver-coordinador"]);
+
 const EVENTO_LABEL = {
   creado: "Ticket radicado",
   aprobado_coordinador: "Aprobado por coordinador médico",
@@ -80,6 +82,8 @@ export function TicketDetail() {
   const [nota, setNota] = useState("");
   const [procesando, setProcesando] = useState(null); // ruta de la acción en curso, o null
   const [ingenieros, setIngenieros] = useState([]);
+  const [motivosDevolucion, setMotivosDevolucion] = useState([]);
+  const [motivoDevolucion, setMotivoDevolucion] = useState("");
   const [agenteHigea, setAgenteHigea] = useState("");
   const [accionPendienteFirma, setAccionPendienteFirma] = useState(null); // def de ACCIONES en espera de confirmar firma
   const [cargandoOficio, setCargandoOficio] = useState(false);
@@ -124,6 +128,12 @@ export function TicketDetail() {
       .catch(() => {}); // solo hace falta para tomar un caso; si falla, el selector queda vacío
   }, []);
 
+  useEffect(() => {
+    apiFetch("/catalogos/motivos-devolucion")
+      .then((data) => setMotivosDevolucion(Array.isArray(data) ? data : []))
+      .catch(() => {}); // solo hace falta para devolver un ticket; si falla (ej. falta la migración), el selector queda vacío
+  }, []);
+
   async function accion(def, firmaConfirmada = false) {
     if (def.notaObligatoria && !nota.trim()) {
       toastFallo("Esta acción requiere que escribas una nota primero");
@@ -131,6 +141,13 @@ export function TicketDetail() {
     }
     if (def.ruta === "tomar" && !agenteHigea) {
       toastFallo("Indique qué ingeniero de SYS HIGEA toma el caso");
+      return;
+    }
+    // El motivo solo se exige cuando el catálogo pudo cargarse: si todavía no
+    // existe (ej. falta la migración 0023), no se bloquea la devolución por
+    // un selector que de todos modos estaría vacío.
+    if (RUTAS_DEVOLVER.has(def.ruta) && motivosDevolucion.length > 0 && !motivoDevolucion) {
+      toastFallo("Seleccione el motivo de la devolución");
       return;
     }
     // Beta: tanto "Aprobar y enviar a SYS HIGEA" (supervisora) como "Aprobar
@@ -149,9 +166,11 @@ export function TicketDetail() {
     try {
       const body = { nota, firmaConfirmada };
       if (def.ruta === "tomar") body.agente_higea = agenteHigea;
+      if (RUTAS_DEVOLVER.has(def.ruta)) body.motivo_devolucion = motivoDevolucion;
       await apiFetch(`/tickets/${id}/${def.ruta}`, { method: "POST", body: JSON.stringify(body) });
       setNota("");
       setAgenteHigea("");
+      setMotivoDevolucion("");
       await cargar();
       toastExito(def.exito);
     } catch (e) {
@@ -445,6 +464,25 @@ export function TicketDetail() {
                 {ingenieros.map((i) => (
                   <option key={i.clave} value={i.etiqueta}>
                     {i.etiqueta}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {disponibles.some((a) => RUTAS_DEVOLVER.has(a.ruta)) && (
+            <label className="text-sm">
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">
+                Motivo de la devolución
+              </span>
+              <select
+                value={motivoDevolucion}
+                onChange={(e) => setMotivoDevolucion(e.target.value)}
+                className="w-full rounded-[var(--radius-input)] border border-[var(--color-ink)]/20 bg-[var(--color-ink)]/5 px-3 py-2 outline-none focus:border-[var(--color-ink)]"
+              >
+                <option value="">Seleccione…</option>
+                {motivosDevolucion.map((m) => (
+                  <option key={m.clave} value={m.clave}>
+                    {m.etiqueta}
                   </option>
                 ))}
               </select>

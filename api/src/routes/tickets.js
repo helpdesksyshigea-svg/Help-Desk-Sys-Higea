@@ -216,6 +216,38 @@ async function cargarConfigOficio() {
   return data;
 }
 
+// Catálogo de causas de devolución (migración 0023, ver db/migrations). Si la
+// migración todavía no se ha corrido, la tabla no existe: no se bloquea la
+// devolución por eso (mismo criterio que cargarConfigOficio), simplemente el
+// motivo todavía no se puede exigir ni validar.
+async function validarMotivoDevolucion(req) {
+  const motivo = req.body?.motivo_devolucion?.trim();
+  const { data: motivos, error } = await supabase.from("motivos_devolucion").select("clave").eq("activo", true);
+  if (error) {
+    console.error("[tickets] no se pudo cargar motivos_devolucion (¿falta la migración 0023?), no se exige motivo:", error.message);
+    return null;
+  }
+  if (!motivo) return "Esta acción requiere seleccionar un motivo de devolución";
+  if (!motivos.some((m) => m.clave === motivo)) return "El motivo de devolución no es válido";
+  return null;
+}
+
+// Mismo criterio de no romper nada si falta la migración 0023: si la columna
+// aprobaciones.motivo_devolucion todavía no existe, se reintenta el upsert sin
+// ella en vez de fallar la devolución completa.
+async function upsertAprobacionDevuelta(fila) {
+  const primero = await supabase.from("aprobaciones").upsert(fila, { onConflict: "ticket_id,etapa" });
+  if (primero.error && /motivo_devolucion/i.test(primero.error.message || "")) {
+    console.error(
+      "[tickets] columna aprobaciones.motivo_devolucion no existe todavía (¿falta la migración 0023?), se guarda sin ella:",
+      primero.error.message,
+    );
+    const { motivo_devolucion, ...sinMotivo } = fila;
+    return supabase.from("aprobaciones").upsert(sinMotivo, { onConflict: "ticket_id,etapa" });
+  }
+  return primero;
+}
+
 // Trae los datos de firma de una persona (solicitante o quien aprueba) junto
 // con los bytes reales de su imagen de firma, para embeberla en el PDF — el
 // generador no pide una URL firmada, necesita el binario directamente.
@@ -1082,11 +1114,23 @@ ticketsRouter.post("/tickets/:id/devolver", (req, res) =>
     nuevoEstado: "devuelto",
     tipoEvento: "devuelto",
     notaObligatoria: true,
-    async validar(ticket) {
+    async validar(ticket, req) {
       if (ticket.etapa_aprobacion) {
         return "Este ticket requiere primero la revisión del coordinador médico";
       }
-      return null;
+      return await validarMotivoDevolucion(req);
+    },
+    async efecto(ticket, req) {
+      const { error } = await upsertAprobacionDevuelta({
+        ticket_id: ticket.id,
+        etapa: "final",
+        decision: "devuelto",
+        nota: req.body?.nota || null,
+        motivo_devolucion: req.body?.motivo_devolucion || null,
+        decidido_por: req.user.id,
+      });
+      if (error) throw error;
+      return {};
     },
   })
 );
@@ -1148,23 +1192,21 @@ ticketsRouter.post("/tickets/:id/devolver-coordinador", (req, res) =>
     nuevoEstado: "devuelto",
     tipoEvento: "devuelto",
     notaObligatoria: true,
-    async validar(ticket) {
+    async validar(ticket, req) {
       if (ticket.etapa_aprobacion !== "coordinador_medico") {
         return "Este ticket no está pendiente de revisión del coordinador médico";
       }
-      return null;
+      return await validarMotivoDevolucion(req);
     },
     async efecto(ticket, req) {
-      const { error } = await supabase.from("aprobaciones").upsert(
-        {
-          ticket_id: ticket.id,
-          etapa: "coordinador_medico",
-          decision: "devuelto",
-          nota: req.body?.nota || null,
-          decidido_por: req.user.id,
-        },
-        { onConflict: "ticket_id,etapa" },
-      );
+      const { error } = await upsertAprobacionDevuelta({
+        ticket_id: ticket.id,
+        etapa: "coordinador_medico",
+        decision: "devuelto",
+        nota: req.body?.nota || null,
+        motivo_devolucion: req.body?.motivo_devolucion || null,
+        decidido_por: req.user.id,
+      });
       if (error) throw error;
       // etapa_aprobacion se deja intacta ("coordinador_medico"): al corregir y
       // reenviar, el ticket vuelve a este mismo paso, no salta a supervisora.

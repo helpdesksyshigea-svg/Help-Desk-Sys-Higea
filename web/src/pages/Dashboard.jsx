@@ -443,7 +443,9 @@ function DashboardContenido({ datos }) {
 
 function SeccionAprobaciones({ aprobaciones }) {
   if (!aprobaciones) return null;
-  const { tiempoPorEtapaHoras, gestionConPausasHoras, decisionesSupervisora, porSupervisora, colaPendiente } = aprobaciones;
+  const { tiempoPorEtapaHoras, gestionConPausasHoras, decisionesSupervisora, porSupervisora, colaPendiente, causasDevolucion } = aprobaciones;
+  const causas = causasDevolucion || [];
+  const maxCausa = Math.max(1, ...causas.map((e) => e.total));
 
   return (
     <div className="grid gap-4">
@@ -507,6 +509,19 @@ function SeccionAprobaciones({ aprobaciones }) {
           </div>
         </Card>
       </div>
+
+      <Card className="grid gap-3">
+        <SeccionTitulo subtitulo="Devoluciones del coordinador médico y de supervisora en el rango, por motivo registrado">
+          Causas de devolución
+        </SeccionTitulo>
+        <div className="grid gap-1.5">
+          {causas.length ? (
+            causas.map((e) => <BarraHorizontal key={e.etiqueta} etiqueta={e.etiqueta} total={e.total} maximo={maxCausa} />)
+          ) : (
+            <p className="text-sm text-[var(--color-muted)]">Sin devoluciones en este rango.</p>
+          )}
+        </div>
+      </Card>
 
       {porSupervisora.length > 1 && (
         <Card className="grid gap-3">
