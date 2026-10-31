@@ -272,7 +272,7 @@ function DashboardContenido({ datos }) {
         <CardNumero etiqueta="Tickets en el rango" valor={datos.totales.tickets} icon={IconInbox} />
         <CardNumero etiqueta="Abiertos" valor={datos.totales.abiertos} icon={IconClock} acento="#9a5b06" />
         <CardNumero etiqueta="Vencidos ahora" valor={datos.totales.vencidosActuales} icon={IconAlert} acento="#b3362a" />
-        <CardNumero etiqueta="TPR promedio" valor={horas(datos.tiempos.tprHorasPromedio)} icon={IconClock} acento="#3656a3" />
+        <CardNumero etiqueta="TPR (tiempo de respuesta)" valor={horas(datos.tiempos.tprHorasPromedio)} icon={IconClock} acento="#3656a3" />
         <CardNumero etiqueta="Resolución promedio" valor={horas(datos.tiempos.resolucionHorasPromedio)} icon={IconCheck} acento="#2c7536" />
       </div>
 
