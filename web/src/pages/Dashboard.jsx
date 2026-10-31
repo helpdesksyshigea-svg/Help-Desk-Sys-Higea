@@ -139,16 +139,22 @@ function DonutEstados({ datos }) {
 function BarraHorizontal({ etiqueta, total, maximo, color = "var(--color-ink)" }) {
   const pct = maximo ? Math.max(2, (total / maximo) * 100) : 0;
   return (
-    <div className="grid grid-cols-[140px_1fr_28px] items-center gap-2 text-sm">
-      <span className="truncate text-[var(--color-muted)]" title={etiqueta}>
-        {etiqueta}
-      </span>
-      <div className="h-5 overflow-hidden rounded-[var(--radius-button)] bg-[var(--color-ink)]/[0.06]">
-        <div className="h-full rounded-[var(--radius-button)] transition-all" style={{ width: `${pct}%`, background: color }} />
+    <div className="flex items-start gap-2 text-sm">
+      <span className="w-[140px] shrink-0 text-[var(--color-muted)]">{etiqueta}</span>
+      <div className="flex flex-1 items-center gap-2 pt-1">
+        <div className="h-5 flex-1 overflow-hidden rounded-[var(--radius-button)] bg-[var(--color-ink)]/[0.06]">
+          <div className="h-full rounded-[var(--radius-button)] transition-all" style={{ width: `${pct}%`, background: color }} />
+        </div>
+        <span className="w-7 shrink-0 text-right font-medium">{total}</span>
       </div>
-      <span className="text-right font-medium">{total}</span>
     </div>
   );
+}
+
+// ordena de mayor a menor por total — se usa de forma centralizada para que
+// cualquier lista nueva de barras quede ordenada sin tener que acordarse en el backend
+function ordenarDesc(lista) {
+  return [...lista].sort((a, b) => b.total - a.total);
 }
 
 // ---------- tendencia mensual, línea SVG a mano ----------
@@ -292,7 +298,7 @@ function DashboardContenido({ datos }) {
         <Card className="grid gap-3">
           <SeccionTitulo>Por tipo de solicitud</SeccionTitulo>
           <div className="grid gap-1.5">
-            {datos.porTipo.map((e) => (
+            {ordenarDesc(datos.porTipo).map((e) => (
               <BarraHorizontal key={e.tipo} etiqueta={e.etiqueta} total={e.total} maximo={maxTipo} />
             ))}
           </div>
@@ -300,7 +306,7 @@ function DashboardContenido({ datos }) {
         <Card className="grid gap-3">
           <SeccionTitulo>Por prioridad</SeccionTitulo>
           <div className="grid gap-1.5">
-            {datos.porPrioridad.map((e) => (
+            {ordenarDesc(datos.porPrioridad).map((e) => (
               <BarraHorizontal
                 key={e.prioridad}
                 etiqueta={e.etiqueta}
@@ -315,7 +321,7 @@ function DashboardContenido({ datos }) {
           <SeccionTitulo subtitulo="Ítems, no tickets — uno puede tener varios">Por motivo</SeccionTitulo>
           <div className="grid gap-1.5">
             {datos.porMotivo.length ? (
-              datos.porMotivo.map((e) => <BarraHorizontal key={e.etiqueta} etiqueta={e.etiqueta} total={e.total} maximo={maxMotivo} />)
+              ordenarDesc(datos.porMotivo).map((e) => <BarraHorizontal key={e.etiqueta} etiqueta={e.etiqueta} total={e.total} maximo={maxMotivo} />)
             ) : (
               <p className="text-sm text-[var(--color-muted)]">Sin registros en este rango.</p>
             )}
