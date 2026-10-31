@@ -20,6 +20,15 @@ export function Adjuntos({ ticketId, kindsPermitidos = ["oficio", "soporte", "ev
   const [subiendo, setSubiendo] = useState(null); // kind que se está subiendo, o null
   const [error, setError] = useState(null);
   const [vista, setVista] = useState(null); // { nombre, tipo, url } o null
+
+  useEffect(() => {
+    if (!vista) return;
+    function alPresionarTecla(e) {
+      if (e.key === "Escape") setVista(null);
+    }
+    window.addEventListener("keydown", alPresionarTecla);
+    return () => window.removeEventListener("keydown", alPresionarTecla);
+  }, [vista]);
   const [cargandoVista, setCargandoVista] = useState(null); // adjuntoId que está cargando la vista previa
   const [editandoId, setEditandoId] = useState(null);
   const [nombreEditado, setNombreEditado] = useState("");

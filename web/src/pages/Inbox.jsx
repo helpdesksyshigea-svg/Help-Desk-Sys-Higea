@@ -152,6 +152,14 @@ export function Inbox() {
       {borrador && !busqueda && (
         <Card
           onClick={() => navigate("/tickets/nuevo")}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              navigate("/tickets/nuevo");
+            }
+          }}
           className="flex cursor-pointer flex-wrap items-center justify-between gap-2 border-dashed hover:border-[var(--color-ink)]/40"
         >
           <span className="flex items-center gap-2 text-sm">
@@ -242,6 +250,15 @@ export function Inbox() {
                   <tr
                     key={t.id}
                     onClick={() => navigate(`/tickets/${t.id}`)}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Ver ticket ${t.code}`}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        navigate(`/tickets/${t.id}`);
+                      }
+                    }}
                     className="cursor-pointer border-b border-[var(--color-border)] last:border-0 hover:bg-[var(--color-surface-hover)]"
                   >
                     <td className="py-3.5 pl-4 align-top">

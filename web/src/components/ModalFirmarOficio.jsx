@@ -23,6 +23,14 @@ export function ModalFirmarOficio({ titulo, cargarPreview, onConfirmar, onCancel
   const faltaFirma = !perfil?.tieneFirma;
 
   useEffect(() => {
+    function alPresionarTecla(e) {
+      if (e.key === "Escape" && !confirmando) onCancelar();
+    }
+    window.addEventListener("keydown", alPresionarTecla);
+    return () => window.removeEventListener("keydown", alPresionarTecla);
+  }, [onCancelar, confirmando]);
+
+  useEffect(() => {
     if (faltaFirma) {
       setCargando(false);
       return;
