@@ -502,6 +502,7 @@ ticketsRouter.post("/tickets/preview-oficio", requirePermission("tickets.crear")
     plantilla: plantilla_oficio,
     items: itemsConMotivoLegible,
     solicitante,
+    coordinador: req.user.rol === "medico" ? null : undefined,
     aprobador: null,
     configOficio,
   });
@@ -518,7 +519,12 @@ ticketsRouter.get("/tickets/:id/oficio-generado.pdf", async (req, res) => {
   const { etiqueta, plantilla_oficio } = await cargarPlantillaTipo(ticket.tipo);
   const solicitante = await cargarPersonaFirma(ticket.solicitante_id);
   const aprobacionCoord = aprobacionCoordinador(ticket);
-  const coordinador = aprobacionCoord ? await cargarPersonaFirma(aprobacionCoord.decidido_por) : undefined;
+  // Un ticket de médico lleva las 3 columnas de firma desde que se radica —
+  // no solo después de que el coordinador ya aprobó — para que el PDF no
+  // "cambie de forma" a mitad del flujo: la del coordinador simplemente sale
+  // "pendiente de confirmación" hasta que él apruebe.
+  const requiereCoordinador = Boolean(aprobacionCoord) || ticket.etapa_aprobacion === "coordinador_medico";
+  const coordinador = requiereCoordinador ? (aprobacionCoord ? await cargarPersonaFirma(aprobacionCoord.decidido_por) : null) : undefined;
   const decididoPorFinal = ticket.aprobacion?.decidido_por || null;
   const aprobador = await cargarPersonaFirma(decididoPorFinal);
   // Si quien radicó el ticket es la misma persona que lo aprobó (p.ej. una
