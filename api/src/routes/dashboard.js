@@ -258,28 +258,40 @@ dashboardRouter.get("/dashboard/resumen", requirePermission("reportes.ver_dashbo
   const porAgenteMapa = {};
   for (const t of tickets) {
     if (!t.agente_higea) continue;
-    const a = (porAgenteMapa[t.agente_higea] ||= { agente: t.agente_higea, asignados: 0, cerrados: 0, vencidos: 0, tprHoras: [], resolucionHoras: [] });
+    const a = (porAgenteMapa[t.agente_higea] ||= { agente: t.agente_higea, asignados: 0, cerrados: [], tprHoras: [], resolucionHoras: [] });
     a.asignados++;
-    if (t.estado === "cerrado") a.cerrados++;
+    if (t.estado === "cerrado") a.cerrados.push(t);
     if (tprHorasPorTicket[t.id] != null) a.tprHoras.push(tprHorasPorTicket[t.id]);
     if (resolucionHorasPorTicket[t.id] != null) a.resolucionHoras.push(resolucionHorasPorTicket[t.id]);
   }
   const porAgente = await Promise.all(
     Object.values(porAgenteMapa).map(async (a) => {
-      let vencidos = 0;
+      // % cumplimiento: de los tickets que este ingeniero CERRÓ, cuántos cerró
+      // antes de su propia fecha límite de SLA (comparando cerrado_at contra
+      // fechaLimiteDe, no "vencido ahora" — eso solo aplica a tickets abiertos
+      // y mezclarlo con el total de cerrados podía dar un % negativo o sin
+      // sentido real).
+      let vencidosCerrados = 0;
+      let evaluables = 0;
+      for (const t of a.cerrados) {
+        const dueAt = await fechaLimiteDe(t, eventosPorTicket[t.id] || [], diasHabilesPorPrioridad[t.prioridad] ?? 2, festivos);
+        if (!dueAt) continue; // nunca fue aprobado (ej. cerrado desde "pendiente"): no tiene SLA que evaluar
+        evaluables++;
+        if (new Date(t.cerrado_at) > new Date(dueAt)) vencidosCerrados++;
+      }
+      let vencidosAbiertos = 0;
       for (const t of abiertos.filter((x) => x.agente_higea === a.agente)) {
         const { vencido } = await calcularSla(t, eventosPorTicket[t.id] || [], diasHabilesPorPrioridad[t.prioridad] ?? 2, festivos);
-        if (vencido) vencidos++;
+        if (vencido) vencidosAbiertos++;
       }
-      const evaluables = a.cerrados; // simplificado: % cumplimiento sobre cerrados con TPR conocido
       return {
         agente: a.agente,
         asignados: a.asignados,
-        cerrados: a.cerrados,
-        vencidos,
+        cerrados: a.cerrados.length,
+        vencidos: vencidosAbiertos, // abiertos actualmente vencidos (alerta operativa, no entra en pctCumplimiento)
         tprHorasPromedio: promedio(a.tprHoras),
         resolucionHorasPromedio: promedio(a.resolucionHoras),
-        pctCumplimiento: evaluables ? Number((((evaluables - vencidos) / evaluables) * 100).toFixed(1)) : null,
+        pctCumplimiento: evaluables ? Number((((evaluables - vencidosCerrados) / evaluables) * 100).toFixed(1)) : null,
       };
     }),
   );

@@ -691,7 +691,7 @@ const COLUMNAS_ING = [
   {
     clave: "pctCumplimiento",
     etiqueta: "% a tiempo",
-    info: "Cálculo actual del backend: (cerrados − vencidos abiertos) ÷ cerrados. Es una aproximación simplificada, no el % de SLA de sus cerrados.",
+    info: "De los tickets que cerró, qué porcentaje cerró antes de su fecha límite de SLA (no cuenta tickets sin fecha límite, ej. cerrados sin pasar por aprobación).",
   },
 ];
 
