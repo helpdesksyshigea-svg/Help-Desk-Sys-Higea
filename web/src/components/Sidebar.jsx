@@ -65,7 +65,7 @@ function IndicadorAlmacenamiento() {
 export function Sidebar({ abierto = false, onCerrar }) {
   const { perfil } = useAuth();
   const [params] = useSearchParams();
-  const [tickets, setTickets] = useState([]);
+  const [conteos, setConteos] = useState({ total: 0, porFiltro: {} });
   const filtroActivo = params.get("filtro") || "accion";
   const filtros = filtrosPorRol(perfil?.rol, perfil?.id);
 
@@ -79,10 +79,15 @@ export function Sidebar({ abierto = false, onCerrar }) {
   }, [abierto, onCerrar]);
 
   useEffect(() => {
+    // /tickets/conteos en vez de /tickets completo: el sidebar solo necesita
+    // números por filtro, no el listado enriquecido (items/eventos/
+    // aprobaciones) de cada ticket — pedir eso solo para contar es justo el
+    // patrón que ya hizo caer la app una vez con volumen alto, y este
+    // componente se recarga en cada cambio de pestaña y cada mutación.
     function cargar() {
-      apiFetch("/tickets")
+      apiFetch("/tickets/conteos")
         .then((data) => {
-          if (Array.isArray(data)) setTickets(data);
+          if (data && typeof data === "object") setConteos({ total: data.total || 0, porFiltro: data.porFiltro || {} });
         })
         .catch((e) => console.error("No se pudo actualizar el contador de tickets:", e));
     }
@@ -149,13 +154,13 @@ export function Sidebar({ abierto = false, onCerrar }) {
             <IconInbox size={19} className="shrink-0" />
             <span className="truncate">Bandeja</span>
           </span>
-          <span className="shrink-0 text-xs opacity-70">{tickets.length || ""}</span>
+          <span className="shrink-0 text-xs opacity-70">{conteos.total || ""}</span>
         </NavLink>
 
         <div className="mt-2 flex min-w-0 flex-col gap-0.5">
-          {filtros.map(([clave, etiqueta, fn]) => {
+          {filtros.map(([clave, etiqueta]) => {
             const Icono = ICONOS[clave] || IconClock;
-            const total = tickets.filter(fn).length;
+            const total = conteos.porFiltro[clave] ?? 0;
             // "Requiere tu acción" con pendientes reales se marca aparte de la
             // selección normal: fondo rojo sólido (relleno completo, no solo
             // texto) es la única señal de "esto necesita tu atención ahora",

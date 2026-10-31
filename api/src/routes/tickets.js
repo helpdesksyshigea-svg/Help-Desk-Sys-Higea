@@ -6,6 +6,7 @@ import { supabase } from "../config/supabase.js";
 import { authenticate, requirePermission } from "../middleware/auth.js";
 import { hashItems } from "../lib/hash.js";
 import { calcularSla, festivosComo } from "../lib/sla.js";
+import { predicadosBandeja } from "../lib/filtrosBandeja.js";
 import { construirExcelTickets } from "../lib/excel.js";
 import { notificarTransicion } from "../lib/correo.js";
 import { construirOficioPdf } from "../lib/oficio.js";
@@ -418,6 +419,29 @@ function enLotes(arr, tam) {
   return lotes;
 }
 
+// PostgREST corta en 1000 filas por defecto si no se pide un rango explícito
+// — antes esto hacía desaparecer en silencio cualquier ticket más allá del
+// número 1000 (el más viejo, por el orden descendente). Un .range() fijo
+// (ej. 0-19999) solo mueve el techo, no lo elimina: con suficiente volumen
+// vuelve a pasar lo mismo sin ningún aviso. Esto pagina internamente en
+// lotes de 1000 hasta agotar los resultados, así que nunca se pierde un
+// ticket sin importar cuántos haya — el costo es más peticiones a Supabase
+// con volumen muy alto, pero nunca datos faltantes.
+async function fetchTodosTickets(aplicarFiltros) {
+  const TAM = 1000;
+  const todos = [];
+  for (let desde = 0; ; desde += TAM) {
+    let q = supabase.from("tickets").select("*");
+    if (aplicarFiltros) q = aplicarFiltros(q);
+    q = q.order("created_at", { ascending: false }).range(desde, desde + TAM - 1);
+    const { data, error } = await q;
+    if (error) throw new Error(`listando tickets: ${error.message}`);
+    todos.push(...(data || []));
+    if (!data || data.length < TAM) break;
+  }
+  return todos;
+}
+
 // Reemplaza "un ticket a la vez" (cargarTicketCompleto) por lotes: con N
 // tickets visibles, antes se hacían ~5 consultas POR TICKET (items, eventos,
 // aprobaciones, sla_config y hasta festivos_colombia dentro de calcularSla) —
@@ -492,38 +516,77 @@ function filtrarVisibles(tickets, user) {
 }
 
 // ---------- listar ----------
-// .range(): sin esto, PostgREST aplica su límite por defecto de 1000 filas y
-// los tickets más antiguos (los de más abajo en el orden por created_at)
-// simplemente desaparecían de la bandeja sin ningún error — nadie se enteraba
-// hasta que el volumen pasaba de 1000. 20000 es un techo generoso para el
-// volumen de este hospital; si algún día se acerca, el síntoma vuelve a ser
-// "desaparecen tickets viejos en silencio", así que conviene revisarlo antes.
 ticketsRouter.get("/tickets", async (req, res) => {
-  let query = supabase.from("tickets").select("*").order("created_at", { ascending: false }).range(0, 19999);
-  if (!req.user.permisos.has("tickets.ver_todos")) {
-    query = query.eq("solicitante_id", req.user.id);
-  }
-  const { data: tickets, error } = await query;
-  if (error) return res.status(500).json({ error: error.message });
-
+  const tickets = await fetchTodosTickets((q) =>
+    req.user.permisos.has("tickets.ver_todos") ? q : q.eq("solicitante_id", req.user.id),
+  );
   const visibles = filtrarVisibles(tickets, req.user);
   const completos = await cargarTicketsCompletos(visibles);
   res.json(completos);
+});
+
+// ---------- conteos para la bandeja/sidebar ----------
+// La bandeja y el sidebar necesitan, sobre todo, SABER CUÁNTOS tickets caen en
+// cada filtro (los números de los contadores) — no el detalle completo con
+// items/eventos/aprobaciones de cada uno. Pedir /tickets entero solo para
+// contar (como hacía antes el sidebar, en cada cambio de pestaña) es el mismo
+// problema de fondo que ya rompió la app una vez: cuanto más crece el
+// histórico, más caro es un simple contador. Esto trae solo las columnas que
+// hacen falta para contar (nunca "*") y nunca items/eventos/aprobaciones.
+ticketsRouter.get("/tickets/conteos", async (req, res) => {
+  const tickets = await fetchTodosTickets((q) => {
+    q = q.select("id, estado, etapa_aprobacion, asignado_a, solicitante_id, aprobado_at, prioridad, created_at");
+    return req.user.permisos.has("tickets.ver_todos") ? q : q.eq("solicitante_id", req.user.id);
+  });
+  const visibles = filtrarVisibles(tickets, req.user);
+
+  // "vencidos" es un filtro más, pero vencido no es una columna — se calcula.
+  // Solo hace falta calcularlo sobre los tickets "abiertos ahora" (aprobado,
+  // en_proceso, requiere_info): ese subconjunto se mantiene naturalmente
+  // acotado sin importar cuántos tickets históricos existan en total, porque
+  // el propio SLA obliga a cerrarlos — a diferencia de la lista completa, que
+  // solo crece.
+  const abiertos = visibles.filter((t) => ["aprobado", "en_proceso", "requiere_info"].includes(t.estado));
+  if (abiertos.length) {
+    const ids = abiertos.map((t) => t.id);
+    const eventosAbiertos = await (async () => {
+      const filas = [];
+      for (const lote of enLotes(ids, 200)) {
+        const { data, error } = await supabase.from("ticket_eventos").select("ticket_id, estado_anterior, estado_nuevo, created_at").in("ticket_id", lote);
+        if (error) throw new Error(`cargando eventos para conteos: ${error.message}`);
+        filas.push(...(data || []));
+      }
+      return filas;
+    })();
+    const eventosPorTicket = {};
+    for (const ev of eventosAbiertos) (eventosPorTicket[ev.ticket_id] ||= []).push(ev);
+    const [{ data: slaConfigRows }, festivos] = await Promise.all([supabase.from("sla_config").select("prioridad, dias_habiles"), festivosComo()]);
+    const diasHabilesPorPrioridad = {};
+    for (const c of slaConfigRows || []) diasHabilesPorPrioridad[c.prioridad] = c.dias_habiles;
+    for (const t of abiertos) {
+      const { vencido } = await calcularSla(t, eventosPorTicket[t.id] || [], diasHabilesPorPrioridad[t.prioridad] ?? 2, festivos);
+      t.vencido = vencido;
+    }
+  }
+
+  const predicados = predicadosBandeja(req.user.rol, req.user.id);
+  const conteos = {};
+  for (const [clave, fn] of Object.entries(predicados)) {
+    conteos[clave] = visibles.reduce((n, t) => n + (fn(t) ? 1 : 0), 0);
+  }
+  res.json({ total: visibles.length, porFiltro: conteos });
 });
 
 // ---------- exportar a Excel ----------
 // Mismo filtro de visibilidad que el listado (filtrarVisibles / ver_propios vs
 // ver_todos): el informe nunca muestra a alguien más de lo que ya podría ver en la app.
 ticketsRouter.get("/tickets/exportar", requirePermission("reportes.exportar"), async (req, res) => {
-  let query = supabase.from("tickets").select("*").order("created_at", { ascending: false }).range(0, 19999);
-  if (!req.user.permisos.has("tickets.ver_todos")) {
-    query = query.eq("solicitante_id", req.user.id);
-  }
-  if (req.query.desde) query = query.gte("created_at", req.query.desde);
-  if (req.query.hasta) query = query.lte("created_at", req.query.hasta);
-
-  const { data: tickets, error } = await query;
-  if (error) return res.status(500).json({ error: error.message });
+  const tickets = await fetchTodosTickets((q) => {
+    if (!req.user.permisos.has("tickets.ver_todos")) q = q.eq("solicitante_id", req.user.id);
+    if (req.query.desde) q = q.gte("created_at", req.query.desde);
+    if (req.query.hasta) q = q.lte("created_at", req.query.hasta);
+    return q;
+  });
 
   const visibles = filtrarVisibles(tickets, req.user);
   const completos = await cargarTicketsCompletos(visibles);
