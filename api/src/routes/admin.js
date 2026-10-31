@@ -136,6 +136,14 @@ adminRouter.post("/admin/usuarios", requirePermission("usuarios.gestionar"), asy
   if (!email?.trim() || !nombre?.trim() || !rol_id) {
     return res.status(400).json({ error: "Faltan campos obligatorios (email, nombre, rol_id)" });
   }
+  // Crear un usuario siempre le asigna un rol — sin esto, cualquier cuenta con
+  // "usuarios.gestionar" (pero no "roles.gestionar") podría invitar a alguien
+  // directamente con el rol más privilegiado que exista en el sistema, aunque
+  // ella misma no tenga permiso para administrar roles. Mismo criterio que la
+  // edición de usuario, abajo.
+  if (!req.user.permisos.has("roles.gestionar")) {
+    return res.status(403).json({ error: "Para asignar un rol al crear un usuario también necesitas el permiso de gestión de roles" });
+  }
 
   // rol_id llega del cliente: se confirma que exista antes de invitar a nadie,
   // para no enviar una invitación que luego falla al insertar en `usuarios`
@@ -185,6 +193,13 @@ adminRouter.patch("/admin/usuarios/:id", requirePermission("usuarios.gestionar")
   const { rol_id, activo, nombre, proveedor, codigo_interno, email, beta_firma_oficio } = req.body;
   const patch = {};
   if (rol_id !== undefined) {
+    // Cambiar el rol de un usuario existente es tan sensible como crearlo con
+    // uno: sin este chequeo, "usuarios.gestionar" solo bastaba para subir a
+    // cualquier cuenta (incluida la propia, si el flujo lo permitiera) a un
+    // rol con más permisos que los de quien hace el cambio.
+    if (!req.user.permisos.has("roles.gestionar")) {
+      return res.status(403).json({ error: "Para cambiar el rol de un usuario también necesitas el permiso de gestión de roles" });
+    }
     const { data: rolExistente, error: rolError } = await supabase.from("roles").select("id").eq("id", rol_id).maybeSingle();
     if (rolError && rolError.code !== "22P02") return res.status(500).json({ error: rolError.message });
     if (!rolExistente) return res.status(400).json({ error: "El rol indicado no existe" });
