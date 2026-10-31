@@ -3,6 +3,7 @@ import { apiFetch } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { Card } from "./Card";
 import { Button } from "./Button";
+import { Select } from "./Select";
 import { ModalFirmarOficio, previewOficioAlRadicar } from "./ModalFirmarOficio";
 import { IconUpload, IconPlus, IconTrash, IconClose } from "./icons";
 import { leerBorrador, guardarBorrador, borrarBorrador } from "../lib/borrador";
@@ -205,27 +206,19 @@ export function TicketForm({ modo, inicial, onSubmit, submitLabel }) {
         1. Datos de la solicitud
       </h3>
       <Card className="grid gap-4 sm:grid-cols-2">
-        <label className="text-sm">
-          <span className="mb-1 block font-medium">Tipo de solicitud</span>
-          <select value={tipo} onChange={(e) => setTipo(e.target.value)} className={inputClass}>
-            {tipos.map((t) => (
-              <option key={t.clave} value={t.clave}>
-                {t.etiqueta}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Select
+          label="Tipo de solicitud"
+          value={tipo}
+          onChange={setTipo}
+          options={tipos.map((t) => ({ value: t.clave, label: t.etiqueta }))}
+        />
 
-        <label className="text-sm">
-          <span className="mb-1 block font-medium">Prioridad</span>
-          <select value={prioridad} onChange={(e) => setPrioridad(e.target.value)} className={inputClass}>
-            {Object.entries(PRIORIDADES).map(([k, l]) => (
-              <option key={k} value={k}>
-                {l}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Select
+          label="Prioridad"
+          value={prioridad}
+          onChange={setPrioridad}
+          options={Object.entries(PRIORIDADES).map(([k, l]) => ({ value: k, label: l }))}
+        />
 
         <label className="text-sm sm:col-span-2">
           <span className="mb-1 block font-medium">Solicita (nombre de quien firma el oficio)</span>
@@ -313,22 +306,13 @@ export function TicketForm({ modo, inicial, onSubmit, submitLabel }) {
                   required={obligatorios.has("fecha")}
                 />
               </label>
-              <label className="text-sm">
-                <span className="mb-1 block font-medium">Motivo{!obligatorios.has("motivo") && " (opcional)"}</span>
-                <select
-                  value={item.motivo || ""}
-                  onChange={(e) => actualizarItem(i, "motivo", e.target.value)}
-                  className={inputClass}
-                  required={obligatorios.has("motivo")}
-                >
-                  <option value="">Seleccione…</option>
-                  {motivos.map((m) => (
-                    <option key={m.clave} value={m.clave}>
-                      {m.etiqueta}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <Select
+                label={`Motivo${!obligatorios.has("motivo") ? " (opcional)" : ""}`}
+                value={item.motivo || ""}
+                onChange={(v) => actualizarItem(i, "motivo", v)}
+                required={obligatorios.has("motivo")}
+                options={motivos.map((m) => ({ value: m.clave, label: m.etiqueta }))}
+              />
               <label className="text-sm">
                 <span className="mb-1 block font-medium">Descripción{!obligatorios.has("descripcion") && " (opcional)"}</span>
                 <input

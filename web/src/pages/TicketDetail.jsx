@@ -5,6 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
 import { StatusTag } from "../components/StatusTag";
+import { Select } from "../components/Select";
 import { Adjuntos } from "../components/Adjuntos";
 import { ModalFirmarOficio, oficioGeneradoDe } from "../components/ModalFirmarOficio";
 import { useToast } from "../context/ToastContext";
@@ -455,18 +456,12 @@ export function TicketDetail() {
               <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">
                 Ingeniero de SYS HIGEA que toma el caso
               </span>
-              <select
+              <Select
                 value={agenteHigea}
-                onChange={(e) => setAgenteHigea(e.target.value)}
-                className="w-full rounded-[var(--radius-input)] border border-[var(--color-ink)]/20 bg-[var(--color-ink)]/5 px-3 py-2 outline-none focus:border-[var(--color-ink)]"
-              >
-                <option value="">Seleccione…</option>
-                {ingenieros.map((i) => (
-                  <option key={i.clave} value={i.etiqueta}>
-                    {i.etiqueta}
-                  </option>
-                ))}
-              </select>
+                onChange={setAgenteHigea}
+                placeholder="Seleccione…"
+                options={ingenieros.map((i) => ({ value: i.etiqueta, label: i.etiqueta }))}
+              />
             </label>
           )}
           {disponibles.some((a) => RUTAS_DEVOLVER.has(a.ruta)) && (
@@ -474,18 +469,12 @@ export function TicketDetail() {
               <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">
                 Motivo de la devolución
               </span>
-              <select
+              <Select
                 value={motivoDevolucion}
-                onChange={(e) => setMotivoDevolucion(e.target.value)}
-                className="w-full rounded-[var(--radius-input)] border border-[var(--color-ink)]/20 bg-[var(--color-ink)]/5 px-3 py-2 outline-none focus:border-[var(--color-ink)]"
-              >
-                <option value="">Seleccione…</option>
-                {motivosDevolucion.map((m) => (
-                  <option key={m.clave} value={m.clave}>
-                    {m.etiqueta}
-                  </option>
-                ))}
-              </select>
+                onChange={setMotivoDevolucion}
+                placeholder="Seleccione…"
+                options={motivosDevolucion.map((m) => ({ value: m.clave, label: m.etiqueta }))}
+              />
             </label>
           )}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">

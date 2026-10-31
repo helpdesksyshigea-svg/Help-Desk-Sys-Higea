@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
+import { Select } from "../components/Select";
 import { IconUser, IconShield, IconInbox, IconInfo, IconClock, IconSettings, IconDatabase, IconEdit, IconKey, IconTrash, IconPlus, IconCheck, IconClose, IconSend, IconCopy, IconSignature } from "../components/icons";
 
 const inputClass =
@@ -287,16 +288,12 @@ function Usuarios() {
             <span className="mb-1 block font-medium">Nombre</span>
             <input required value={nombre} onChange={(e) => setNombre(e.target.value)} className={inputClass} />
           </label>
-          <label className="text-sm">
-            <span className="mb-1 block font-medium">Rol</span>
-            <select value={rolId} onChange={(e) => setRolId(e.target.value)} className={inputClass}>
-              {roles.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {nombreLegible(r.nombre)}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Select
+            label="Rol"
+            value={rolId}
+            onChange={setRolId}
+            options={roles.map((r) => ({ value: r.id, label: nombreLegible(r.nombre) }))}
+          />
           <label className="text-sm">
             <span className="mb-1 block font-medium">Proveedor (opcional, ej. SYS HIGEA)</span>
             <input value={proveedor} onChange={(e) => setProveedor(e.target.value)} className={inputClass} />
@@ -373,17 +370,11 @@ function Usuarios() {
                   className="w-16 rounded-[var(--radius-input)] border border-[var(--color-border)] py-1 pl-2 pr-4 text-center text-sm"
                 />
               </span>
-              <select
+              <Select
                 value={u.roles?.id || ""}
-                onChange={(e) => cambiarRol(u.id, e.target.value)}
-                className="w-full rounded-[var(--radius-input)] border border-[var(--color-border)] px-2 py-1 text-sm"
-              >
-                {roles.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {nombreLegible(r.nombre)}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => cambiarRol(u.id, v)}
+                options={roles.map((r) => ({ value: r.id, label: nombreLegible(r.nombre) }))}
+              />
               <div className="flex flex-nowrap items-center justify-end gap-1">
                 <Button variant={u.activo ? "danger" : "ghost"} onClick={() => alternarActivo(u)} title={u.activo ? "Desactivar" : "Activar"}>
                   {u.activo ? <IconClose size={14} /> : <IconCheck size={14} />}
