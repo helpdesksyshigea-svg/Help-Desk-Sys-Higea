@@ -17,13 +17,15 @@ Ver plan detallado en `docs/plan-analitica-supervisoras.md`. Incluye tiempos pro
 ## 5. Auditoría exportable de firma digital
 Ya existe la base (`firma_solicitante_at`, `firma_coordinador_at`, `firma_aprobador_at`), falta un log exportable (CSV/PDF) para auditorías externas (ej. entes de control, revisoría).
 
-## 6. Brief UX/UI (en curso, P1/P2)
-- Vista priorizada por rol en la bandeja.
-- Mejora de lectura del historial/adjuntos.
-- Microcopy en mensajes de éxito/error.
-- Seguridad en el panel de administración.
-- Accesibilidad (color + texto, foco de teclado).
-- Adaptación móvil.
+## 6. Brief UX/UI (completado)
+- ✅ Vista priorizada por rol en la bandeja — ya existía (`filtrosPorRol`).
+- ✅ Accesibilidad: foco de teclado visible, filas/tarjetas navegables, Escape cierra modales (`666fda9`).
+- ✅ Adaptación móvil: menú deslizable y búsqueda en el header (`5a2cad1`).
+- ✅ Microcopy: errores de red ya no muestran texto crudo en inglés; avisos de limpieza de adjuntos listan qué tickets fallaron (`dc38276`).
+- ✅ Seguridad en Admin: `rol_id` ahora valida que el rol exista (`1c3d09f`) y asignar/cambiar rol exige también `roles.gestionar`, cerrando un camino de escalamiento de privilegios (`6186834`).
+
+### Pendiente de decisión del usuario (seguridad)
+- **Rate limiting en login**: no se implementó. El login no pasa por la API propia — el frontend llama directo a `supabase.auth.signInWithPassword`, así que cualquier límite de intentos depende de la configuración de Supabase Auth, no de este repo. Si se quiere, revisar esa configuración directamente en el panel de Supabase (no requiere cambios de código).
 
 ## Limpieza técnica pendiente
 - Borrar scripts temporales de prueba en `api/`: `demo_firma_oficio_tmp.mjs`, `demo_paso_a_paso_tmp.mjs` (no son parte del código de producción).
