@@ -61,26 +61,34 @@ function reemplazarMarcadores(plantilla, datos) {
 
 // {{firmante}} y {{cargo}} van en MAYÚSCULA y negrita dentro del cuerpo (pedido
 // explícito del usuario, para que el nombre y el cargo de quien firma resalten
-// en medio del párrafo) — el resto de marcadores se sustituyen como texto
-// normal. Se marca el tramo resaltado con un centinela invisible (U+0001,
-// nunca aparece en texto real) para que tokenizarConEstilo() sepa dónde
-// empieza y termina la negrita sin tener que parsear HTML/Markdown.
+// en medio del párrafo); {{factura}} va en negrita pero sin forzar mayúscula
+// (un número de factura no se "capitaliza") — el resto de marcadores se
+// sustituyen como texto normal. Se marca el tramo resaltado con un centinela
+// invisible (U+0001, nunca aparece en texto real) para que tokenizarConEstilo()
+// sepa dónde empieza y termina la negrita sin tener que parsear HTML/Markdown.
 const CENTINELA = "\u0001";
+const MARCADORES_MAYUSCULA_NEGRITA = ["firmante", "cargo"];
+const MARCADORES_NEGRITA = ["factura"];
 
 function reemplazarMarcadoresConEstilo(plantilla, datos) {
-  // Primera pasada: todos los marcadores EXCEPTO firmante/cargo (que deben
-  // quedar como el literal "{{firmante}}"/"{{cargo}}" para resolverse en la
-  // segunda pasada con su resaltado) — reemplazarMarcadores() blanquea
-  // cualquier marcador sin valor, así que no sirve pasarle firmante/cargo en
-  // `undefined`: hay que ocultárselos del regex por completo.
+  const claves = new Set([...MARCADORES_MAYUSCULA_NEGRITA, ...MARCADORES_NEGRITA]);
+  // Primera pasada: todos los marcadores EXCEPTO los resaltados (que deben
+  // quedar como el literal "{{clave}}" para resolverse en la segunda pasada
+  // con su resaltado) — reemplazarMarcadores() blanquea cualquier marcador
+  // sin valor, así que no sirve pasarle estas claves en `undefined`: hay que
+  // ocultárselas del regex por completo.
   let texto = String(plantilla || "");
   texto = texto.replace(/\{\{(\w+)\}\}/g, (m, clave) => {
-    if (clave === "firmante" || clave === "cargo") return m;
+    if (claves.has(clave)) return m;
     return datos[clave] != null && datos[clave] !== "" ? String(datos[clave]) : "";
   });
-  for (const clave of ["firmante", "cargo"]) {
+  for (const clave of MARCADORES_MAYUSCULA_NEGRITA) {
     const valor = datos[clave];
     texto = texto.replaceAll(`{{${clave}}}`, valor ? `${CENTINELA}${String(valor).toUpperCase()}${CENTINELA}` : "");
+  }
+  for (const clave of MARCADORES_NEGRITA) {
+    const valor = datos[clave];
+    texto = texto.replaceAll(`{{${clave}}}`, valor ? `${CENTINELA}${String(valor)}${CENTINELA}` : "");
   }
   return texto;
 }
