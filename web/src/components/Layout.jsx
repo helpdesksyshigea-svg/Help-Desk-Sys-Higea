@@ -1,9 +1,10 @@
+import { useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { nombreLegible } from "../lib/roles";
 import { Sidebar } from "./Sidebar";
 import { Button } from "./Button";
-import { IconSearch, IconLogout } from "./icons";
+import { IconSearch, IconLogout, IconMenu } from "./icons";
 
 const COLORES_AVATAR = ["#2d6a4f", "#1d4ed8", "#9a3412", "#6d28d9", "#0f766e", "#b91c1c"];
 
@@ -35,6 +36,7 @@ function Avatar({ nombre }) {
 export function Layout() {
   const { perfil, cerrarSesion } = useAuth();
   const navigate = useNavigate();
+  const [menuAbierto, setMenuAbierto] = useState(false);
 
   function buscar(e) {
     e.preventDefault();
@@ -44,10 +46,18 @@ export function Layout() {
 
   return (
     <div className="flex min-h-screen bg-[var(--color-canvas)]">
-      <Sidebar />
+      <Sidebar abierto={menuAbierto} onCerrar={() => setMenuAbierto(false)} />
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-10 border-b border-[var(--color-border)] bg-[var(--color-canvas)]/90 backdrop-blur-sm">
-          <div className="flex items-center justify-between gap-4 px-6 py-3">
+          <div className="flex items-center justify-between gap-4 px-4 py-3 sm:px-6">
+            <button
+              type="button"
+              onClick={() => setMenuAbierto(true)}
+              aria-label="Abrir menú de navegación"
+              className="shrink-0 rounded-[var(--radius-button)] p-2 text-[var(--color-ink)] hover:bg-[var(--color-ink)]/[0.06] md:hidden"
+            >
+              <IconMenu size={20} />
+            </button>
             <form onSubmit={buscar} className="relative hidden w-full max-w-sm sm:block">
               <IconSearch size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-muted)]" />
               <input
@@ -69,8 +79,21 @@ export function Layout() {
               </Button>
             </div>
           </div>
+          {/* La búsqueda en la fila de arriba se oculta bajo "sm" (poco
+              espacio junto al botón de menú y el avatar) — sin esto, en un
+              celular no existe forma de buscar un ticket por factura o
+              paciente, solo filtrar la bandeja. */}
+          <form onSubmit={buscar} className="relative px-4 pb-3 sm:hidden">
+            <IconSearch size={15} className="pointer-events-none absolute left-7 top-1/2 -translate-y-1/2 text-[var(--color-muted)]" />
+            <input
+              name="q"
+              type="search"
+              placeholder="Buscar ticket, factura o paciente…"
+              className="w-full rounded-[var(--radius-input)] border border-[var(--color-border)] bg-[var(--color-surface)] py-1.5 pl-9 pr-3 text-sm outline-none focus:border-[var(--color-ink)]"
+            />
+          </form>
         </header>
-        <main className="flex-1 px-6 py-8">
+        <main className="flex-1 px-4 py-6 sm:px-6 sm:py-8">
           <div className="mx-auto max-w-[1100px]">
             <Outlet />
           </div>

@@ -79,6 +79,11 @@ export const IconClose = (p) => (
     <path d="M18 6 6 18M6 6l12 12" />
   </Svg>
 );
+export const IconMenu = (p) => (
+  <Svg {...p}>
+    <path d="M4 7h16M4 12h16M4 17h16" />
+  </Svg>
+);
 export const IconTrash = (p) => (
   <Svg {...p}>
     <path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2m2 0-1 13a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L6 7" />

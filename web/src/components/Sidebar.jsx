@@ -62,12 +62,21 @@ function IndicadorAlmacenamiento() {
   );
 }
 
-export function Sidebar() {
+export function Sidebar({ abierto = false, onCerrar }) {
   const { perfil } = useAuth();
   const [params] = useSearchParams();
   const [tickets, setTickets] = useState([]);
   const filtroActivo = params.get("filtro") || "accion";
   const filtros = filtrosPorRol(perfil?.rol, perfil?.id);
+
+  useEffect(() => {
+    if (!abierto) return;
+    function alPresionarTecla(e) {
+      if (e.key === "Escape") onCerrar?.();
+    }
+    window.addEventListener("keydown", alPresionarTecla);
+    return () => window.removeEventListener("keydown", alPresionarTecla);
+  }, [abierto, onCerrar]);
 
   useEffect(() => {
     function cargar() {
@@ -102,7 +111,23 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-[var(--color-border)] bg-[var(--color-canvas)] px-3 py-4 md:flex">
+    <>
+      {/* Backdrop: solo existe en móvil mientras el drawer está abierto —
+          en desktop el sidebar ya es fijo y visible, nunca hay backdrop. */}
+      {abierto && (
+        <div className="fixed inset-0 z-30 bg-black/40 md:hidden" onClick={onCerrar} aria-hidden="true" />
+      )}
+      <aside
+        onClick={(e) => {
+          // Un link de navegación (NavLink) dentro del aside cierra el drawer
+          // en móvil al hacer clic — en desktop esto no tiene efecto visible
+          // porque el drawer ya está siempre "abierto" (sticky, sin overlay).
+          if (e.target.closest("a") && window.innerWidth < 768) onCerrar?.();
+        }}
+        className={`fixed inset-y-0 left-0 z-40 flex h-screen w-64 shrink-0 flex-col overflow-hidden border-r border-[var(--color-border)] bg-[var(--color-canvas)] px-3 py-4 transition-transform duration-200 md:sticky md:top-0 md:z-auto md:w-60 md:translate-x-0 md:transition-none ${
+          abierto ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mb-5 -mx-3 -mt-4 px-3 pt-4">
           <img src="/branding/logo-hospital-orito-sm.png" alt="E.S.E. Hospital Orito" className="mb-3 w-full object-contain" />
@@ -193,6 +218,7 @@ export function Sidebar() {
           </span>
         </NavLink>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }
