@@ -133,10 +133,14 @@ export function TicketDetail() {
       toastFallo("Indique qué ingeniero de SYS HIGEA toma el caso");
       return;
     }
-    // Beta: "Aprobar y enviar a SYS HIGEA" se intercepta con el modal "Firmar
-    // oficio" antes de llegar aquí (ver el onClick del botón más abajo); este
-    // flag solo confirma que ya se pasó por ahí, nunca se activa solo.
-    if (def.ruta === "aprobar" && perfil?.beta_firma_oficio && !firmaConfirmada) {
+    // Beta: tanto "Aprobar y enviar a SYS HIGEA" (supervisora) como "Aprobar
+    // como coordinador médico" se interceptan con el modal "Firmar oficio"
+    // antes de llegar aquí (ver el onClick del botón más abajo); este flag
+    // solo confirma que ya se pasó por ahí, nunca se activa solo. Sin esto
+    // para "aprobar-coordinador", el coordinador nunca podía confirmar su
+    // firma y el oficio de un ticket de médico quedaba siempre "pendiente
+    // de confirmación" aunque sí hubiera aprobado.
+    if ((def.ruta === "aprobar" || def.ruta === "aprobar-coordinador") && perfil?.beta_firma_oficio && !firmaConfirmada) {
       setAccionPendienteFirma(def);
       return;
     }

@@ -194,6 +194,21 @@ async function cargarMotivos() {
   return Object.fromEntries((data || []).map((m) => [m.clave, m.etiqueta]));
 }
 
+// El oficio solo tiene dos firmas (SOLICITA/APRUEBA) — igual que el oficio
+// real de referencia, que para un ticket de médico solo lleva la firma del
+// médico y la del coordinador médico, sin una tercera firma de facturación
+// (esa aprobación es un paso del sistema, no de papel). Así que "quién
+// aprueba" en el oficio depende de cuál fue el primer tramo de aprobación
+// real del ticket: el coordinador médico si el ticket pasó por ahí, o
+// supervisora (la aprobación "final") si no.
+function aprobacionParaOficio(ticket) {
+  const deCoordinador = (ticket.aprobaciones || []).find((a) => a.etapa === "coordinador_medico" && a.decision === "aprobado");
+  if (deCoordinador) {
+    return { decidido_por: deCoordinador.decidido_por, confirmadaEn: ticket.firma_coordinador_at };
+  }
+  return { decidido_por: ticket.aprobacion?.decidido_por, confirmadaEn: ticket.firma_aprobador_at };
+}
+
 // Texto fijo del oficio (destinatario, cierre, despedida), configurable desde
 // Administración → config_oficio (migración 0018). Si la consulta falla, no
 // se bloquea la generación del PDF: oficio.js ya trae un texto por defecto.
@@ -508,12 +523,13 @@ ticketsRouter.get("/tickets/:id/oficio-generado.pdf", async (req, res) => {
   }
   const { etiqueta, plantilla_oficio } = await cargarPlantillaTipo(ticket.tipo);
   const solicitante = await cargarPersonaFirma(ticket.solicitante_id);
-  const aprobador = await cargarPersonaFirma(ticket.aprobacion?.decidido_por);
+  const { decidido_por, confirmadaEn } = aprobacionParaOficio(ticket);
+  const aprobador = await cargarPersonaFirma(decidido_por);
   const configOficio = await cargarConfigOficio();
   const motivos = await cargarMotivos();
   const itemsConMotivoLegible = (ticket.items || []).map((item) => ({ ...item, motivo: motivos[item.motivo] || item.motivo }));
   const pdf = await construirOficioPdf({
-    ticket,
+    ticket: { ...ticket, firma_aprobador_at: confirmadaEn },
     tipoEtiqueta: etiqueta,
     plantilla: plantilla_oficio,
     items: itemsConMotivoLegible,
@@ -696,10 +712,23 @@ ticketsRouter.post("/tickets/:id/aprobar-coordinador", (req, res) =>
         { onConflict: "ticket_id,etapa" },
       );
       if (error) throw error;
-      return { etapa_aprobacion: null };
+      const patch = { etapa_aprobacion: null };
+      // Mismo criterio que en /aprobar: la firma solo se estampa si el
+      // coordinador la confirmó explícitamente en el modal "Firmar oficio".
+      // Columna propia (firma_coordinador_at, no firma_aprobador_at): si se
+      // reutilizara la de supervisora, una aprobación final posterior con
+      // firma confirmada pisaría la del coordinador, y el oficio de un
+      // ticket de médico debe mostrar la firma de quien realmente aprueba
+      // ese tramo (el coordinador médico, no supervisora — ver oficio.js).
+      if (req.user.beta_firma_oficio && req.body?.firmaConfirmada === true) {
+        patch.firma_coordinador_at = new Date().toISOString();
+      }
+      return patch;
     },
     textoEvento(req, nota) {
-      return nota ? `Aprobado por coordinador médico — ${nota}` : "Aprobado por coordinador médico";
+      const base = nota ? `Aprobado por coordinador médico — ${nota}` : "Aprobado por coordinador médico";
+      if (!(req.user.beta_firma_oficio && req.body?.firmaConfirmada === true)) return base;
+      return `${base} — Firma de aprobación confirmada.`;
     },
   })
 );
