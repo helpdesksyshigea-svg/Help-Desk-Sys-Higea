@@ -98,7 +98,7 @@ export function Select({
           abierto ? "border-b-2 border-[var(--color-accent)]" : "border-[var(--color-ink)]/20"
         }`}
       >
-        <span className={seleccionada ? "" : "text-[var(--color-muted)]"}>
+        <span className={`truncate ${seleccionada ? "" : "text-[var(--color-muted)]"}`}>
           {seleccionada ? seleccionada.label : placeholder}
         </span>
         <IconChevronDown size={14} className="shrink-0 text-[var(--color-muted)]" />
@@ -107,7 +107,11 @@ export function Select({
         <ul
           ref={listaRef}
           role="listbox"
-          className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-[var(--radius-input)] border border-[var(--color-border)] bg-[var(--color-surface)] py-1 shadow-lg"
+          // w-max en vez de w-full: el botón puede ser angosto (ej. filtros
+          // compactos del dashboard), pero el panel de opciones no debe
+          // achicarse a ese ancho y partir nombres largos en dos líneas —
+          // crece para mostrar cada opción en una sola línea, hasta un tope.
+          className="absolute z-20 mt-1 max-h-64 w-max min-w-full max-w-[min(320px,90vw)] overflow-y-auto overflow-x-hidden rounded-[var(--radius-input)] border border-[var(--color-border)] bg-[var(--color-surface)] py-1 shadow-lg"
         >
           {opciones.map((o, i) => (
             <li
@@ -116,7 +120,7 @@ export function Select({
               aria-selected={String(o.value) === String(value)}
               onMouseEnter={() => setResaltado(i)}
               onClick={() => elegir(o)}
-              className={`cursor-pointer px-3 py-2 text-sm ${
+              className={`cursor-pointer truncate px-3 py-2 text-sm ${
                 i === resaltado ? "bg-[var(--color-surface-hover)]" : ""
               }`}
             >
