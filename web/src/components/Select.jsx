@@ -134,13 +134,18 @@ export function Select({
 
   if (!label) return campo;
 
+  // No usamos <label> para envolver esto: un <label> reenvía automáticamente
+  // un segundo clic al primer control de formulario que contiene (el botón
+  // del Select) cada vez que se hace clic en cualquier parte de él, incluida
+  // una opción de la lista — eso reabría el desplegable justo después de que
+  // elegir() lo cerrara. Un <div> con el mismo texto evita ese reenvío.
   return (
-    <label className="text-sm">
+    <div className="text-sm">
       <span className="mb-1 block font-medium">
         {label}
         {required && <span className="text-[var(--color-danger)]"> *</span>}
       </span>
       {campo}
-    </label>
+    </div>
   );
 }

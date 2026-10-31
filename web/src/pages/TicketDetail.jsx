@@ -452,8 +452,12 @@ export function TicketDetail() {
 
       {disponibles.length > 0 && (
         <Card className="flex flex-col gap-3">
+          {/* div, no <label>: un <label> reenvía un segundo clic al botón del
+              Select cada vez que se hace clic en cualquier parte de él
+              (incluida una opción de la lista), lo que reabría el
+              desplegable justo después de seleccionar. */}
           {disponibles.some((a) => a.ruta === "tomar") && (
-            <label className="text-sm">
+            <div className="text-sm">
               <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">
                 Ingeniero de SYS HIGEA que toma el caso
               </span>
@@ -463,10 +467,10 @@ export function TicketDetail() {
                 placeholder="Seleccione…"
                 options={ingenieros.map((i) => ({ value: i.etiqueta, label: i.etiqueta }))}
               />
-            </label>
+            </div>
           )}
           {disponibles.some((a) => RUTAS_DEVOLVER.has(a.ruta)) && (
-            <label className="text-sm">
+            <div className="text-sm">
               <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">
                 Motivo de la devolución
               </span>
@@ -476,7 +480,7 @@ export function TicketDetail() {
                 placeholder="Seleccione…"
                 options={motivosDevolucion.map((m) => ({ value: m.clave, label: m.etiqueta }))}
               />
-            </label>
+            </div>
           )}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
             <label className="flex-1 text-sm">
