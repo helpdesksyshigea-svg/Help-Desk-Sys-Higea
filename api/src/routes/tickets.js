@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { conManejoAsync } from "../lib/asyncRouter.js";
 import multer from "multer";
-import { randomUUID } from "crypto";
+import { randomUUID, createHash } from "crypto";
 import { supabase } from "../config/supabase.js";
 import { authenticate, requirePermission } from "../middleware/auth.js";
 import { hashItems } from "../lib/hash.js";
@@ -510,12 +510,13 @@ ticketsRouter.post("/tickets/preview-oficio", requirePermission("tickets.crear")
   res.send(pdf);
 });
 
-ticketsRouter.get("/tickets/:id/oficio-generado.pdf", async (req, res) => {
-  const ticket = await cargarTicketCompleto(req.params.id);
-  if (!ticket) return res.status(404).json({ error: "Ticket no encontrado" });
-  if (!req.user.permisos.has("tickets.ver_todos") && ticket.solicitante_id !== req.user.id) {
-    return res.status(403).json({ error: "No tiene permiso para ver este ticket" });
-  }
+// Reconstruye el PDF del oficio "al vuelo" con los datos ACTUALES de la base
+// (firma_svg, cargo, config_oficio, plantilla del tipo) — correcto como vista
+// previa dinámica mientras falten firmas, pero nunca debe usarse para servir
+// un oficio ya sellado (ver sellarOficioSiQuedaCompleto / GET oficio-generado.pdf):
+// si cambiara la firma o la plantilla de alguien después de sellado, este
+// mismo oficio ya firmado se vería distinto hoy que el día que se firmó.
+async function generarOficioPdfTicket(ticket) {
   const { etiqueta, plantilla_oficio } = await cargarPlantillaTipo(ticket.tipo);
   const solicitante = await cargarPersonaFirma(ticket.solicitante_id);
   const aprobacionCoord = aprobacionCoordinador(ticket);
@@ -535,7 +536,7 @@ ticketsRouter.get("/tickets/:id/oficio-generado.pdf", async (req, res) => {
   const configOficio = await cargarConfigOficio();
   const motivos = await cargarMotivos();
   const itemsConMotivoLegible = (ticket.items || []).map((item) => ({ ...item, motivo: motivos[item.motivo] || item.motivo }));
-  const pdf = await construirOficioPdf({
+  return construirOficioPdf({
     ticket: { ...ticket, firma_coordinador_at: aprobacionCoord ? ticket.firma_coordinador_at : null },
     tipoEtiqueta: etiqueta,
     plantilla: plantilla_oficio,
@@ -546,11 +547,109 @@ ticketsRouter.get("/tickets/:id/oficio-generado.pdf", async (req, res) => {
     firmaUnica,
     configOficio,
   });
+}
+
+// Un oficio queda "completo" cuando ya tiene todas las firmas que le
+// correspondían según su flujo (ver aprobacionCoordinador arriba): siempre la
+// del solicitante y la de aprobación final, y además la del coordinador
+// médico si el ticket pasó por ese tramo. Mientras falte alguna, el PDF debe
+// seguir pudiendo cambiar (vista previa dinámica) — nunca se sella a medias.
+function oficioQuedoCompleto(ticket) {
+  const requiereCoordinador = Boolean(aprobacionCoordinador(ticket));
+  return Boolean(ticket.firma_solicitante_at) && Boolean(ticket.firma_aprobador_at) && (!requiereCoordinador || Boolean(ticket.firma_coordinador_at));
+}
+
+// Sella el oficio la primera vez que queda completo: genera el PDF con los
+// datos de ese instante, lo sube a Storage (mismo bucket "adjuntos" que
+// cualquier otro adjunto) y guarda su hash SHA-256 + referencia en el ticket.
+// Desde ese momento el documento es inmutable — ver GET oficio-generado.pdf,
+// que a partir de aquí sirve este archivo en vez de regenerarlo. Si ya estaba
+// sellado (no debería, pero por si se llama dos veces) no hace nada.
+async function sellarOficioSiQuedaCompleto(ticket) {
+  if (ticket.oficio_sellado_path) return null;
+  if (!oficioQuedoCompleto(ticket)) return null;
+  const pdf = await generarOficioPdfTicket(ticket);
+  const hash = createHash("sha256").update(pdf).digest("hex");
+  const storagePath = `${ticket.id}/oficio-sellado-${Date.now()}.pdf`;
+  const { error: uploadError } = await supabase.storage
+    .from(BUCKET)
+    .upload(storagePath, pdf, { contentType: "application/pdf" });
+  if (uploadError) {
+    console.error(`[tickets] no se pudo sellar el oficio del ticket ${ticket.code}:`, uploadError.message);
+    return null;
+  }
+  const selladoAt = new Date().toISOString();
+  const { error: dbError } = await supabase
+    .from("tickets")
+    .update({ oficio_sellado_path: storagePath, oficio_sellado_hash: hash, oficio_sellado_at: selladoAt })
+    .eq("id", ticket.id);
+  if (dbError) {
+    console.error(`[tickets] oficio del ticket ${ticket.code} subido a Storage pero no se pudo registrar su sello:`, dbError.message);
+    // Huérfano en Storage: se intenta retirar para no dejarlo contando contra
+    // el almacenamiento sin una fila que lo referencie.
+    const { error: rmError } = await supabase.storage.from(BUCKET).remove([storagePath]);
+    if (rmError) console.error(`[tickets] no se pudo retirar el oficio sellado huérfano ${storagePath}:`, rmError.message);
+    return null;
+  }
+  return { oficio_sellado_path: storagePath, oficio_sellado_hash: hash, oficio_sellado_at: selladoAt };
+}
+
+ticketsRouter.get("/tickets/:id/oficio-generado.pdf", async (req, res) => {
+  const ticket = await cargarTicketCompleto(req.params.id);
+  if (!ticket) return res.status(404).json({ error: "Ticket no encontrado" });
+  if (!req.user.permisos.has("tickets.ver_todos") && ticket.solicitante_id !== req.user.id) {
+    return res.status(403).json({ error: "No tiene permiso para ver este ticket" });
+  }
+
+  // Oficio ya sellado (todas sus firmas quedaron completas en algún momento):
+  // se sirve el snapshot fijo de Storage, nunca se regenera. Solo los oficios
+  // aún incompletos siguen generándose al vuelo más abajo.
+  if (ticket.oficio_sellado_path) {
+    const { data, error } = await supabase.storage.from(BUCKET).download(ticket.oficio_sellado_path);
+    if (error) {
+      console.error(`[tickets] no se pudo descargar el oficio sellado del ticket ${ticket.code}:`, error.message);
+      return res.status(500).json({ error: "No se pudo recuperar el oficio sellado" });
+    }
+    const buffer = Buffer.from(await data.arrayBuffer());
+    res.set("Content-Type", "application/pdf");
+    if (req.query.descargar) {
+      res.set("Content-Disposition", `attachment; filename="oficio-${ticket.code}.pdf"`);
+    }
+    return res.send(buffer);
+  }
+
+  const pdf = await generarOficioPdfTicket(ticket);
   res.set("Content-Type", "application/pdf");
   if (req.query.descargar) {
     res.set("Content-Disposition", `attachment; filename="oficio-${ticket.code}.pdf"`);
   }
   res.send(pdf);
+});
+
+// ---------- verificación del oficio sellado ----------
+// Recalcula el hash del PDF guardado en Storage y lo compara contra el que se
+// registró al sellarlo — confirma que el archivo que hoy se descarga es
+// exactamente el mismo que quedó firmado, sin confiar solo en que nadie lo
+// tocó.
+ticketsRouter.get("/tickets/:id/oficio-verificar", async (req, res) => {
+  const ticket = await cargarTicketCompleto(req.params.id);
+  if (!ticket) return res.status(404).json({ error: "Ticket no encontrado" });
+  if (!req.user.permisos.has("tickets.ver_todos") && ticket.solicitante_id !== req.user.id) {
+    return res.status(403).json({ error: "No tiene permiso para ver este ticket" });
+  }
+  if (!ticket.oficio_sellado_path) {
+    return res.status(409).json({ error: "Este ticket todavía no tiene un oficio sellado" });
+  }
+  const { data, error } = await supabase.storage.from(BUCKET).download(ticket.oficio_sellado_path);
+  if (error) return res.status(500).json({ error: "No se pudo recuperar el oficio sellado" });
+  const buffer = Buffer.from(await data.arrayBuffer());
+  const hashActual = createHash("sha256").update(buffer).digest("hex");
+  res.json({
+    sellado_at: ticket.oficio_sellado_at,
+    hash_guardado: ticket.oficio_sellado_hash,
+    hash_calculado: hashActual,
+    coincide: hashActual === ticket.oficio_sellado_hash,
+  });
 });
 
 // ---------- eliminar (irreversible) ----------
@@ -611,8 +710,17 @@ async function transicion(
   // para poder medir efectividad por ingeniero en el historial.
   const textoFinal = textoEvento ? textoEvento(req, nota) : nota || null;
   await registrarEvento(ticket.id, tipoEvento, ticket.estado, nuevoEstado, req.user.id, textoFinal);
-  const actualizado = await cargarTicketCompleto(ticket.id);
+  let actualizado = await cargarTicketCompleto(ticket.id);
   notificarTransicion(tipoEvento, actualizado, ticket.solicitante?.email).catch(() => {});
+
+  // Cualquier transición puede ser la que complete la última firma pendiente
+  // (hoy solo pasa en "aprobar" y "aprobar-coordinador", pero el chequeo es
+  // barato y no depende de adivinar cuál transición es la última del flujo).
+  // Si el oficio queda completo, se sella de una vez — después de esto nunca
+  // cambia, aunque alguien edite su firma o la plantilla más adelante.
+  const sello = await sellarOficioSiQuedaCompleto(actualizado);
+  if (sello) actualizado = { ...actualizado, ...sello };
+
   res.json(actualizado);
 }
 

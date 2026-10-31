@@ -381,7 +381,9 @@ export function TicketDetail() {
             kindsPermitidos={["soporte", "evidencia"]}
             oficioGenerado={{
               nombre: `Radicación ticket ${ticket.code}`,
-              meta: "Oficio generado automáticamente",
+              meta: ticket.oficio_sellado_at
+                ? `Oficio sellado el ${fechaCorta(ticket.oficio_sellado_at)} — documento final, no cambia`
+                : "Oficio generado automáticamente — vista previa, cambia hasta completar todas las firmas",
               cargandoVista: cargandoOficio,
               onVer: () => descargarOficio(false),
               onDescargar: () => descargarOficio(true),
