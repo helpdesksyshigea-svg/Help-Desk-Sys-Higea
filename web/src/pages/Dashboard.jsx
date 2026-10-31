@@ -833,12 +833,6 @@ function TablaIngenieros({ agentes }) {
 
 // ---------- H. Aprobaciones ----------
 
-function sumarHoras(...valores) {
-  const presentes = valores.filter((v) => v != null);
-  if (!presentes.length) return null;
-  return presentes.reduce((acc, v) => acc + v, 0);
-}
-
 // Cadena completa de un flujo en una sola línea horizontal (con scroll si no
 // cabe), en vez de partirla en tramos de a dos que obligaban a saltar de fila
 // en fila para seguir el proceso completo.
@@ -955,7 +949,7 @@ function SeccionAprobaciones({ aprobaciones, tiempos }) {
             titulo="Tiempo de espera por etapa"
             subtitulo="Promedio desde que una firma termina hasta que la siguiente decide, hasta el cierre"
             icono={IconClock}
-            info="Espera simple hasta la decisión, sin descontar el tiempo en que el ticket estuvo devuelto. La gestión con pausas está en las tarjetas de arriba. El tramo final (Supervisora → Cierre) es el mismo en ambos flujos, porque desde que la supervisora aprueba el camino ya no depende del origen."
+            info="Espera simple hasta la decisión, sin descontar el tiempo en que el ticket estuvo devuelto. La gestión con pausas está en las tarjetas de arriba. El tramo final (Supervisora → SYS HIGEA → Cierre) es el mismo en ambos flujos, porque desde que la supervisora aprueba el camino ya no depende del origen."
           />
           <div className="grid gap-5">
             <div className="grid gap-1.5">
@@ -965,7 +959,8 @@ function SeccionAprobaciones({ aprobaciones, tiempos }) {
                   { nombre: "Médico" },
                   { nombre: "Coordinador médico", horas: t.medicoACoordinador },
                   { nombre: "Supervisora", horas: t.coordinadorASupervisora },
-                  { nombre: "Cierre", horas: sumarHoras(tiempos?.asignacionHorasPromedio, tiempos?.tprHorasPromedio) },
+                  { nombre: "SYS HIGEA", horas: tiempos?.asignacionHorasPromedio },
+                  { nombre: "Cierre", horas: tiempos?.tprHorasPromedio },
                 ]}
               />
             </div>
@@ -975,7 +970,8 @@ function SeccionAprobaciones({ aprobaciones, tiempos }) {
                 nodos={[
                   { nombre: "Facturador" },
                   { nombre: "Supervisora", horas: t.solicitanteASupervisoraDirecto },
-                  { nombre: "Cierre", horas: sumarHoras(tiempos?.asignacionHorasPromedio, tiempos?.tprHorasPromedio) },
+                  { nombre: "SYS HIGEA", horas: tiempos?.asignacionHorasPromedio },
+                  { nombre: "Cierre", horas: tiempos?.tprHorasPromedio },
                 ]}
               />
             </div>
