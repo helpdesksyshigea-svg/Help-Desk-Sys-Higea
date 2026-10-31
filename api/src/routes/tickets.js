@@ -5,7 +5,7 @@ import { randomUUID, createHash } from "crypto";
 import { supabase } from "../config/supabase.js";
 import { authenticate, requirePermission } from "../middleware/auth.js";
 import { hashItems } from "../lib/hash.js";
-import { calcularSla } from "../lib/sla.js";
+import { calcularSla, festivosComo } from "../lib/sla.js";
 import { construirExcelTickets } from "../lib/excel.js";
 import { notificarTransicion } from "../lib/correo.js";
 import { construirOficioPdf } from "../lib/oficio.js";
@@ -412,6 +412,78 @@ function puedeVerEstadosPreAprobacion(user) {
   );
 }
 
+function enLotes(arr, tam) {
+  const lotes = [];
+  for (let i = 0; i < arr.length; i += tam) lotes.push(arr.slice(i, i + tam));
+  return lotes;
+}
+
+// Reemplaza "un ticket a la vez" (cargarTicketCompleto) por lotes: con N
+// tickets visibles, antes se hacían ~5 consultas POR TICKET (items, eventos,
+// aprobaciones, sla_config y hasta festivos_colombia dentro de calcularSla) —
+// con 2000 tickets eso son más de 10.000 consultas secuenciales y la bandeja
+// nunca llegaba a responder antes de que Render cortara la petición. Aquí se
+// hacen unas pocas consultas en total (una por tabla, en lotes de 200 ids
+// para no exceder el límite de longitud de URL de PostgREST con un .in() muy
+// largo) y se arma cada ticket en memoria.
+async function cargarTicketsCompletos(tickets) {
+  if (!tickets.length) return [];
+  const ids = tickets.map((t) => t.id);
+  const idLotes = enLotes(ids, 200);
+
+  async function enLotesDe(tabla, select, ordenar) {
+    const filas = [];
+    for (const lote of idLotes) {
+      let q = supabase.from(tabla).select(select).in("ticket_id", lote);
+      if (ordenar) q = q.order("created_at", { ascending: true });
+      const { data, error } = await q;
+      if (error) throw new Error(`cargando ${tabla} en lote: ${error.message}`);
+      filas.push(...(data || []));
+    }
+    return filas;
+  }
+
+  const [items, eventos, aprobaciones, slaConfigRows, festivos] = await Promise.all([
+    enLotesDe("ticket_items", "*"),
+    enLotesDe("ticket_eventos", "*, usuario:usuarios!ticket_eventos_por_fkey(nombre)", true),
+    enLotesDe("aprobaciones", "*"),
+    supabase
+      .from("sla_config")
+      .select("*")
+      .then(({ data, error }) => {
+        if (error) throw new Error(`cargando sla_config: ${error.message}`);
+        return data || [];
+      }),
+    festivosComo(),
+  ]);
+
+  const itemsPorTicket = {};
+  for (const it of items) (itemsPorTicket[it.ticket_id] ||= []).push(it);
+  const eventosPorTicket = {};
+  for (const ev of eventos) (eventosPorTicket[ev.ticket_id] ||= []).push(ev);
+  const aprobacionesPorTicket = {};
+  for (const a of aprobaciones) (aprobacionesPorTicket[a.ticket_id] ||= []).push(a);
+  const diasHabilesPorPrioridad = {};
+  for (const c of slaConfigRows) diasHabilesPorPrioridad[c.prioridad] = c.dias_habiles;
+
+  return Promise.all(
+    tickets.map(async (ticket) => {
+      const evs = eventosPorTicket[ticket.id] || [];
+      const aprs = aprobacionesPorTicket[ticket.id] || [];
+      const aprobacionFinal = aprs.find((a) => a.etapa === "final") || null;
+      const sla = await calcularSla(ticket, evs, diasHabilesPorPrioridad[ticket.prioridad] ?? 2, festivos);
+      return {
+        ...ticket,
+        items: itemsPorTicket[ticket.id] || [],
+        eventos: evs,
+        aprobacion: aprobacionFinal,
+        aprobaciones: aprs,
+        ...sla,
+      };
+    }),
+  );
+}
+
 function filtrarVisibles(tickets, user) {
   if (puedeVerEstadosPreAprobacion(user)) return tickets;
   // Quien radicó el ticket siempre puede verlo y hacerle seguimiento, sin
@@ -420,8 +492,14 @@ function filtrarVisibles(tickets, user) {
 }
 
 // ---------- listar ----------
+// .range(): sin esto, PostgREST aplica su límite por defecto de 1000 filas y
+// los tickets más antiguos (los de más abajo en el orden por created_at)
+// simplemente desaparecían de la bandeja sin ningún error — nadie se enteraba
+// hasta que el volumen pasaba de 1000. 20000 es un techo generoso para el
+// volumen de este hospital; si algún día se acerca, el síntoma vuelve a ser
+// "desaparecen tickets viejos en silencio", así que conviene revisarlo antes.
 ticketsRouter.get("/tickets", async (req, res) => {
-  let query = supabase.from("tickets").select("*").order("created_at", { ascending: false });
+  let query = supabase.from("tickets").select("*").order("created_at", { ascending: false }).range(0, 19999);
   if (!req.user.permisos.has("tickets.ver_todos")) {
     query = query.eq("solicitante_id", req.user.id);
   }
@@ -429,7 +507,7 @@ ticketsRouter.get("/tickets", async (req, res) => {
   if (error) return res.status(500).json({ error: error.message });
 
   const visibles = filtrarVisibles(tickets, req.user);
-  const completos = await Promise.all(visibles.map((t) => cargarTicketCompleto(t.id)));
+  const completos = await cargarTicketsCompletos(visibles);
   res.json(completos);
 });
 
@@ -437,7 +515,7 @@ ticketsRouter.get("/tickets", async (req, res) => {
 // Mismo filtro de visibilidad que el listado (filtrarVisibles / ver_propios vs
 // ver_todos): el informe nunca muestra a alguien más de lo que ya podría ver en la app.
 ticketsRouter.get("/tickets/exportar", requirePermission("reportes.exportar"), async (req, res) => {
-  let query = supabase.from("tickets").select("*").order("created_at", { ascending: false });
+  let query = supabase.from("tickets").select("*").order("created_at", { ascending: false }).range(0, 19999);
   if (!req.user.permisos.has("tickets.ver_todos")) {
     query = query.eq("solicitante_id", req.user.id);
   }
@@ -448,7 +526,7 @@ ticketsRouter.get("/tickets/exportar", requirePermission("reportes.exportar"), a
   if (error) return res.status(500).json({ error: error.message });
 
   const visibles = filtrarVisibles(tickets, req.user);
-  const completos = await Promise.all(visibles.map((t) => cargarTicketCompleto(t.id)));
+  const completos = await cargarTicketsCompletos(visibles);
 
   const buffer = await construirExcelTickets(completos);
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");

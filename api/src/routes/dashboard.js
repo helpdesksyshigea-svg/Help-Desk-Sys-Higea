@@ -19,6 +19,22 @@ function promedio(valores) {
   return Number((valores.reduce((s, v) => s + v, 0) / valores.length).toFixed(1));
 }
 
+// Con más de ~1000 tickets en el rango, un .in("ticket_id", ids) con todos los
+// ids a la vez arma una URL tan larga que PostgREST la rechaza con 400 Bad
+// Request — el dashboard entero se quedaba sin cargar, no solo impreciso.
+// Partir la consulta en lotes de 200 ids evita el límite de longitud de URL.
+async function enLotesDe(tabla, select, ids) {
+  const TAM_LOTE = 200;
+  const filas = [];
+  for (let i = 0; i < ids.length; i += TAM_LOTE) {
+    const lote = ids.slice(i, i + TAM_LOTE);
+    const { data, error } = await supabase.from(tabla).select(select).in("ticket_id", lote);
+    if (error) throw new Error(`cargando ${tabla} en lote: ${error.message}`);
+    filas.push(...(data || []));
+  }
+  return filas;
+}
+
 function contarPor(items, clave) {
   const conteo = {};
   for (const it of items) {
@@ -45,37 +61,24 @@ dashboardRouter.get("/dashboard/resumen", requirePermission("reportes.ver_dashbo
     .select("*")
     .gte("created_at", desde)
     .lte("created_at", hasta)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .range(0, 19999); // ver nota de .range() en GET /tickets (tickets.js): sin esto, PostgREST corta en 1000 filas sin avisar.
   if (tErr) return res.status(500).json({ error: tErr.message });
 
   const ids = tickets.map((t) => t.id);
 
-  const [
-    { data: eventos, error: eErr },
-    { data: slaConfigRows, error: sErr },
-    festivos,
-    { data: tiposRows, error: tiposErr },
-    { data: items, error: itemsErr },
-    { data: aprobacionesRows, error: aprErr },
-  ] = await Promise.all([
-    ids.length
-      ? supabase.from("ticket_eventos").select("ticket_id, tipo_evento, estado_anterior, estado_nuevo, created_at").in("ticket_id", ids)
-      : Promise.resolve({ data: [], error: null }),
+  const [eventos, slaConfigRowsResult, festivos, tiposRowsResult, items, aprobacionesRows] = await Promise.all([
+    enLotesDe("ticket_eventos", "ticket_id, tipo_evento, estado_anterior, estado_nuevo, created_at", ids),
     supabase.from("sla_config").select("prioridad, dias_habiles"),
     festivosComo(),
     supabase.from("tipos_solicitud").select("clave, etiqueta"),
-    ids.length
-      ? supabase.from("ticket_items").select("ticket_id, motivo").in("ticket_id", ids)
-      : Promise.resolve({ data: [], error: null }),
-    ids.length
-      ? supabase.from("aprobaciones").select("ticket_id, etapa, decision, decidido_por, created_at").in("ticket_id", ids)
-      : Promise.resolve({ data: [], error: null }),
+    enLotesDe("ticket_items", "ticket_id, motivo", ids),
+    enLotesDe("aprobaciones", "ticket_id, etapa, decision, decidido_por, created_at", ids),
   ]);
-  if (eErr) return res.status(500).json({ error: eErr.message });
+  const { data: slaConfigRows, error: sErr } = slaConfigRowsResult;
+  const { data: tiposRows, error: tiposErr } = tiposRowsResult;
   if (sErr) return res.status(500).json({ error: sErr.message });
   if (tiposErr) return res.status(500).json({ error: tiposErr.message });
-  if (itemsErr) return res.status(500).json({ error: itemsErr.message });
-  if (aprErr) return res.status(500).json({ error: aprErr.message });
 
   const { data: motivosRows, error: motivosErr } = await supabase.from("motivos").select("clave, etiqueta");
   if (motivosErr) return res.status(500).json({ error: motivosErr.message });
