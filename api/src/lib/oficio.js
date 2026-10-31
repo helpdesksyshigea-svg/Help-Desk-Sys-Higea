@@ -226,7 +226,7 @@ const CONFIG_OFICIO_DEFAULT = {
   texto_despedida: "Atentamente,",
 };
 
-export async function construirOficioPdf({ ticket, tipoEtiqueta, plantilla, items, solicitante, aprobador, configOficio }) {
+export async function construirOficioPdf({ ticket, tipoEtiqueta, plantilla, items, solicitante, coordinador, aprobador, firmaUnica, configOficio }) {
   // Si no llega (p.ej. falló la consulta a config_oficio), el oficio igual se
   // genera con el texto de siempre — nunca bloquea la generación del PDF.
   const config = { ...CONFIG_OFICIO_DEFAULT, ...configOficio };
@@ -399,7 +399,7 @@ export async function construirOficioPdf({ ticket, tipoEtiqueta, plantilla, item
   // cargo + fecha) o apenas ~50pt si sigue "pendiente de confirmación" (solo
   // esa frase, ver dibujarFirma). Reservar siempre el peor caso (80) hacía
   // saltar de página oficios cortos que sí cabían enteros en una sola hoja.
-  const hayFirmaConfirmada = Boolean(ticket.firma_solicitante_at || ticket.firma_aprobador_at);
+  const hayFirmaConfirmada = Boolean(ticket.firma_solicitante_at || ticket.firma_coordinador_at || ticket.firma_aprobador_at);
   nuevaPaginaSiHaceFalta(15.84 + 34.3 + 25.73 + (hayFirmaConfirmada ? 80 : 50));
   pagina.drawText(config.texto_cierre, { x: MARGEN, y, size: 10.5, font: fuente, color: NEGRO });
   y -= 15.84;
@@ -407,27 +407,80 @@ export async function construirOficioPdf({ ticket, tipoEtiqueta, plantilla, item
   pagina.drawText(config.texto_despedida, { x: MARGEN, y, size: 10.5, font: fuente, color: NEGRO });
   y -= 25.73;
 
-  const colAncho = ANCHO_UTIL / 2 - 10;
-  await dibujarFirma(pdf, pagina, {
-    x: MARGEN,
-    y,
-    ancho: colAncho,
-    titulo: "Solicita",
-    persona: solicitante,
-    confirmadaEn: ticket.firma_solicitante_at,
-    fuente,
-    fuenteNegrita,
-  });
-  await dibujarFirma(pdf, pagina, {
-    x: MARGEN + colAncho + 20,
-    y,
-    ancho: colAncho,
-    titulo: "Aprueba",
-    persona: aprobador,
-    confirmadaEn: ticket.firma_aprobador_at,
-    fuente,
-    fuenteNegrita,
-  });
+  // Un ticket radicado por un médico pasa por tres firmas en papel: médico
+  // (solicita), coordinador médico (revisa/aprueba su tramo) y supervisora de
+  // facturación (aprobación final) — las tres van en el oficio. Uno radicado
+  // directo por facturación nunca pasa por el tramo de coordinador, así que
+  // lleva dos: solicitante y aprobador final. Y si quien radica es la misma
+  // supervisora que aprueba (ella es ambas partes), es una sola firma física
+  // — no tiene sentido duplicarla en dos columnas idénticas.
+  if (firmaUnica) {
+    const colAncho = Math.min(ANCHO_UTIL / 2, 220);
+    await dibujarFirma(pdf, pagina, {
+      x: MARGEN,
+      y,
+      ancho: colAncho,
+      titulo: "Firma",
+      persona: solicitante,
+      confirmadaEn: ticket.firma_aprobador_at || ticket.firma_solicitante_at,
+      fuente,
+      fuenteNegrita,
+    });
+  } else if (coordinador !== undefined) {
+    const colAncho = ANCHO_UTIL / 3 - 14;
+    await dibujarFirma(pdf, pagina, {
+      x: MARGEN,
+      y,
+      ancho: colAncho,
+      titulo: "Solicita",
+      persona: solicitante,
+      confirmadaEn: ticket.firma_solicitante_at,
+      fuente,
+      fuenteNegrita,
+    });
+    await dibujarFirma(pdf, pagina, {
+      x: MARGEN + colAncho + 20,
+      y,
+      ancho: colAncho,
+      titulo: "Aprueba coordinador médico",
+      persona: coordinador,
+      confirmadaEn: ticket.firma_coordinador_at,
+      fuente,
+      fuenteNegrita,
+    });
+    await dibujarFirma(pdf, pagina, {
+      x: MARGEN + (colAncho + 20) * 2,
+      y,
+      ancho: colAncho,
+      titulo: "Aprueba",
+      persona: aprobador,
+      confirmadaEn: ticket.firma_aprobador_at,
+      fuente,
+      fuenteNegrita,
+    });
+  } else {
+    const colAncho = ANCHO_UTIL / 2 - 10;
+    await dibujarFirma(pdf, pagina, {
+      x: MARGEN,
+      y,
+      ancho: colAncho,
+      titulo: "Solicita",
+      persona: solicitante,
+      confirmadaEn: ticket.firma_solicitante_at,
+      fuente,
+      fuenteNegrita,
+    });
+    await dibujarFirma(pdf, pagina, {
+      x: MARGEN + colAncho + 20,
+      y,
+      ancho: colAncho,
+      titulo: "Aprueba",
+      persona: aprobador,
+      confirmadaEn: ticket.firma_aprobador_at,
+      fuente,
+      fuenteNegrita,
+    });
+  }
 
   // El pie va en TODAS las páginas del oficio, no solo en la última.
   for (const pag of pdf.getPages()) dibujarPie(pag, fuente);

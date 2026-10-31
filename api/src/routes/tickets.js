@@ -194,19 +194,13 @@ async function cargarMotivos() {
   return Object.fromEntries((data || []).map((m) => [m.clave, m.etiqueta]));
 }
 
-// El oficio solo tiene dos firmas (SOLICITA/APRUEBA) — igual que el oficio
-// real de referencia, que para un ticket de médico solo lleva la firma del
-// médico y la del coordinador médico, sin una tercera firma de facturación
-// (esa aprobación es un paso del sistema, no de papel). Así que "quién
-// aprueba" en el oficio depende de cuál fue el primer tramo de aprobación
-// real del ticket: el coordinador médico si el ticket pasó por ahí, o
-// supervisora (la aprobación "final") si no.
-function aprobacionParaOficio(ticket) {
-  const deCoordinador = (ticket.aprobaciones || []).find((a) => a.etapa === "coordinador_medico" && a.decision === "aprobado");
-  if (deCoordinador) {
-    return { decidido_por: deCoordinador.decidido_por, confirmadaEn: ticket.firma_coordinador_at };
-  }
-  return { decidido_por: ticket.aprobacion?.decidido_por, confirmadaEn: ticket.firma_aprobador_at };
+// Un ticket radicado por un médico pasa por tres firmas en papel (médico →
+// coordinador médico → supervisora de facturación); uno radicado directo por
+// facturación nunca pasa por el tramo de coordinador, así que solo lleva dos
+// (solicitante → supervisora). Se detecta por si existe una aprobación real
+// de la etapa "coordinador_medico" en el historial del ticket.
+function aprobacionCoordinador(ticket) {
+  return (ticket.aprobaciones || []).find((a) => a.etapa === "coordinador_medico" && a.decision === "aprobado") || null;
 }
 
 // Texto fijo del oficio (destinatario, cierre, despedida), configurable desde
@@ -523,18 +517,27 @@ ticketsRouter.get("/tickets/:id/oficio-generado.pdf", async (req, res) => {
   }
   const { etiqueta, plantilla_oficio } = await cargarPlantillaTipo(ticket.tipo);
   const solicitante = await cargarPersonaFirma(ticket.solicitante_id);
-  const { decidido_por, confirmadaEn } = aprobacionParaOficio(ticket);
-  const aprobador = await cargarPersonaFirma(decidido_por);
+  const aprobacionCoord = aprobacionCoordinador(ticket);
+  const coordinador = aprobacionCoord ? await cargarPersonaFirma(aprobacionCoord.decidido_por) : undefined;
+  const decididoPorFinal = ticket.aprobacion?.decidido_por || null;
+  const aprobador = await cargarPersonaFirma(decididoPorFinal);
+  // Si quien radicó el ticket es la misma persona que lo aprobó (p.ej. una
+  // supervisora que crea su propia solicitud), es una sola firma física — no
+  // tiene sentido mostrarla dos veces. Nunca pasa si hubo tramo de
+  // coordinador médico (ese tramo exige que sea otra persona).
+  const firmaUnica = !aprobacionCoord && Boolean(decididoPorFinal) && decididoPorFinal === ticket.solicitante_id;
   const configOficio = await cargarConfigOficio();
   const motivos = await cargarMotivos();
   const itemsConMotivoLegible = (ticket.items || []).map((item) => ({ ...item, motivo: motivos[item.motivo] || item.motivo }));
   const pdf = await construirOficioPdf({
-    ticket: { ...ticket, firma_aprobador_at: confirmadaEn },
+    ticket: { ...ticket, firma_coordinador_at: aprobacionCoord ? ticket.firma_coordinador_at : null },
     tipoEtiqueta: etiqueta,
     plantilla: plantilla_oficio,
     items: itemsConMotivoLegible,
     solicitante,
+    coordinador,
     aprobador,
+    firmaUnica,
     configOficio,
   });
   res.set("Content-Type", "application/pdf");
