@@ -303,18 +303,18 @@ function DashboardContenido({ datos }) {
         <CardNumero etiqueta="Abiertos" valor={datos.totales.abiertos} icon={IconClock} acento="#9a5b06" />
         <CardNumero etiqueta="Vencidos ahora" valor={datos.totales.vencidosActuales} icon={IconAlert} acento="#b3362a" />
         <CardNumero
-          etiqueta="TPR (tiempo de respuesta)"
+          etiqueta="TRS (Tiempo de Resolución en Soporte)"
           valor={horas(datos.tiempos.tprHorasPromedio)}
           icon={IconClock}
           acento="#3656a3"
-          titulo="Desde que un ingeniero toma el ticket hasta que lo cierra, pausando mientras espera información del facturador/médico"
+          titulo="Desde que un ingeniero de SYS HIGEA toma el ticket hasta que lo cierra, pausando mientras espera información del facturador/médico — solo el tramo que le corresponde a SYS HIGEA, no el ciclo completo"
         />
         <CardNumero
-          etiqueta="Resolución promedio"
+          etiqueta="TTR (Tiempo Total de Resolución)"
           valor={horas(datos.tiempos.resolucionHorasPromedio)}
           icon={IconCheck}
           acento="#2c7536"
-          titulo="Ciclo de vida completo: desde que se radica el ticket hasta que se cierra"
+          titulo="Ciclo de vida completo: desde que se radica el ticket hasta que se cierra, sin pausas — cuenta todo, incluidas las devoluciones"
         />
       </div>
 
@@ -416,8 +416,8 @@ function DashboardContenido({ datos }) {
                   <th className="py-2 pr-3 font-semibold">Asignados</th>
                   <th className="py-2 pr-3 font-semibold">Cerrados</th>
                   <th className="py-2 pr-3 font-semibold">Vencidos</th>
-                  <th className="py-2 pr-3 font-semibold" title="Desde que toma el ticket hasta que lo cierra, pausando mientras espera información">TPR</th>
-                  <th className="py-2 pr-3 font-semibold" title="Ciclo de vida completo: desde que se radica hasta que se cierra">Resolución</th>
+                  <th className="py-2 pr-3 font-semibold" title="TRS — Tiempo de Resolución en Soporte: desde que toma el ticket hasta que lo cierra, pausando mientras espera información">TRS</th>
+                  <th className="py-2 pr-3 font-semibold" title="TTR — Tiempo Total de Resolución: ciclo completo, desde que se radica hasta que se cierra, sin pausas">TTR</th>
                   <th className="py-2 font-semibold">% a tiempo</th>
                 </tr>
               </thead>
