@@ -536,11 +536,11 @@ async function dibujarFirma(pdf, pagina, { x, y, ancho, titulo, persona, confirm
   pagina.drawLine({ start: { x, y: yFirma }, end: { x: x + ancho, y: yFirma }, thickness: 0.75, color: GRIS });
   yFirma -= 13;
   if (confirmadaEn && persona) {
-    pagina.drawText(persona.nombre || "—", { x, y: yFirma, size: 9.5, font: fuenteNegrita, color: NEGRO });
+    pagina.drawText(truncar(fuenteNegrita, 9.5, persona.nombre || "—", ancho), { x, y: yFirma, size: 9.5, font: fuenteNegrita, color: NEGRO });
     yFirma -= 12;
     const linea2 = [persona.identificacion ? `C.C. ${persona.identificacion}` : null, persona.cargo].filter(Boolean).join(" · ");
     if (linea2) {
-      pagina.drawText(linea2, { x, y: yFirma, size: 8.5, font: fuente, color: GRIS });
+      pagina.drawText(truncar(fuente, 8.5, linea2, ancho), { x, y: yFirma, size: 8.5, font: fuente, color: GRIS });
       yFirma -= 12;
     }
     pagina.drawText(`Firmado el ${fechaCorta(confirmadaEn)}`, { x, y: yFirma, size: 8, font: fuente, color: GRIS });
