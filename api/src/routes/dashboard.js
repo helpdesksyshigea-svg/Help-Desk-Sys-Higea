@@ -179,23 +179,6 @@ dashboardRouter.get("/dashboard/resumen", requirePermission("reportes.ver_dashbo
   }
   const totalEvaluadosSla = cerradosATiempo + cerradosVencidos;
 
-  // ---- Tiempo de respuesta (TPR): desde que el ingeniero de SYS HIGEA
-  // recibe el ticket ("tomado") hasta que da una respuesta real sobre él —
-  // el primer evento posterior de tipo "requiere_info" (pide información) o
-  // "cerrado" (lo resuelve). "tomado" por sí solo no es una respuesta, solo
-  // indica que alguien lo tiene en gestión; si no hay un evento de respuesta
-  // posterior, el ticket no tiene TPR medible todavía.
-  const tprHorasPorTicket = {};
-  for (const t of tickets) {
-    const eventosTicket = eventosPorTicket[t.id] || [];
-    const tomado = eventosTicket.find((ev) => ev.tipo_evento === "tomado");
-    if (!tomado) continue;
-    const respuesta = eventosTicket.find(
-      (ev) => new Date(ev.created_at) > new Date(tomado.created_at) && (ev.tipo_evento === "requiere_info" || ev.tipo_evento === "cerrado"),
-    );
-    if (respuesta) tprHorasPorTicket[t.id] = horasEntre(tomado.created_at, respuesta.created_at);
-  }
-
   // ---- Tiempo de asignación: desde que el ticket queda aprobado (visible
   // para SYS HIGEA) hasta que alguien lo toma. Este es el cálculo que antes
   // se llamaba "TPR" antes de que se corrigiera para medir tomado->respuesta;
@@ -209,11 +192,17 @@ dashboardRouter.get("/dashboard/resumen", requirePermission("reportes.ver_dashbo
     if (tomado) asignacionHorasPorTicket[t.id] = horasEntre(t.aprobado_at, tomado.created_at);
   }
 
-  // ---- Tiempo de resolución de SYS HIGEA: desde que lo toman ("tomado")
-  // hasta que se cierra, pausando mientras está en "requiere_info" (mismo
-  // patrón que el SLA, reusando segundosEnRequiereInfo de sla.js). Distinto
-  // del "resolucionHorasPromedio" general de arriba, que mide el ciclo
-  // completo desde created_at e incluye todo el tiempo de aprobación.
+  // ---- TR (tiempo de respuesta, por ticket) / TPR (su promedio): desde que
+  // el ingeniero de SYS HIGEA TOMA el ticket ("tomado") hasta que lo CIERRA
+  // ("cerrado_at"), con el reloj PAUSADO mientras el ticket está en
+  // "requiere_info" (se detiene al devolver, se reanuda —no se reinicia—
+  // al responder; mismo patrón que el SLA, reusando segundosEnRequiereInfo
+  // de sla.js). Esta es la misma fórmula que antes vivía aparte como
+  // "SYS HIGEA — Tiempo de resolución"; se consolidó en un solo nombre
+  // (tprHorasPorTicket / resolucionSoporteHorasPorTicket) para no tener dos
+  // tarjetas distintas midiendo lo mismo. Distinto del
+  // "resolucionHorasPromedio" general de arriba, que mide el ciclo completo
+  // desde created_at e incluye todo el tiempo de aprobación.
   const resolucionSoporteHorasPorTicket = {};
   for (const t of tickets) {
     if (!t.cerrado_at) continue;
@@ -223,6 +212,9 @@ dashboardRouter.get("/dashboard/resumen", requirePermission("reportes.ver_dashbo
     const pausaHoras = segundosEnRequiereInfo(eventosTicket) / 3600;
     resolucionSoporteHorasPorTicket[t.id] = Number((horasEntre(tomado.created_at, t.cerrado_at) - pausaHoras).toFixed(2));
   }
+  // Alias: TPR es exactamente este mismo cálculo. Se mantiene el nombre
+  // "tprHorasPorTicket" porque lo usa el desglose por agente más abajo.
+  const tprHorasPorTicket = resolucionSoporteHorasPorTicket;
 
   // ---- Por motivo (vive en ticket_items, un ticket puede tener varios) ----
   const conteoMotivos = {};
@@ -476,11 +468,14 @@ dashboardRouter.get("/dashboard/resumen", requirePermission("reportes.ver_dashbo
       abiertosAhora: { aTiempo: abiertos.length - vencidosAbiertos, vencidos: vencidosAbiertos },
     },
     tiempos: {
+      // TPR (tiempo promedio de respuesta): promedio de TR por ticket —
+      // tomado -> cerrado, pausado en requiere_info. "resolucionSoporteHorasPromedio"
+      // se deja como alias del mismo número por compatibilidad con clientes
+      // viejos; ambos valores SIEMPRE deben coincidir, no son dos cálculos.
       tprHorasPromedio: promedio(Object.values(tprHorasPorTicket)),
       resolucionHorasPromedio: promedio(Object.values(resolucionHorasPorTicket)),
-      // Específicos del tramo de SYS HIGEA, distintos de los dos anteriores
-      // (que miden desde "tomado" la respuesta, y desde "created_at" el
-      // ciclo completo con aprobación incluida, respectivamente).
+      // Tiempo de asignación: distinto de TPR (mide aprobado->tomado, no
+      // tomado->cerrado).
       asignacionHorasPromedio: promedio(Object.values(asignacionHorasPorTicket)),
       resolucionSoporteHorasPromedio: promedio(Object.values(resolucionSoporteHorasPorTicket)),
     },

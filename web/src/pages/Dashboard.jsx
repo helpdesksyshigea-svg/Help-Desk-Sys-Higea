@@ -307,7 +307,7 @@ function DashboardContenido({ datos }) {
           valor={horas(datos.tiempos.tprHorasPromedio)}
           icon={IconClock}
           acento="#3656a3"
-          titulo="Desde que el ingeniero toma el ticket hasta que da la primera respuesta (pide información o lo cierra)"
+          titulo="Desde que un ingeniero toma el ticket hasta que lo cierra, pausando mientras espera información del facturador/médico"
         />
         <CardNumero
           etiqueta="Resolución promedio"
@@ -318,20 +318,13 @@ function DashboardContenido({ datos }) {
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         <CardNumero
           etiqueta="SYS HIGEA — Tiempo de asignación"
           valor={horas(datos.tiempos.asignacionHorasPromedio)}
           icon={IconClock}
           acento="#3656a3"
           titulo="Desde que el ticket queda aprobado (visible para SYS HIGEA) hasta que alguien lo toma"
-        />
-        <CardNumero
-          etiqueta="SYS HIGEA — Tiempo de resolución"
-          valor={horas(datos.tiempos.resolucionSoporteHorasPromedio)}
-          icon={IconCheck}
-          acento="#2c7536"
-          titulo="Desde que lo toman hasta que se cierra, pausando mientras está en 'requiere información'. Distinto de la resolución general de arriba, que incluye el tiempo de aprobación"
         />
       </div>
 
@@ -423,7 +416,7 @@ function DashboardContenido({ datos }) {
                   <th className="py-2 pr-3 font-semibold">Asignados</th>
                   <th className="py-2 pr-3 font-semibold">Cerrados</th>
                   <th className="py-2 pr-3 font-semibold">Vencidos</th>
-                  <th className="py-2 pr-3 font-semibold" title="Desde que toma el ticket hasta que responde (pide información o lo cierra)">TPR</th>
+                  <th className="py-2 pr-3 font-semibold" title="Desde que toma el ticket hasta que lo cierra, pausando mientras espera información">TPR</th>
                   <th className="py-2 pr-3 font-semibold" title="Ciclo de vida completo: desde que se radica hasta que se cierra">Resolución</th>
                   <th className="py-2 font-semibold">% a tiempo</th>
                 </tr>
