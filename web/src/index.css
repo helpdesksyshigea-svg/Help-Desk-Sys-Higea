@@ -47,6 +47,46 @@
   --color-state-cerrado: #012624;
   --color-state-cerrado-bg: #dbe6e4;
 
+  /*
+    Dashboard "Control de Gestión" (rediseño Enterprise SaaS). Tokens propios
+    y no un reemplazo de los de arriba, para no repintar el resto de la app.
+    Cada color tiene un único significado:
+      brand-deep   -> identidad, valores finalizados (cerrado)
+      brand-action -> acción / cumplimiento / "en curso y bien"
+      brand-soft   -> fondos suaves de la marca
+      sem-warning  -> atención (umbral superado, todavía no crítico)
+      sem-critical -> crítico (vencido, incumplimiento)
+      sem-info     -> información / flujo entrante
+    Los *-ink son la variante oscura del mismo tono para TEXTO pequeño: el
+    tono base (ej. #E5A13A) no alcanza contraste suficiente sobre blanco y se
+    reserva para rellenos, iconos y barras.
+  */
+  --color-dash-bg: #f4f7f6;
+  --color-dash-surface: #ffffff;
+  --color-dash-border: #dfe8e6;
+  --color-dash-ink: #173b38;
+  --color-dash-muted: #71817e;
+  --color-dash-track: #edf3f1;
+  --color-brand-deep: #073b38;
+  --color-brand-action: #0e766e;
+  --color-brand-soft: #dcefea;
+  /* tono intermedio de la marca: "bajo / reciente" (prioridad baja, 0-2 días) */
+  --color-brand-mist: #7fbfb5;
+  --color-sem-warning: #e5a13a;
+  --color-sem-warning-ink: #8a5a12;
+  --color-sem-warning-bg: #fcf2e1;
+  --color-sem-critical: #d34b42;
+  --color-sem-critical-ink: #b0362e;
+  --color-sem-critical-bg: #fbe8e6;
+  --color-sem-info: #4c70c7;
+  --color-sem-info-ink: #3a5aa8;
+  --color-sem-info-bg: #e8eef9;
+  --color-chart-neutral: #8a9e9a;
+
+  --radius-panel: 14px;
+  --shadow-panel: 0 1px 2px rgb(7 59 56 / 0.05), 0 1px 3px rgb(7 59 56 / 0.03);
+  --shadow-panel-hover: 0 2px 8px rgb(7 59 56 / 0.07);
+
   --radius-card: 10px;
   --radius-input: 6px;
   --radius-button: 4px;

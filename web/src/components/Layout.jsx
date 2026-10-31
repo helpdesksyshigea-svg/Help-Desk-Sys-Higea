@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { nombreLegible } from "../lib/roles";
 import { Sidebar } from "./Sidebar";
@@ -36,6 +36,10 @@ function Avatar({ nombre }) {
 export function Layout() {
   const { perfil, cerrarSesion } = useAuth();
   const navigate = useNavigate();
+  // El dashboard "Control de Gestión" usa su propio fondo gris verdoso y más
+  // ancho útil (6 KPI y 3 columnas en escritorio); el resto de pantallas
+  // conserva el lienzo blanco y el ancho de lectura de 1100px.
+  const esDashboard = useLocation().pathname === "/dashboard";
   const [menuAbierto, setMenuAbierto] = useState(false);
 
   function buscar(e) {
@@ -93,8 +97,8 @@ export function Layout() {
             />
           </form>
         </header>
-        <main className="flex-1 px-4 py-6 sm:px-6 sm:py-8">
-          <div className="mx-auto max-w-[1100px]">
+        <main className={`flex-1 px-4 py-6 sm:px-6 sm:py-8 ${esDashboard ? "bg-dash-bg" : ""}`}>
+          <div className={`mx-auto ${esDashboard ? "max-w-[1480px]" : "max-w-[1100px]"}`}>
             <Outlet />
           </div>
         </main>
