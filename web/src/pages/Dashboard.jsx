@@ -833,6 +833,12 @@ function TablaIngenieros({ agentes }) {
 
 // ---------- H. Aprobaciones ----------
 
+function sumarHoras(...valores) {
+  const presentes = valores.filter((v) => v != null);
+  if (!presentes.length) return null;
+  return presentes.reduce((acc, v) => acc + v, 0);
+}
+
 function Etapa({ desde, hasta, horasEtapa }) {
   return (
     <div className="flex min-w-0 flex-1 flex-col items-stretch gap-2 sm:flex-row sm:items-center">
@@ -933,7 +939,7 @@ function SeccionAprobaciones({ aprobaciones, tiempos }) {
         </Panel>
       </div>
 
-      <div className={`grid gap-4 ${porSupervisora.length > 1 ? "xl:grid-cols-2" : ""}`}>
+      <div className="grid gap-4">
         <Panel>
           <PanelTitulo
             titulo="Tiempo de espera por etapa"
@@ -958,8 +964,7 @@ function SeccionAprobaciones({ aprobaciones, tiempos }) {
             <div className="grid gap-1.5 border-t border-dash-border pt-3">
               <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-dash-muted">Después de aprobar (mismo camino en ambos flujos)</p>
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <Etapa desde="Supervisora" hasta="SYS HIGEA" horasEtapa={tiempos?.asignacionHorasPromedio} />
-                <Etapa desde="SYS HIGEA" hasta="Cierre" horasEtapa={tiempos?.tprHorasPromedio} />
+                <Etapa desde="Supervisora" hasta="Cierre" horasEtapa={sumarHoras(tiempos?.asignacionHorasPromedio, tiempos?.tprHorasPromedio)} />
               </div>
             </div>
           </div>
