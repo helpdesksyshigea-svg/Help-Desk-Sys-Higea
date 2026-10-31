@@ -32,6 +32,36 @@ export function necesitaAccionBandeja(ticket, rol, userId) {
 
 const ESTADOS_HIGEA = ["aprobado", "en_proceso", "requiere_info"];
 
+// Traduce el mismo criterio de filtro a SQL (para GET /tickets y /tickets/
+// conteos): la base de datos filtra y cuenta por su cuenta en vez de traer
+// filas a Node para filtrarlas en memoria — lo único que no se puede
+// expresar en SQL es "vencidos" (no es una columna, se calcula), así que
+// devuelve el sentinela "VENCIDOS" y el llamador lo maneja aparte sobre el
+// subconjunto acotado de tickets "abiertos ahora".
+export const VENCIDOS_SENTINEL = "VENCIDOS";
+const ESTADOS_HIGEA_SQL = ["aprobado", "en_proceso", "requiere_info"];
+
+export function aplicarFiltroSQL(query, filtro, rol, userId) {
+  const base = rolBaseBandeja(rol);
+  if (!filtro || filtro === "todos") return query;
+  if (filtro === "vencidos") return VENCIDOS_SENTINEL;
+  if (filtro === "accion") {
+    if (base === "supervisora_facturacion") return query.eq("estado", "pendiente").is("etapa_aprobacion", null);
+    if (base === "coordinador_medico") return query.eq("estado", "pendiente").eq("etapa_aprobacion", "coordinador_medico");
+    if (base === "higea_soporte") return query.or(`estado.eq.aprobado,and(estado.eq.en_proceso,asignado_a.eq.${userId})`);
+    return query.in("estado", ["devuelto", "requiere_info"]); // facturador / médico
+  }
+  if (filtro === "pendiente") return query.eq("estado", "pendiente");
+  if (filtro === "higea") return query.in("estado", ESTADOS_HIGEA_SQL);
+  if (filtro === "devueltos") return query.eq("estado", "devuelto");
+  if (filtro === "cerrados") return query.eq("estado", "cerrado");
+  if (filtro === "abiertos") return query.neq("estado", "cerrado");
+  if (filtro === "en_proceso") return query.eq("estado", "en_proceso");
+  if (filtro === "requiere_info") return query.eq("estado", "requiere_info");
+  if (filtro === "facturacion") return query.eq("estado", "pendiente").is("etapa_aprobacion", null);
+  return query; // filtro desconocido: no filtra nada, nunca rompe la bandeja
+}
+
 export function predicadosBandeja(rol, userId) {
   const base = rolBaseBandeja(rol);
   const accion = (t) => necesitaAccionBandeja(t, rol, userId);

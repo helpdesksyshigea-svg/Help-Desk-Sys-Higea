@@ -6,7 +6,7 @@ import { supabase } from "../config/supabase.js";
 import { authenticate, requirePermission } from "../middleware/auth.js";
 import { hashItems } from "../lib/hash.js";
 import { calcularSla, festivosComo } from "../lib/sla.js";
-import { predicadosBandeja } from "../lib/filtrosBandeja.js";
+import { predicadosBandeja, aplicarFiltroSQL, VENCIDOS_SENTINEL } from "../lib/filtrosBandeja.js";
 import { construirExcelTickets } from "../lib/excel.js";
 import { notificarTransicion } from "../lib/correo.js";
 import { construirOficioPdf } from "../lib/oficio.js";
@@ -515,14 +515,135 @@ function filtrarVisibles(tickets, user) {
   return tickets.filter((t) => !ESTADOS_PRE_APROBACION.includes(t.estado) || t.solicitante_id === user.id);
 }
 
-// ---------- listar ----------
+// Suficiente para una búsqueda "mientras escribes": no hace falta paginar
+// miles de resultados, con mostrar las coincidencias más recientes alcanza.
+const LIMITE_BUSQUEDA = 100;
+// Quita caracteres con significado especial en la sintaxis de filtros de
+// PostgREST (.or(), paréntesis y comas separan condiciones) antes de meter el
+// texto de búsqueda dentro de un string de filtro armado a mano — sin esto,
+// alguien que buscara algo con una coma podría alterar la condición SQL que
+// se arma debajo, no solo fallar la búsqueda.
+function sanitizarBusqueda(texto) {
+  return (texto || "").replace(/[,()]/g, " ").trim();
+}
+
+async function buscarTickets(termino, user) {
+  const t = sanitizarBusqueda(termino);
+  if (!t) return [];
+  const restringirPropios = (q) => (user.permisos.has("tickets.ver_todos") ? q : q.eq("solicitante_id", user.id));
+
+  let qDirecta = supabase.from("tickets").select("*").or(`code.ilike.%${t}%,firmante.ilike.%${t}%`);
+  qDirecta = restringirPropios(qDirecta).order("created_at", { ascending: false }).limit(LIMITE_BUSQUEDA);
+
+  // factura/paciente/documento viven en ticket_items, no en tickets — se
+  // busca ahí primero y se traen los tickets dueños de esos registros.
+  const qItems = supabase
+    .from("ticket_items")
+    .select("ticket_id")
+    .or(`factura.ilike.%${t}%,paciente.ilike.%${t}%,documento.ilike.%${t}%`)
+    .limit(LIMITE_BUSQUEDA * 2);
+
+  const [{ data: directos, error: e1 }, { data: itemsCoincidentes, error: e2 }] = await Promise.all([qDirecta, qItems]);
+  if (e1) throw new Error(`buscando tickets: ${e1.message}`);
+  if (e2) throw new Error(`buscando en items: ${e2.message}`);
+
+  const idsPorItems = [...new Set((itemsCoincidentes || []).map((i) => i.ticket_id))].slice(0, LIMITE_BUSQUEDA);
+  let porItems = [];
+  if (idsPorItems.length) {
+    let qT = supabase.from("tickets").select("*").in("id", idsPorItems);
+    qT = restringirPropios(qT).order("created_at", { ascending: false });
+    const { data, error } = await qT;
+    if (error) throw new Error(`buscando tickets por item: ${error.message}`);
+    porItems = data || [];
+  }
+
+  const mapa = new Map();
+  for (const ticket of [...(directos || []), ...porItems]) mapa.set(ticket.id, ticket);
+  return [...mapa.values()].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, LIMITE_BUSQUEDA);
+}
+
+const ESTADOS_ABIERTOS_VENCIDO = ["aprobado", "en_proceso", "requiere_info"];
+
+// Calcula `vencido` sobre un conjunto de tickets ya "abiertos ahora" — se
+// mantiene acotado sin importar cuántos tickets históricos existan en total,
+// porque el propio SLA obliga a cerrarlos tarde o temprano (a diferencia de
+// la lista completa, que solo crece). Usado tanto por el filtro "vencidos"
+// como por /tickets/conteos.
+async function marcarVencidos(ticketsAbiertos) {
+  if (!ticketsAbiertos.length) return;
+  const ids = ticketsAbiertos.map((t) => t.id);
+  const eventos = [];
+  for (const lote of enLotes(ids, 200)) {
+    const { data, error } = await supabase.from("ticket_eventos").select("ticket_id, estado_anterior, estado_nuevo, created_at").in("ticket_id", lote);
+    if (error) throw new Error(`cargando eventos para SLA: ${error.message}`);
+    eventos.push(...(data || []));
+  }
+  const eventosPorTicket = {};
+  for (const ev of eventos) (eventosPorTicket[ev.ticket_id] ||= []).push(ev);
+  const [{ data: slaConfigRows }, festivos] = await Promise.all([supabase.from("sla_config").select("prioridad, dias_habiles"), festivosComo()]);
+  const diasHabilesPorPrioridad = {};
+  for (const c of slaConfigRows || []) diasHabilesPorPrioridad[c.prioridad] = c.dias_habiles;
+  for (const t of ticketsAbiertos) {
+    const { vencido } = await calcularSla(t, eventosPorTicket[t.id] || [], diasHabilesPorPrioridad[t.prioridad] ?? 2, festivos);
+    t.vencido = vencido;
+  }
+}
+
+// ---------- listar (paginado y filtrado en el servidor) ----------
+// Antes esto traía SIEMPRE la bandeja completa (ver fetchTodosTickets) y la
+// app filtraba/ordenaba en el navegador — funciona con cientos o unos pocos
+// miles de tickets, pero no a cualquier escala: con suficiente volumen, traer
+// "todo" deja de ser viable sin importar cuántas vueltas se le dé a cómo se
+// transporta. Ahora el filtro (?filtro=) se resuelve en SQL y la paginación
+// es por cursor (?before=, el created_at del último ticket ya cargado) +
+// ?limit= — cada página cuesta lo mismo sin importar cuántos tickets haya en
+// total. ?q= es un caso aparte: una búsqueda acotada (ver buscarTickets), sin
+// paginar, porque no tiene sentido hacer scroll infinito sobre resultados de
+// búsqueda.
 ticketsRouter.get("/tickets", async (req, res) => {
-  const tickets = await fetchTodosTickets((q) =>
-    req.user.permisos.has("tickets.ver_todos") ? q : q.eq("solicitante_id", req.user.id),
-  );
-  const visibles = filtrarVisibles(tickets, req.user);
+  const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+  if (q) {
+    const encontrados = await buscarTickets(q, req.user);
+    const visibles = filtrarVisibles(encontrados, req.user);
+    const completos = await cargarTicketsCompletos(visibles);
+    return res.json({ items: completos, hasMore: false });
+  }
+
+  const limite = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200);
+  const filtro = typeof req.query.filtro === "string" ? req.query.filtro : "todos";
+
+  if (filtro === "vencidos") {
+    // No es una columna: se calcula sobre el subconjunto acotado de
+    // "abiertos ahora" (ver marcarVencidos) y se pagina en memoria sobre ese
+    // subconjunto, que es chico sin importar cuántos tickets históricos
+    // existan.
+    let qAbiertos = supabase.from("tickets").select("*").in("estado", ESTADOS_ABIERTOS_VENCIDO);
+    if (!req.user.permisos.has("tickets.ver_todos")) qAbiertos = qAbiertos.eq("solicitante_id", req.user.id);
+    const { data: abiertos, error } = await qAbiertos.order("created_at", { ascending: false });
+    if (error) return res.status(500).json({ error: error.message });
+    const visiblesAbiertos = filtrarVisibles(abiertos, req.user);
+    await marcarVencidos(visiblesAbiertos);
+    let vencidos = visiblesAbiertos.filter((t) => t.vencido);
+    if (req.query.before) vencidos = vencidos.filter((t) => t.created_at < req.query.before);
+    const hasMore = vencidos.length > limite;
+    const completos = await cargarTicketsCompletos(vencidos.slice(0, limite));
+    return res.json({ items: completos, hasMore });
+  }
+
+  let query = supabase.from("tickets").select("*");
+  if (!req.user.permisos.has("tickets.ver_todos")) query = query.eq("solicitante_id", req.user.id);
+  const aplicado = aplicarFiltroSQL(query, filtro, req.user.rol, req.user.id);
+  query = aplicado === VENCIDOS_SENTINEL ? query : aplicado; // filtro inválido ya cayó en el bloque de arriba
+  if (req.query.before) query = query.lt("created_at", req.query.before);
+  query = query.order("created_at", { ascending: false }).limit(limite + 1);
+
+  const { data, error } = await query;
+  if (error) return res.status(500).json({ error: error.message });
+  const hasMore = data.length > limite;
+  const pagina = data.slice(0, limite);
+  const visibles = filtrarVisibles(pagina, req.user);
   const completos = await cargarTicketsCompletos(visibles);
-  res.json(completos);
+  res.json({ items: completos, hasMore });
 });
 
 // ---------- conteos para la bandeja/sidebar ----------
@@ -546,28 +667,8 @@ ticketsRouter.get("/tickets/conteos", async (req, res) => {
   // acotado sin importar cuántos tickets históricos existan en total, porque
   // el propio SLA obliga a cerrarlos — a diferencia de la lista completa, que
   // solo crece.
-  const abiertos = visibles.filter((t) => ["aprobado", "en_proceso", "requiere_info"].includes(t.estado));
-  if (abiertos.length) {
-    const ids = abiertos.map((t) => t.id);
-    const eventosAbiertos = await (async () => {
-      const filas = [];
-      for (const lote of enLotes(ids, 200)) {
-        const { data, error } = await supabase.from("ticket_eventos").select("ticket_id, estado_anterior, estado_nuevo, created_at").in("ticket_id", lote);
-        if (error) throw new Error(`cargando eventos para conteos: ${error.message}`);
-        filas.push(...(data || []));
-      }
-      return filas;
-    })();
-    const eventosPorTicket = {};
-    for (const ev of eventosAbiertos) (eventosPorTicket[ev.ticket_id] ||= []).push(ev);
-    const [{ data: slaConfigRows }, festivos] = await Promise.all([supabase.from("sla_config").select("prioridad, dias_habiles"), festivosComo()]);
-    const diasHabilesPorPrioridad = {};
-    for (const c of slaConfigRows || []) diasHabilesPorPrioridad[c.prioridad] = c.dias_habiles;
-    for (const t of abiertos) {
-      const { vencido } = await calcularSla(t, eventosPorTicket[t.id] || [], diasHabilesPorPrioridad[t.prioridad] ?? 2, festivos);
-      t.vencido = vencido;
-    }
-  }
+  const abiertos = visibles.filter((t) => ESTADOS_ABIERTOS_VENCIDO.includes(t.estado));
+  await marcarVencidos(abiertos);
 
   const predicados = predicadosBandeja(req.user.rol, req.user.id);
   const conteos = {};

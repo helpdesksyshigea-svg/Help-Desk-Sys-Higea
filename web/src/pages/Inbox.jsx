@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { apiFetch } from "../lib/api";
@@ -62,18 +62,35 @@ function PrioridadDot({ color }) {
   return <span className="block h-2.5 w-2.5 rounded-full" style={{ background: color }} aria-hidden="true" />;
 }
 
+const TAMANO_PAGINA = 50;
+
+function construirQueryTickets(filtro, busqueda, before) {
+  const sp = new URLSearchParams();
+  if (busqueda) sp.set("q", busqueda);
+  else sp.set("filtro", filtro);
+  if (before) sp.set("before", before);
+  sp.set("limit", String(TAMANO_PAGINA));
+  return sp.toString();
+}
+
 export function Inbox() {
   const { perfil } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const filtros = filtrosPorRol(perfil?.rol, perfil?.id);
   const filtroActivo = params.get("filtro") || FILTRO_DEFAULT[perfil?.rol] || filtros[0][0];
-  const busqueda = (params.get("q") || "").trim().toLowerCase();
+  // Búsqueda sin mayúsculas/espacios sobrantes — el backend ya hace la
+  // comparación sin distinguir mayúsculas, esto es solo para el texto que se
+  // muestra ("Resultados para...") y para no mandar espacios de más.
+  const busqueda = (params.get("q") || "").trim();
   const [tickets, setTickets] = useState([]);
+  const [hasMore, setHasMore] = useState(false);
+  const [cargandoMas, setCargandoMas] = useState(false);
   const [tipos, setTipos] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
   const [exportando, setExportando] = useState(false);
+  const [conteos, setConteos] = useState({ total: 0, porFiltro: {} });
   const { fallo } = useToast();
   const borrador = leerBorrador(perfil?.id);
 
@@ -95,48 +112,86 @@ export function Inbox() {
     }
   }
 
+  // La bandeja ya no trae "todos los tickets y filtra en el navegador" — el
+  // filtro (?filtro=) y la búsqueda (?q=) se resuelven en el servidor, y la
+  // lista se trae por páginas (?before=, el created_at del último ticket ya
+  // cargado). Esto es lo que permite que la bandeja no se vuelva a caer sin
+  // importar cuántos tickets acumule el hospital con el tiempo — cada página
+  // cuesta lo mismo, nunca se trae "todo" de una sola vez.
   useEffect(() => {
-    function cargar() {
-      apiFetch("/tickets")
-        .then((data) => {
-          if (!Array.isArray(data)) throw new Error("La respuesta del servidor no tiene el formato esperado.");
-          setTickets(data);
-        })
-        .catch((e) => setError(e.message))
-        .finally(() => setCargando(false));
+    let cancelado = false;
+    async function cargarPrimeraPagina() {
+      setCargando(true);
+      setError(null);
+      try {
+        const data = await apiFetch(`/tickets?${construirQueryTickets(filtroActivo, busqueda)}`);
+        if (cancelado) return;
+        setTickets(Array.isArray(data.items) ? data.items : []);
+        setHasMore(Boolean(data.hasMore));
+      } catch (e) {
+        if (!cancelado) setError(e.message);
+      } finally {
+        if (!cancelado) setCargando(false);
+      }
     }
-    cargar();
+    cargarPrimeraPagina();
     // Otra persona (ej. la supervisora) puede cambiar un ticket desde otra
     // sesión/dispositivo mientras esta pestaña sigue abierta — sin esto, la
     // bandeja se queda con el estado viejo hasta que alguien recarga a mano.
     // "tickets-changed" cubre acciones propias en esta misma pestaña;
-    // "visibilitychange" cubre cambios ajenos, al volver a esta pestaña.
+    // "visibilitychange" cubre cambios ajenos, al volver a esta pestaña. Un
+    // cambio así siempre vuelve a la primera página (no intenta "insertar" el
+    // cambio en medio de lo ya cargado, para no complicar el cursor).
     function alVolverVisible() {
-      if (document.visibilityState === "visible") cargar();
+      if (document.visibilityState === "visible") cargarPrimeraPagina();
     }
-    window.addEventListener("tickets-changed", cargar);
+    window.addEventListener("tickets-changed", cargarPrimeraPagina);
     document.addEventListener("visibilitychange", alVolverVisible);
     return () => {
-      window.removeEventListener("tickets-changed", cargar);
+      cancelado = true;
+      window.removeEventListener("tickets-changed", cargarPrimeraPagina);
+      document.removeEventListener("visibilitychange", alVolverVisible);
+    };
+  }, [filtroActivo, busqueda]);
+
+  // Los contadores de cada pestaña (móvil) y del sidebar son independientes
+  // de cuál esté activa — se cargan aparte, livianos (ver /tickets/conteos),
+  // en vez de inferirlos contando la página ya cargada (que con paginación
+  // real ya no representa el total de ese filtro).
+  useEffect(() => {
+    function cargarConteos() {
+      apiFetch("/tickets/conteos")
+        .then((data) => setConteos({ total: data?.total || 0, porFiltro: data?.porFiltro || {} }))
+        .catch(() => {});
+    }
+    cargarConteos();
+    function alVolverVisible() {
+      if (document.visibilityState === "visible") cargarConteos();
+    }
+    window.addEventListener("tickets-changed", cargarConteos);
+    document.addEventListener("visibilitychange", alVolverVisible);
+    return () => {
+      window.removeEventListener("tickets-changed", cargarConteos);
       document.removeEventListener("visibilitychange", alVolverVisible);
     };
   }, []);
 
-  const [, , fn] = filtros.find(([k]) => k === filtroActivo) || filtros[0];
-  const visibles = useMemo(() => {
-    const base = busqueda
-      ? tickets.filter((t) => {
-          const texto = [t.code, t.firmante, ...(t.items?.flatMap((i) => [i.factura, i.paciente, i.documento]) || [])]
-            .filter(Boolean)
-            .join(" ")
-            .toLowerCase();
-          return texto.includes(busqueda);
-        })
-      : tickets.filter(fn);
-    return [...base].sort((a, b) =>
-      b.vencido === a.vencido ? new Date(b.created_at) - new Date(a.created_at) : b.vencido ? 1 : -1
-    );
-  }, [tickets, fn, busqueda]);
+  async function cargarMas() {
+    if (!tickets.length || cargandoMas) return;
+    setCargandoMas(true);
+    try {
+      const ultimo = tickets[tickets.length - 1];
+      const data = await apiFetch(`/tickets?${construirQueryTickets(filtroActivo, busqueda, ultimo.created_at)}`);
+      setTickets((prev) => [...prev, ...(Array.isArray(data.items) ? data.items : [])]);
+      setHasMore(Boolean(data.hasMore));
+    } catch (e) {
+      fallo(e.message);
+    } finally {
+      setCargandoMas(false);
+    }
+  }
+
+  const visibles = tickets;
 
   return (
     <div className="grid gap-6">
@@ -188,14 +243,16 @@ export function Inbox() {
 
       {busqueda ? (
         <p className="text-sm text-[var(--color-muted)]">
-          Resultados para "<span className="font-medium text-[var(--color-ink)]">{busqueda}</span>" — {visibles.length} ticket(s).{" "}
+          Resultados para "<span className="font-medium text-[var(--color-ink)]">{busqueda}</span>" — {visibles.length}
+          {visibles.length >= 100 ? "+ " : " "}
+          ticket(s){visibles.length >= 100 ? " (se muestran los 100 más recientes)" : ""}.{" "}
           <button onClick={() => navigate("/")} className="underline hover:text-[var(--color-ink)]">
             Quitar búsqueda
           </button>
         </p>
       ) : (
         <div className="flex flex-wrap gap-2 md:hidden">
-          {filtros.map(([clave, etiqueta, fn]) => (
+          {filtros.map(([clave, etiqueta]) => (
             <button
               key={clave}
               onClick={() => navigate(`/?filtro=${clave}`)}
@@ -205,7 +262,7 @@ export function Inbox() {
                   : "border-[var(--color-border)] text-[var(--color-muted)] hover:border-[var(--color-ink)]/40 hover:text-[var(--color-ink)]"
               }`}
             >
-              {etiqueta} <span className="opacity-70">{tickets.filter(fn).length}</span>
+              {etiqueta} <span className="opacity-70">{conteos.porFiltro[clave] ?? 0}</span>
             </button>
           ))}
         </div>
@@ -318,6 +375,14 @@ export function Inbox() {
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {!cargando && !error && !busqueda && hasMore && (
+        <div className="flex justify-center">
+          <Button variant="ghost" onClick={cargarMas} disabled={cargandoMas}>
+            {cargandoMas ? "Cargando…" : "Cargar más"}
+          </Button>
         </div>
       )}
     </div>
