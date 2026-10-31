@@ -839,18 +839,28 @@ function sumarHoras(...valores) {
   return presentes.reduce((acc, v) => acc + v, 0);
 }
 
-function Etapa({ desde, hasta, horasEtapa }) {
+// Cadena completa de un flujo en una sola línea horizontal (con scroll si no
+// cabe), en vez de partirla en tramos de a dos que obligaban a saltar de fila
+// en fila para seguir el proceso completo.
+function FlujoLinea({ nodos }) {
   return (
-    <div className="flex min-w-0 flex-1 flex-col items-stretch gap-2 sm:flex-row sm:items-center">
-      <span className="rounded-[var(--radius-panel-sm)] border border-dash-border bg-dash-bg px-2.5 py-1.5 text-center text-[12.5px] font-medium text-dash-ink">{desde}</span>
-      <span className="flex flex-1 items-center gap-1.5 text-dash-muted sm:flex-col sm:gap-0">
-        <span className="text-[13px] font-semibold tabular-nums text-dash-ink">{horas(horasEtapa)}</span>
-        <span className="flex w-full items-center">
-          <span className="h-px flex-1 bg-dash-border" />
-          <IconArrowRight size={14} className="shrink-0 rotate-90 sm:rotate-0" />
-        </span>
-      </span>
-      {hasta && <span className="rounded-[var(--radius-panel-sm)] border border-dash-border bg-dash-bg px-2.5 py-1.5 text-center text-[12.5px] font-medium text-dash-ink">{hasta}</span>}
+    <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+      {nodos.map((n, i) => (
+        <div key={n.nombre + i} className="flex shrink-0 items-center gap-1.5">
+          {i > 0 && (
+            <div className="flex flex-col items-center gap-0.5 px-1 text-dash-muted">
+              <span className="whitespace-nowrap text-[12.5px] font-semibold tabular-nums text-dash-ink">{horas(n.horas)}</span>
+              <span className="flex w-10 items-center">
+                <span className="h-px flex-1 bg-dash-border" />
+                <IconArrowRight size={12} className="shrink-0" />
+              </span>
+            </div>
+          )}
+          <span className="whitespace-nowrap rounded-[var(--radius-panel-sm)] border border-dash-border bg-dash-bg px-2.5 py-1.5 text-center text-[12.5px] font-medium text-dash-ink">
+            {n.nombre}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -945,27 +955,29 @@ function SeccionAprobaciones({ aprobaciones, tiempos }) {
             titulo="Tiempo de espera por etapa"
             subtitulo="Promedio desde que una firma termina hasta que la siguiente decide, hasta el cierre"
             icono={IconClock}
-            info="Espera simple hasta la decisión, sin descontar el tiempo en que el ticket estuvo devuelto. La gestión con pausas está en las tarjetas de arriba. Desde que la supervisora aprueba, el camino es el mismo sin importar el origen (médico o facturador), por eso las dos rutas convergen en «Después de aprobar»."
+            info="Espera simple hasta la decisión, sin descontar el tiempo en que el ticket estuvo devuelto. La gestión con pausas está en las tarjetas de arriba. El tramo final (Supervisora → Cierre) es el mismo en ambos flujos, porque desde que la supervisora aprueba el camino ya no depende del origen."
           />
-          <div className="grid gap-4">
+          <div className="grid gap-5">
             <div className="grid gap-1.5">
               <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-dash-muted">Flujo médico</p>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <Etapa desde="Médico" horasEtapa={t.medicoACoordinador} />
-                <Etapa desde="Coordinador médico" hasta="Supervisora" horasEtapa={t.coordinadorASupervisora} />
-              </div>
+              <FlujoLinea
+                nodos={[
+                  { nombre: "Médico" },
+                  { nombre: "Coordinador médico", horas: t.medicoACoordinador },
+                  { nombre: "Supervisora", horas: t.coordinadorASupervisora },
+                  { nombre: "Cierre", horas: sumarHoras(tiempos?.asignacionHorasPromedio, tiempos?.tprHorasPromedio) },
+                ]}
+              />
             </div>
             <div className="grid gap-1.5">
               <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-dash-muted">Flujo directo</p>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <Etapa desde="Facturador" hasta="Supervisora" horasEtapa={t.solicitanteASupervisoraDirecto} />
-              </div>
-            </div>
-            <div className="grid gap-1.5 border-t border-dash-border pt-3">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-dash-muted">Después de aprobar (mismo camino en ambos flujos)</p>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <Etapa desde="Supervisora" hasta="Cierre" horasEtapa={sumarHoras(tiempos?.asignacionHorasPromedio, tiempos?.tprHorasPromedio)} />
-              </div>
+              <FlujoLinea
+                nodos={[
+                  { nombre: "Facturador" },
+                  { nombre: "Supervisora", horas: t.solicitanteASupervisoraDirecto },
+                  { nombre: "Cierre", horas: sumarHoras(tiempos?.asignacionHorasPromedio, tiempos?.tprHorasPromedio) },
+                ]}
+              />
             </div>
           </div>
         </Panel>
