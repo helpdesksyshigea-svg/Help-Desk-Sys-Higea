@@ -53,7 +53,11 @@ export async function calcularSla(ticket, eventos, diasHabiles, festivosPrecarga
   return { dueAt, vencido };
 }
 
-function segundosEnRequiereInfo(eventos) {
+/** Segundos que un ticket pasó en estado "requiere_info" según sus eventos.
+ * Se expone para reusar el mismo patrón de "pausar el reloj" en otros
+ * cálculos de tiempo (ej. el tiempo de resolución de SYS HIGEA en el
+ * dashboard ejecutivo), no solo en el cálculo de SLA de este archivo. */
+export function segundosEnRequiereInfo(eventos) {
   let total = 0;
   let inicio = null;
   for (const ev of eventos) {

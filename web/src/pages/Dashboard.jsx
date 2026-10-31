@@ -294,6 +294,23 @@ function DashboardContenido({ datos }) {
         />
       </div>
 
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
+        <CardNumero
+          etiqueta="SYS HIGEA — Tiempo de asignación"
+          valor={horas(datos.tiempos.asignacionHorasPromedio)}
+          icon={IconClock}
+          acento="#3656a3"
+          titulo="Desde que el ticket queda aprobado (visible para SYS HIGEA) hasta que alguien lo toma"
+        />
+        <CardNumero
+          etiqueta="SYS HIGEA — Tiempo de resolución"
+          valor={horas(datos.tiempos.resolucionSoporteHorasPromedio)}
+          icon={IconCheck}
+          acento="#2c7536"
+          titulo="Desde que lo toman hasta que se cierra, pausando mientras está en 'requiere información'. Distinto de la resolución general de arriba, que incluye el tiempo de aprobación"
+        />
+      </div>
+
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="grid gap-4">
           <SeccionTitulo subtitulo="Distribución de los tickets del rango por estado actual">Embudo por estado</SeccionTitulo>
@@ -426,7 +443,7 @@ function DashboardContenido({ datos }) {
 
 function SeccionAprobaciones({ aprobaciones }) {
   if (!aprobaciones) return null;
-  const { tiempoPorEtapaHoras, decisionesSupervisora, porSupervisora, colaPendiente } = aprobaciones;
+  const { tiempoPorEtapaHoras, gestionConPausasHoras, decisionesSupervisora, porSupervisora, colaPendiente } = aprobaciones;
 
   return (
     <div className="grid gap-4">
@@ -439,12 +456,19 @@ function SeccionAprobaciones({ aprobaciones }) {
           icon={IconAlert}
           acento="#b3362a"
         />
-        <CardNumero etiqueta="Coordinador médico decide en" valor={horas(tiempoPorEtapaHoras.medicoACoordinador)} icon={IconClock} acento="#9a5b06" />
         <CardNumero
-          etiqueta="Supervisora decide en"
-          valor={horas(tiempoPorEtapaHoras.coordinadorASupervisora ?? tiempoPorEtapaHoras.solicitanteASupervisoraDirecto)}
+          etiqueta="Coordinador médico lo gestiona en"
+          valor={horas(gestionConPausasHoras.coordinadorMedico)}
+          icon={IconClock}
+          acento="#9a5b06"
+          titulo="Tiempo real en la bandeja del coordinador: si lo devuelve al médico para corregir, el reloj se detiene hasta que se reenvía"
+        />
+        <CardNumero
+          etiqueta="Supervisora lo gestiona en"
+          valor={horas(gestionConPausasHoras.supervisora)}
           icon={IconClock}
           acento="#3656a3"
+          titulo="Tiempo real en la bandeja de la supervisora: si lo devuelve a corregir, el reloj se detiene hasta que se reenvía"
         />
       </div>
 

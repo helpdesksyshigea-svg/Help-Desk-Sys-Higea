@@ -2,7 +2,7 @@ import { Router } from "express";
 import { conManejoAsync } from "../lib/asyncRouter.js";
 import { supabase } from "../config/supabase.js";
 import { authenticate, requirePermission } from "../middleware/auth.js";
-import { calcularSla, fechaLimiteDe, festivosComo } from "../lib/sla.js";
+import { calcularSla, fechaLimiteDe, festivosComo, segundosEnRequiereInfo } from "../lib/sla.js";
 
 export const dashboardRouter = conManejoAsync(Router());
 dashboardRouter.use(authenticate);
@@ -33,6 +33,32 @@ async function enLotesDe(tabla, select, ids) {
     filas.push(...(data || []));
   }
   return filas;
+}
+
+// Tiempo real que una etapa de aprobación (coordinador médico o supervisora)
+// "tiene" el ticket en su bandeja: cuenta desde `inicioISO` hasta el evento
+// `tipoEventoFin`, pero cada vez que aparece un "devuelto" el reloj se detiene
+// (el ticket vuelve al médico/facturador a corregir) y se reanuda recién en el
+// siguiente "editado" (reenvío). Mismo patrón que `segundosEnRequiereInfo` de
+// sla.js, generalizado al par devuelto/editado en vez de requiere_info.
+// Devuelve null si el evento de fin nunca ocurrió (todavía no es medible).
+function horasConPausas(eventosTicket, inicioISO, tipoEventoFin) {
+  const eventos = eventosTicket.filter((ev) => new Date(ev.created_at) >= new Date(inicioISO));
+  let inicioTramo = new Date(inicioISO);
+  let totalMs = 0;
+  for (const ev of eventos) {
+    if (ev.tipo_evento === tipoEventoFin && inicioTramo) {
+      totalMs += new Date(ev.created_at) - inicioTramo;
+      return Number((totalMs / 3600000).toFixed(2));
+    }
+    if (ev.tipo_evento === "devuelto" && inicioTramo) {
+      totalMs += new Date(ev.created_at) - inicioTramo;
+      inicioTramo = null; // pausado: el ticket está de vuelta con quien lo radicó, corrigiendo
+    } else if (ev.tipo_evento === "editado" && !inicioTramo) {
+      inicioTramo = new Date(ev.created_at); // reanuda: vuelve a la bandeja de esta etapa
+    }
+  }
+  return null; // nunca llegó al evento de fin dentro de este tramo
 }
 
 function contarPor(items, clave) {
@@ -149,6 +175,34 @@ dashboardRouter.get("/dashboard/resumen", requirePermission("reportes.ver_dashbo
     if (respuesta) tprHorasPorTicket[t.id] = horasEntre(tomado.created_at, respuesta.created_at);
   }
 
+  // ---- Tiempo de asignación: desde que el ticket queda aprobado (visible
+  // para SYS HIGEA) hasta que alguien lo toma. Este es el cálculo que antes
+  // se llamaba "TPR" antes de que se corrigiera para medir tomado->respuesta;
+  // ahora tiene su propio nombre porque mide algo distinto (cuánto tarda en
+  // que alguien lo asigne, no cuánto tarda en responder una vez asignado).
+  const asignacionHorasPorTicket = {};
+  for (const t of tickets) {
+    if (!t.aprobado_at) continue;
+    const eventosTicket = eventosPorTicket[t.id] || [];
+    const tomado = eventosTicket.find((ev) => ev.tipo_evento === "tomado");
+    if (tomado) asignacionHorasPorTicket[t.id] = horasEntre(t.aprobado_at, tomado.created_at);
+  }
+
+  // ---- Tiempo de resolución de SYS HIGEA: desde que lo toman ("tomado")
+  // hasta que se cierra, pausando mientras está en "requiere_info" (mismo
+  // patrón que el SLA, reusando segundosEnRequiereInfo de sla.js). Distinto
+  // del "resolucionHorasPromedio" general de arriba, que mide el ciclo
+  // completo desde created_at e incluye todo el tiempo de aprobación.
+  const resolucionSoporteHorasPorTicket = {};
+  for (const t of tickets) {
+    if (!t.cerrado_at) continue;
+    const eventosTicket = eventosPorTicket[t.id] || [];
+    const tomado = eventosTicket.find((ev) => ev.tipo_evento === "tomado");
+    if (!tomado) continue;
+    const pausaHoras = segundosEnRequiereInfo(eventosTicket) / 3600;
+    resolucionSoporteHorasPorTicket[t.id] = Number((horasEntre(tomado.created_at, t.cerrado_at) - pausaHoras).toFixed(2));
+  }
+
   // ---- Por motivo (vive en ticket_items, un ticket puede tener varios) ----
   const conteoMotivos = {};
   for (const it of items || []) {
@@ -233,6 +287,15 @@ dashboardRouter.get("/dashboard/resumen", requirePermission("reportes.ver_dashbo
   // reutiliza para el desglose por supervisora más abajo (mismo número, solo
   // agrupado distinto).
   const horasEsperaFinalPorTicket = {};
+  // Gestión REAL del coordinador médico y de la supervisora: lo mismo que
+  // tiempoPorEtapaHoras arriba, pero descontando el tiempo en que el ticket
+  // estuvo devuelto en manos del médico/facturador corrigiendo (ver
+  // horasConPausas). El usuario pidió explícitamente esta versión con
+  // pausa/reanudación porque la de arriba (espera simple hasta la decisión)
+  // no distingue "el coordinador lo tuvo 3 días" de "el coordinador lo
+  // devolvió al día 1 y el médico tardó 2 días en corregir".
+  const horasGestionCoordinador = [];
+  const horasGestionSupervisora = [];
   for (const t of tickets) {
     const aprs = aprobacionesPorTicket[t.id] || [];
     const coord = aprs.find((a) => a.etapa === "coordinador_medico");
@@ -253,6 +316,17 @@ dashboardRouter.get("/dashboard/resumen", requirePermission("reportes.ver_dashbo
       horasSolicitanteASupervisoraDirecto.push(h);
       horasEsperaFinalPorTicket[t.id] = h;
     }
+
+    const eventosTicket = eventosPorTicket[t.id] || [];
+    const hGestionCoord = horasConPausas(eventosTicket, t.created_at, "aprobado_coordinador");
+    if (hGestionCoord != null) horasGestionCoordinador.push(hGestionCoord);
+
+    // La supervisora recibe el ticket desde que el coordinador lo aprueba (si
+    // el ticket pasó por esa etapa) o desde que se radica (si no la tuvo).
+    const aprobadoCoordEvento = eventosTicket.find((ev) => ev.tipo_evento === "aprobado_coordinador");
+    const inicioSupervisora = aprobadoCoordEvento ? aprobadoCoordEvento.created_at : t.created_at;
+    const hGestionSup = horasConPausas(eventosTicket, inicioSupervisora, "aprobado");
+    if (hGestionSup != null) horasGestionSupervisora.push(hGestionSup);
   }
 
   // Decisiones de la supervisora en el rango (la fecha que importa es cuándo
@@ -316,6 +390,14 @@ dashboardRouter.get("/dashboard/resumen", requirePermission("reportes.ver_dashbo
       coordinadorASupervisora: promedio(horasCoordinadorASupervisora),
       solicitanteASupervisoraDirecto: promedio(horasSolicitanteASupervisoraDirecto),
     },
+    // Gestión real de cada etapa: igual que tiempoPorEtapaHoras pero
+    // descontando el tiempo en que el ticket estuvo devuelto corrigiéndose
+    // (no contaba antes). Esta es la definición que reemplaza a las tarjetas
+    // "Coordinador médico decide en" / "Supervisora decide en" del dashboard.
+    gestionConPausasHoras: {
+      coordinadorMedico: promedio(horasGestionCoordinador),
+      supervisora: promedio(horasGestionSupervisora),
+    },
     decisionesSupervisora: {
       aprobados: aprobadosFinal,
       devueltos: devueltosFinal,
@@ -355,6 +437,11 @@ dashboardRouter.get("/dashboard/resumen", requirePermission("reportes.ver_dashbo
     tiempos: {
       tprHorasPromedio: promedio(Object.values(tprHorasPorTicket)),
       resolucionHorasPromedio: promedio(Object.values(resolucionHorasPorTicket)),
+      // Específicos del tramo de SYS HIGEA, distintos de los dos anteriores
+      // (que miden desde "tomado" la respuesta, y desde "created_at" el
+      // ciclo completo con aprobación incluida, respectivamente).
+      asignacionHorasPromedio: promedio(Object.values(asignacionHorasPorTicket)),
+      resolucionSoporteHorasPromedio: promedio(Object.values(resolucionSoporteHorasPorTicket)),
     },
     aprobaciones,
   });
