@@ -1,17 +1,15 @@
 // Dashboard "Control de Gestión" — rediseño Enterprise SaaS.
 //
-// Fuente única de datos: GET /dashboard/resumen?desde&hasta (api/src/routes/
-// dashboard.js). Esta página NO recalcula ningún indicador: solo los
-// presenta. Las únicas cuentas hechas aquí son porcentajes de presentación
-// (ej. vencidos / abiertos) sobre números que ya trae el backend.
+// Fuente única de datos: GET /dashboard/resumen?desde&hasta&ingeniero&estado&
+// prioridad&tipo (api/src/routes/dashboard.js). Esta página NO recalcula
+// ningún indicador: solo los presenta. Las únicas cuentas hechas aquí son
+// porcentajes de presentación (ej. vencidos / abiertos) sobre números que ya
+// trae el backend.
 //
-// Filtros:
-//  - Periodo (desde/hasta): se envía al servidor, igual que antes.
-//  - Ingeniero / Estado / Prioridad / Tipo: el endpoint todavía NO filtra por
-//    estos campos. Aquí son filtros LOCALES sobre lo ya cargado: el de
-//    ingeniero filtra la tabla de desempeño; estado, prioridad y tipo
-//    resaltan su segmento/barra en su propio gráfico. Los KPI y los demás
-//    paneles siguen mostrando el periodo completo, y la UI lo avisa.
+// Filtros: Periodo, Ingeniero, Estado, Prioridad y Tipo se envían todos al
+// servidor, que filtra los tickets antes de calcular cualquier indicador —
+// por eso TODOS los paneles (KPI, embudo, tendencia, aging, SLA, por-agente,
+// aprobaciones) respetan el filtro, no solo la tabla de desempeño.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "../lib/api";
 import { fechaCorta, fechaHora } from "../lib/fecha";
@@ -111,6 +109,12 @@ function iniciales(nombre) {
 
 export function Dashboard() {
   const [datos, setDatos] = useState(null);
+  // Catálogo de opciones de los selectores (ingeniero/estado/prioridad/tipo):
+  // se congela con la respuesta SIN filtrar más reciente, para que elegir un
+  // filtro no haga desaparecer las demás opciones del selector (si no, al
+  // filtrar por estado=cerrado el propio `datos` ya filtrado solo traería
+  // "cerrado" y no se podría volver a elegir otro estado desde el dropdown).
+  const [opcionesBase, setOpcionesBase] = useState(null);
   const [error, setError] = useState(null);
   const [cargando, setCargando] = useState(false);
   const [actualizadoEn, setActualizadoEn] = useState(null);
@@ -119,7 +123,7 @@ export function Dashboard() {
   const [desde, setDesde] = useState(fechaInputDe(90));
   const [hasta, setHasta] = useState(fechaInputDe(0));
 
-  // filtros locales (no van al servidor)
+  // filtros: se envían al servidor igual que desde/hasta
   const [fIngeniero, setFIngeniero] = useState("");
   const [fEstado, setFEstado] = useState("");
   const [fPrioridad, setFPrioridad] = useState("");
@@ -133,9 +137,17 @@ export function Dashboard() {
     setCargando(true);
     setError(null);
     try {
-      const r = await apiFetch(`/dashboard/resumen?desde=${d}&hasta=${h}`);
+      const params = new URLSearchParams({ desde: d, hasta: h });
+      if (fIngeniero) params.set("ingeniero", fIngeniero);
+      if (fEstado) params.set("estado", fEstado);
+      if (fPrioridad) params.set("prioridad", fPrioridad);
+      if (fTipo) params.set("tipo", fTipo);
+      const r = await apiFetch(`/dashboard/resumen?${params.toString()}`);
       if (id !== solicitud.current) return;
       setDatos(r);
+      // Solo esta respuesta (sin ingeniero/estado/prioridad/tipo aplicados)
+      // sirve como catálogo completo de opciones para los selectores.
+      if (!fIngeniero && !fEstado && !fPrioridad && !fTipo) setOpcionesBase(r);
       setActualizadoEn(new Date());
     } catch (e) {
       if (id !== solicitud.current) return;
@@ -148,7 +160,7 @@ export function Dashboard() {
   useEffect(() => {
     cargar();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fIngeniero, fEstado, fPrioridad, fTipo]);
 
   function cambiarPeriodo(id) {
     setPeriodo(id);
@@ -162,7 +174,7 @@ export function Dashboard() {
     }
   }
 
-  const hayFiltrosLocales = Boolean(fIngeniero || fEstado || fPrioridad || fTipo);
+  const hayFiltrosActivos = Boolean(fIngeniero || fEstado || fPrioridad || fTipo);
   const periodoCambiado = periodo !== PERIODO_DEFECTO;
 
   function limpiarFiltros() {
@@ -174,16 +186,15 @@ export function Dashboard() {
   }
 
   const opciones = useMemo(() => {
-    if (!datos) return { ingenieros: [], estados: [], prioridades: [], tipos: [] };
+    const base = opcionesBase || datos;
+    if (!base) return { ingenieros: [], estados: [], prioridades: [], tipos: [] };
     return {
-      ingenieros: [...datos.porAgente.map((a) => a.agente)].sort((a, b) => a.localeCompare(b, "es")),
-      estados: datos.porEstado.map((e) => ({ valor: e.estado, etiqueta: ETIQUETAS_ESTADO[e.estado] || e.estado })),
-      prioridades: datos.porPrioridad.map((p) => ({ valor: p.prioridad, etiqueta: p.etiqueta })),
-      tipos: ordenarDesc(datos.porTipo).map((t) => ({ valor: t.tipo, etiqueta: t.etiqueta })),
+      ingenieros: [...base.porAgente.map((a) => a.agente)].sort((a, b) => a.localeCompare(b, "es")),
+      estados: base.porEstado.map((e) => ({ valor: e.estado, etiqueta: ETIQUETAS_ESTADO[e.estado] || e.estado })),
+      prioridades: base.porPrioridad.map((p) => ({ valor: p.prioridad, etiqueta: p.etiqueta })),
+      tipos: ordenarDesc(base.porTipo).map((t) => ({ valor: t.tipo, etiqueta: t.etiqueta })),
     };
-  }, [datos]);
-
-  const filtros = { ingeniero: fIngeniero, estado: fEstado, prioridad: fPrioridad, tipo: fTipo };
+  }, [opcionesBase, datos]);
 
   return (
     <div className="grid gap-5 text-[13.5px] text-dash-ink">
@@ -221,13 +232,13 @@ export function Dashboard() {
             onChange={setFIngeniero}
             todos="Todos"
             opciones={opciones.ingenieros.map((n) => ({ valor: n, etiqueta: n }))}
-            local
+            destacar
           />
-          <SelectorCompacto etiqueta="Estado" valor={fEstado} onChange={setFEstado} todos="Todos" opciones={opciones.estados} local />
-          <SelectorCompacto etiqueta="Prioridad" valor={fPrioridad} onChange={setFPrioridad} todos="Todas" opciones={opciones.prioridades} local />
-          <SelectorCompacto etiqueta="Tipo de solicitud" valor={fTipo} onChange={setFTipo} todos="Todos" opciones={opciones.tipos} local ancho />
+          <SelectorCompacto etiqueta="Estado" valor={fEstado} onChange={setFEstado} todos="Todos" opciones={opciones.estados} destacar />
+          <SelectorCompacto etiqueta="Prioridad" valor={fPrioridad} onChange={setFPrioridad} todos="Todas" opciones={opciones.prioridades} destacar />
+          <SelectorCompacto etiqueta="Tipo de solicitud" valor={fTipo} onChange={setFTipo} todos="Todos" opciones={opciones.tipos} destacar ancho />
           <div className="flex items-stretch gap-2">
-            {(hayFiltrosLocales || periodoCambiado) && (
+            {(hayFiltrosActivos || periodoCambiado) && (
               <button
                 type="button"
                 onClick={limpiarFiltros}
@@ -281,16 +292,6 @@ export function Dashboard() {
         </form>
       )}
 
-      {hayFiltrosLocales && (
-        <div className="flex items-start gap-2 rounded-[10px] border border-sem-info/25 bg-sem-info-bg px-3.5 py-2.5 text-[12.5px] text-sem-info-ink">
-          <IconFilter size={15} className="mt-px shrink-0" />
-          <p>
-            <b className="font-semibold">Filtro local activo.</b> Ingeniero filtra la tabla de desempeño; estado, prioridad y tipo resaltan su gráfico. Los KPI y los
-            demás paneles siguen mostrando todo el periodo: el servidor aún no filtra por estos campos.
-          </p>
-        </div>
-      )}
-
       {error && (
         <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-[10px] border border-sem-critical/30 bg-sem-critical-bg px-4 py-3 text-[13px] text-sem-critical-ink">
           <span className="flex items-center gap-2">
@@ -306,7 +307,7 @@ export function Dashboard() {
         error ? null : <EsqueletoDashboard />
       ) : (
         <div className={`grid gap-5 transition-opacity duration-200 ${cargando ? "opacity-60" : ""}`}>
-          <DashboardContenido datos={datos} filtros={filtros} />
+          <DashboardContenido datos={datos} />
         </div>
       )}
     </div>
@@ -314,14 +315,13 @@ export function Dashboard() {
 }
 
 // Selector compacto estilo "caja": etiqueta chica arriba, valor elegido abajo.
-function SelectorCompacto({ etiqueta, valor, onChange, opciones, todos, local, ancho }) {
-  const activo = local && valor;
+function SelectorCompacto({ etiqueta, valor, onChange, opciones, todos, destacar, ancho }) {
+  const activo = destacar && valor;
   return (
     <label
       className={`relative flex min-w-[132px] flex-1 cursor-pointer flex-col rounded-[10px] border bg-dash-surface px-3 py-1.5 shadow-panel transition-colors hover:border-brand-action/40 sm:flex-none ${
         ancho ? "sm:min-w-[170px]" : ""
       } ${activo ? "border-brand-action/60 ring-2 ring-brand-soft" : "border-dash-border"}`}
-      title={local ? "Filtro local sobre los datos ya cargados (el servidor aún no filtra por este campo)" : undefined}
     >
       <span className="text-[11px] font-medium leading-4 text-dash-muted">{etiqueta}</span>
       <select
@@ -367,7 +367,7 @@ function EsqueletoDashboard() {
 
 // ---------- contenido ----------
 
-function DashboardContenido({ datos, filtros }) {
+function DashboardContenido({ datos }) {
   const alertas = useMemo(() => calcularAlertas(datos), [datos]);
   return (
     <>
@@ -385,7 +385,6 @@ function DashboardContenido({ datos, filtros }) {
               color: COLORES_ESTADO[d.estado] || "var(--color-chart-neutral)",
               total: d.total,
             }))}
-            resaltado={filtros.estado || null}
           />
         </Panel>
         <Panel>
@@ -404,7 +403,7 @@ function DashboardContenido({ datos, filtros }) {
       <div className="grid gap-4 lg:grid-cols-3">
         <Panel>
           <PanelTitulo titulo="Por tipo de solicitud" subtitulo="Tickets del rango, de mayor a menor" icono={IconInbox} />
-          <ListaBarras items={ordenarDesc(datos.porTipo)} claveDe={(e) => e.tipo} resaltado={filtros.tipo || null} />
+          <ListaBarras items={ordenarDesc(datos.porTipo)} claveDe={(e) => e.tipo} />
         </Panel>
         <Panel>
           <PanelTitulo titulo="Por prioridad" subtitulo="Tickets del rango según su prioridad" icono={IconActivity} />
@@ -416,7 +415,6 @@ function DashboardContenido({ datos, filtros }) {
               color: COLOR_PRIORIDAD[d.prioridad] || "var(--color-chart-neutral)",
               total: d.total,
             }))}
-            resaltado={filtros.prioridad || null}
           />
         </Panel>
         <Panel>
@@ -436,7 +434,7 @@ function DashboardContenido({ datos, filtros }) {
         <PanelSla sla={datos.sla} />
         <PanelAntiguedad aging={datos.aging} />
         <div className="lg:col-span-2 xl:col-span-1">
-          <TablaIngenieros agentes={datos.porAgente} filtroIngeniero={filtros.ingeniero} />
+          <TablaIngenieros agentes={datos.porAgente} />
         </div>
       </div>
 
@@ -709,12 +707,11 @@ function Encabezado({ clave, etiqueta, info, alinear = "text-right", orden, onOr
   );
 }
 
-function TablaIngenieros({ agentes, filtroIngeniero }) {
+function TablaIngenieros({ agentes }) {
   const [orden, setOrden] = useState({ clave: "asignados", desc: true });
   const filas = useMemo(() => {
-    const lista = filtroIngeniero ? agentes.filter((a) => a.agente === filtroIngeniero) : agentes;
     const { clave, desc } = orden;
-    return [...lista].sort((a, b) => {
+    return [...agentes].sort((a, b) => {
       const va = a[clave];
       const vb = b[clave];
       if (clave === "agente") return desc ? vb.localeCompare(va, "es") : va.localeCompare(vb, "es");
@@ -723,7 +720,7 @@ function TablaIngenieros({ agentes, filtroIngeniero }) {
       if (vb == null) return -1;
       return desc ? vb - va : va - vb;
     });
-  }, [agentes, filtroIngeniero, orden]);
+  }, [agentes, orden]);
 
   function ordenarPor(clave) {
     setOrden((o) => (o.clave === clave ? { clave, desc: !o.desc } : { clave, desc: clave !== "agente" && !["tprHorasPromedio", "resolucionHorasPromedio"].includes(clave) }));
@@ -738,9 +735,7 @@ function TablaIngenieros({ agentes, filtroIngeniero }) {
         info="Vista descriptiva: haga clic en una columna para ordenar. Ningún indicador por sí solo (ej. TRS) mide productividad: depende del volumen, la complejidad y el tipo de casos de cada ingeniero."
       />
       {!agentes.length ? (
-        <EstadoVacio icono={IconUsers}>Aún no hay casos tomados con ingeniero registrado en este rango. El nombre se guarda desde «Tomar caso».</EstadoVacio>
-      ) : !filas.length ? (
-        <EstadoVacio icono={IconFilter}>El ingeniero filtrado no tiene casos en este rango.</EstadoVacio>
+        <EstadoVacio icono={IconUsers}>Aún no hay casos tomados con ingeniero registrado en este rango con los filtros elegidos. El nombre se guarda desde «Tomar caso».</EstadoVacio>
       ) : (
         <>
           {/* escritorio / tablet: tabla */}

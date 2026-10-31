@@ -86,13 +86,26 @@ dashboardRouter.get("/dashboard/resumen", requirePermission("reportes.ver_dashbo
   // (lo que había antes) solo corre el techo, no lo elimina: con suficiente
   // volumen en el rango de fechas elegido, los tickets más allá de ese techo
   // volverían a desaparecer del dashboard en silencio.
+  // Filtros opcionales de Ingeniero/Estado/Prioridad/Tipo: se aplican como
+  // .eq() adicionales sobre la misma consulta que ya filtra por fecha, para
+  // que TODOS los paneles (KPI, embudo, tendencia, aging, SLA, por-agente,
+  // aprobaciones) reflejen el mismo conjunto filtrado, no solo la tabla de
+  // desempeño. Son independientes entre sí: cada uno se aplica solo si viene
+  // en la query string.
+  const { ingeniero, estado, prioridad, tipo } = req.query;
+
   const tickets = [];
   for (let desdeFila = 0; ; desdeFila += 1000) {
-    const { data, error: tErr } = await supabase
+    let consulta = supabase
       .from("tickets")
       .select("*")
       .gte("created_at", desde)
-      .lte("created_at", hasta)
+      .lte("created_at", hasta);
+    if (ingeniero) consulta = consulta.eq("agente_higea", ingeniero);
+    if (estado) consulta = consulta.eq("estado", estado);
+    if (prioridad) consulta = consulta.eq("prioridad", prioridad);
+    if (tipo) consulta = consulta.eq("tipo", tipo);
+    const { data, error: tErr } = await consulta
       .order("created_at", { ascending: false })
       .range(desdeFila, desdeFila + 999);
     if (tErr) return res.status(500).json({ error: tErr.message });
