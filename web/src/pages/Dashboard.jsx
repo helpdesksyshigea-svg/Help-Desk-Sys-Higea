@@ -320,7 +320,7 @@ function DashboardContenido({ datos }) {
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         <CardNumero
-          etiqueta="SYS HIGEA — Tiempo de asignación"
+          etiqueta="TA (tiempo de asignación)"
           valor={horas(datos.tiempos.asignacionHorasPromedio)}
           icon={IconClock}
           acento="#3656a3"
