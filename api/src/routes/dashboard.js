@@ -56,14 +56,23 @@ dashboardRouter.get("/dashboard/resumen", requirePermission("reportes.ver_dashbo
   if (SOLO_FECHA.test(hasta)) hasta = `${hasta}T23:59:59.999Z`;
   const desde = req.query.desde || new Date(new Date(hasta).getTime() - NOVENTA_DIAS_MS).toISOString();
 
-  const { data: tickets, error: tErr } = await supabase
-    .from("tickets")
-    .select("*")
-    .gte("created_at", desde)
-    .lte("created_at", hasta)
-    .order("created_at", { ascending: false })
-    .range(0, 19999); // ver nota de .range() en GET /tickets (tickets.js): sin esto, PostgREST corta en 1000 filas sin avisar.
-  if (tErr) return res.status(500).json({ error: tErr.message });
+  // Pagina en lotes de 1000 hasta agotar los resultados — un .range() fijo
+  // (lo que había antes) solo corre el techo, no lo elimina: con suficiente
+  // volumen en el rango de fechas elegido, los tickets más allá de ese techo
+  // volverían a desaparecer del dashboard en silencio.
+  const tickets = [];
+  for (let desdeFila = 0; ; desdeFila += 1000) {
+    const { data, error: tErr } = await supabase
+      .from("tickets")
+      .select("*")
+      .gte("created_at", desde)
+      .lte("created_at", hasta)
+      .order("created_at", { ascending: false })
+      .range(desdeFila, desdeFila + 999);
+    if (tErr) return res.status(500).json({ error: tErr.message });
+    tickets.push(...(data || []));
+    if (!data || data.length < 1000) break;
+  }
 
   const ids = tickets.map((t) => t.id);
 
@@ -92,6 +101,10 @@ dashboardRouter.get("/dashboard/resumen", requirePermission("reportes.ver_dashbo
 
   const eventosPorTicket = {};
   for (const ev of eventos || []) (eventosPorTicket[ev.ticket_id] ||= []).push(ev);
+  // Los eventos no vienen garantizados en orden cronológico (enLotesDe no
+  // ordena): para poder buscar "el primer evento después de X" hace falta
+  // ordenarlos por fecha dentro de cada ticket.
+  for (const lista of Object.values(eventosPorTicket)) lista.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
   // ---- SLA (abiertos ahora) ----
   const abiertos = tickets.filter((t) => ESTADOS_ABIERTOS.includes(t.estado));
@@ -112,16 +125,28 @@ dashboardRouter.get("/dashboard/resumen", requirePermission("reportes.ver_dashbo
       if (new Date(t.cerrado_at) > new Date(dueAt)) cerradosVencidos++;
       else cerradosATiempo++;
     }
-    resolucionHorasPorTicket[t.id] = horasEntre(t.aprobado_at, t.cerrado_at);
+    // Tiempo de resolución = ciclo de vida completo del ticket: desde que se
+    // radica (created_at) hasta que se cierra (cerrado_at). Incluye todo el
+    // tiempo de aprobación, no solo lo que pasa después de aprobado.
+    resolucionHorasPorTicket[t.id] = horasEntre(t.created_at, t.cerrado_at);
   }
   const totalEvaluadosSla = cerradosATiempo + cerradosVencidos;
 
-  // ---- TPR: aprobado_at -> primer evento "tomado" ----
+  // ---- Tiempo de respuesta (TPR): desde que el ingeniero de SYS HIGEA
+  // recibe el ticket ("tomado") hasta que da una respuesta real sobre él —
+  // el primer evento posterior de tipo "requiere_info" (pide información) o
+  // "cerrado" (lo resuelve). "tomado" por sí solo no es una respuesta, solo
+  // indica que alguien lo tiene en gestión; si no hay un evento de respuesta
+  // posterior, el ticket no tiene TPR medible todavía.
   const tprHorasPorTicket = {};
   for (const t of tickets) {
-    if (!t.aprobado_at) continue;
-    const tomado = (eventosPorTicket[t.id] || []).find((ev) => ev.tipo_evento === "tomado");
-    if (tomado) tprHorasPorTicket[t.id] = horasEntre(t.aprobado_at, tomado.created_at);
+    const eventosTicket = eventosPorTicket[t.id] || [];
+    const tomado = eventosTicket.find((ev) => ev.tipo_evento === "tomado");
+    if (!tomado) continue;
+    const respuesta = eventosTicket.find(
+      (ev) => new Date(ev.created_at) > new Date(tomado.created_at) && (ev.tipo_evento === "requiere_info" || ev.tipo_evento === "cerrado"),
+    );
+    if (respuesta) tprHorasPorTicket[t.id] = horasEntre(tomado.created_at, respuesta.created_at);
   }
 
   // ---- Por motivo (vive en ticket_items, un ticket puede tener varios) ----

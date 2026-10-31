@@ -43,9 +43,9 @@ const ETIQUETAS_ESTADO = {
   cerrado: "Cerrado",
 };
 
-function CardNumero({ etiqueta, valor, icon: Icon, acento }) {
+function CardNumero({ etiqueta, valor, icon: Icon, acento, titulo }) {
   return (
-    <div className="grid gap-2 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3.5">
+    <div className="grid gap-2 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3.5" title={titulo}>
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-[var(--color-muted)]">{etiqueta}</span>
         {Icon && (
@@ -278,8 +278,20 @@ function DashboardContenido({ datos }) {
         <CardNumero etiqueta="Tickets en el rango" valor={datos.totales.tickets} icon={IconInbox} />
         <CardNumero etiqueta="Abiertos" valor={datos.totales.abiertos} icon={IconClock} acento="#9a5b06" />
         <CardNumero etiqueta="Vencidos ahora" valor={datos.totales.vencidosActuales} icon={IconAlert} acento="#b3362a" />
-        <CardNumero etiqueta="TPR (tiempo de respuesta)" valor={horas(datos.tiempos.tprHorasPromedio)} icon={IconClock} acento="#3656a3" />
-        <CardNumero etiqueta="Resolución promedio" valor={horas(datos.tiempos.resolucionHorasPromedio)} icon={IconCheck} acento="#2c7536" />
+        <CardNumero
+          etiqueta="TPR (tiempo de respuesta)"
+          valor={horas(datos.tiempos.tprHorasPromedio)}
+          icon={IconClock}
+          acento="#3656a3"
+          titulo="Desde que el ingeniero toma el ticket hasta que da la primera respuesta (pide información o lo cierra)"
+        />
+        <CardNumero
+          etiqueta="Resolución promedio"
+          valor={horas(datos.tiempos.resolucionHorasPromedio)}
+          icon={IconCheck}
+          acento="#2c7536"
+          titulo="Ciclo de vida completo: desde que se radica el ticket hasta que se cierra"
+        />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -380,8 +392,8 @@ function DashboardContenido({ datos }) {
                   <th className="py-2 pr-3 font-semibold">Asignados</th>
                   <th className="py-2 pr-3 font-semibold">Cerrados</th>
                   <th className="py-2 pr-3 font-semibold">Vencidos</th>
-                  <th className="py-2 pr-3 font-semibold">TPR</th>
-                  <th className="py-2 pr-3 font-semibold">Resolución</th>
+                  <th className="py-2 pr-3 font-semibold" title="Desde que toma el ticket hasta que responde (pide información o lo cierra)">TPR</th>
+                  <th className="py-2 pr-3 font-semibold" title="Ciclo de vida completo: desde que se radica hasta que se cierra">Resolución</th>
                   <th className="py-2 font-semibold">% a tiempo</th>
                 </tr>
               </thead>
