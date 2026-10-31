@@ -285,7 +285,7 @@ export async function construirOficioPdf({ ticket, tipoEtiqueta, plantilla, item
   // verde arranca en y=76.3) — antes el piso era MARGEN+70=142pt, mucho más
   // de lo que el pie realmente necesita, y forzaba saltos de página con
   // media hoja en blanco aunque el cierre y las firmas sí cabían.
-  const PISO_CONTENIDO = 85;
+  const PISO_CONTENIDO = 80;
   function nuevaPaginaSiHaceFalta(alturaNecesaria) {
     if (y - alturaNecesaria < PISO_CONTENIDO) {
       pagina = pdf.addPage([PAGINA.ancho, PAGINA.alto]);
@@ -378,15 +378,18 @@ export async function construirOficioPdf({ ticket, tipoEtiqueta, plantilla, item
   // Espaciados medidos en el oficio de referencia (interlínea ≈15.84pt entre
   // "Agradezco..." y "Atentamente,", ≈34.3pt; firma/nombre ≈25.7pt bajo
   // "Atentamente,").
-  y -= 20;
+  // 10pt de aire entre la tabla y "Agradezco..." — no viene de ninguna
+  // medida del oficio de referencia (ese espacio depende del contenido
+  // específico de cada ticket, no hay un "espacio real" que copiar), así
+  // que es el primer lugar seguro para recortar cuando un oficio con firma
+  // ya confirmada queda a pocos puntos de no entrar en una sola página.
+  y -= 10;
   // 15.84 (línea de cierre) + 34.3 (espacio hasta "Atentamente,") + 25.73
   // (espacio hasta la firma) + el bloque de firma en sí — que mide MUY
   // distinto según el caso: ~80pt si ya está confirmada (imagen + nombre +
   // cargo + fecha) o apenas ~50pt si sigue "pendiente de confirmación" (solo
   // esa frase, ver dibujarFirma). Reservar siempre el peor caso (80) hacía
-  // saltar de página oficios cortos que sí cabían enteros en una sola hoja
-  // — con un registro y una plantilla de 3 párrafos ya alcanzaba a quedar
-  // apenas 6pt corto del piso de seguridad.
+  // saltar de página oficios cortos que sí cabían enteros en una sola hoja.
   const hayFirmaConfirmada = Boolean(ticket.firma_solicitante_at || ticket.firma_aprobador_at);
   nuevaPaginaSiHaceFalta(15.84 + 34.3 + 25.73 + (hayFirmaConfirmada ? 80 : 50));
   pagina.drawText(config.texto_cierre, { x: MARGEN, y, size: 10.5, font: fuente, color: NEGRO });
