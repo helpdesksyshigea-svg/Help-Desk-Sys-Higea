@@ -19,10 +19,19 @@ const API_URL = import.meta.env.VITE_API_URL;
 async function exportarExcel() {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
-  const res = await fetch(`${API_URL}/tickets/exportar`, { headers: { Authorization: `Bearer ${token}` } });
+  let res;
+  try {
+    res = await fetch(`${API_URL}/tickets/exportar`, { headers: { Authorization: `Bearer ${token}` } });
+  } catch (e) {
+    throw new Error(
+      e instanceof TypeError
+        ? "No se pudo conectar con el servidor. Revisa tu conexión a internet e intenta de nuevo."
+        : e.message
+    );
+  }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || "No se pudo exportar");
+    throw new Error(body.error || "No se pudo generar el archivo Excel. Intenta de nuevo en unos minutos.");
   }
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);

@@ -1279,7 +1279,10 @@ function Almacenamiento() {
     try {
       const r = await apiFetch("/admin/limpieza/ejecutar", { method: "POST" });
       exito(`${r.archivados.length} ticket(s) archivado(s) de ${r.evaluados} evaluado(s)`);
-      if (r.errores.length) fallo(`${r.errores.length} no se pudieron archivar`);
+      if (r.errores.length) {
+        const codigos = r.errores.map((er) => er.code).join(", ");
+        fallo(`No se pudieron archivar ${r.errores.length} ticket(s) (${codigos}). Intenta de nuevo o contacta a soporte si persiste.`);
+      }
       cargar();
     } catch (e) {
       fallo(e.message);
