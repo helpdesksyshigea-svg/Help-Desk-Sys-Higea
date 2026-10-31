@@ -81,7 +81,10 @@ const COLORES_ESTADO = {
   cerrado: "#2c7536",
 };
 
-function DonutEstados({ datos }) {
+// Donut genérico: recibe datos ya en la forma {clave, etiqueta, color, total}
+// — DonutEstados (abajo) y "Por prioridad" son dos usos distintos del mismo
+// dibujo, cada uno con su propio mapeo de clave→etiqueta→color.
+function Donut({ datos }) {
   const total = datos.reduce((s, d) => s + d.total, 0);
   if (!total) return <p className="text-sm text-[var(--color-muted)]">Sin tickets en este rango.</p>;
 
@@ -104,12 +107,12 @@ function DonutEstados({ datos }) {
         <circle cx="70" cy="70" r={R} fill="none" stroke="var(--color-ink)" strokeOpacity="0.06" strokeWidth="18" />
         {segmentos.map((s) => (
           <circle
-            key={s.estado}
+            key={s.clave}
             cx="70"
             cy="70"
             r={R}
             fill="none"
-            stroke={COLORES_ESTADO[s.estado] || "var(--color-ink)"}
+            stroke={s.color || "var(--color-ink)"}
             strokeWidth="18"
             strokeDasharray={`${s.dash} ${C - s.dash}`}
             strokeDashoffset={-s.offset}
@@ -121,10 +124,10 @@ function DonutEstados({ datos }) {
           .filter((d) => d.total > 0)
           .sort((a, b) => b.total - a.total)
           .map((d) => (
-            <div key={d.estado} className="flex items-center justify-between gap-3 text-sm">
+            <div key={d.clave} className="flex items-center justify-between gap-3 text-sm">
               <span className="flex min-w-0 items-center gap-2">
-                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: COLORES_ESTADO[d.estado] || "var(--color-ink)" }} />
-                <span className="truncate">{ETIQUETAS_ESTADO[d.estado] || d.estado}</span>
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: d.color || "var(--color-ink)" }} />
+                <span className="truncate">{d.etiqueta}</span>
               </span>
               <span className="shrink-0 font-medium">
                 {d.total} <span className="text-[var(--color-muted)]">({Math.round((d.total / total) * 100)}%)</span>
@@ -134,6 +137,28 @@ function DonutEstados({ datos }) {
       </div>
     </div>
   );
+}
+
+function DonutEstados({ datos }) {
+  const shaped = datos.map((d) => ({
+    clave: d.estado,
+    etiqueta: ETIQUETAS_ESTADO[d.estado] || d.estado,
+    color: COLORES_ESTADO[d.estado] || "var(--color-ink)",
+    total: d.total,
+  }));
+  return <Donut datos={shaped} />;
+}
+
+const COLOR_PRIORIDAD = { alta: "#b3362a", normal: "#9a5b06", baja: "var(--color-ink)" };
+
+function DonutPrioridad({ datos }) {
+  const shaped = datos.map((d) => ({
+    clave: d.prioridad,
+    etiqueta: d.etiqueta,
+    color: COLOR_PRIORIDAD[d.prioridad] || "var(--color-ink)",
+    total: d.total,
+  }));
+  return <Donut datos={shaped} />;
 }
 
 function BarraHorizontal({ etiqueta, total, maximo, color = "var(--color-ink)" }) {
@@ -267,7 +292,6 @@ export function Dashboard() {
 
 function DashboardContenido({ datos }) {
   const maxTipo = Math.max(1, ...datos.porTipo.map((e) => e.total));
-  const maxPrioridad = Math.max(1, ...datos.porPrioridad.map((e) => e.total));
   const maxMotivo = Math.max(1, ...datos.porMotivo.map((e) => e.total));
   const maxAging = Math.max(1, ...datos.aging.map((e) => e.total));
   const pctSla = datos.sla.cumplimientoHistorico.porcentaje;
@@ -334,17 +358,7 @@ function DashboardContenido({ datos }) {
         </Card>
         <Card className="grid gap-3">
           <SeccionTitulo>Por prioridad</SeccionTitulo>
-          <div className="grid gap-1.5">
-            {ordenarDesc(datos.porPrioridad).map((e) => (
-              <BarraHorizontal
-                key={e.prioridad}
-                etiqueta={e.etiqueta}
-                total={e.total}
-                maximo={maxPrioridad}
-                color={e.prioridad === "alta" ? "#b3362a" : e.prioridad === "normal" ? "#9a5b06" : "var(--color-ink)"}
-              />
-            ))}
-          </div>
+          <DonutPrioridad datos={datos.porPrioridad} />
         </Card>
         <Card className="grid gap-3">
           <SeccionTitulo subtitulo="Ítems, no tickets — uno puede tener varios">Por motivo</SeccionTitulo>
