@@ -438,7 +438,7 @@ function DashboardContenido({ datos }) {
       </div>
 
       {/* ===== H. Aprobaciones ===== */}
-      <SeccionAprobaciones aprobaciones={datos.aprobaciones} />
+      <SeccionAprobaciones aprobaciones={datos.aprobaciones} tiempos={datos.tiempos} />
     </>
   );
 }
@@ -849,7 +849,7 @@ function Etapa({ desde, hasta, horasEtapa }) {
   );
 }
 
-function SeccionAprobaciones({ aprobaciones }) {
+function SeccionAprobaciones({ aprobaciones, tiempos }) {
   if (!aprobaciones) return null;
   const { tiempoPorEtapaHoras: t, gestionConPausasHoras: g, decisionesSupervisora: d, porSupervisora, colaPendiente: c } = aprobaciones;
   const causas = aprobaciones.causasDevolucion || [];
@@ -937,9 +937,9 @@ function SeccionAprobaciones({ aprobaciones }) {
         <Panel>
           <PanelTitulo
             titulo="Tiempo de espera por etapa"
-            subtitulo="Promedio desde que una firma termina hasta que la siguiente decide"
+            subtitulo="Promedio desde que una firma termina hasta que la siguiente decide, hasta el cierre"
             icono={IconClock}
-            info="Espera simple hasta la decisión, sin descontar el tiempo en que el ticket estuvo devuelto. La gestión con pausas está en las tarjetas de arriba."
+            info="Espera simple hasta la decisión, sin descontar el tiempo en que el ticket estuvo devuelto. La gestión con pausas está en las tarjetas de arriba. Desde que la supervisora aprueba, el camino es el mismo sin importar el origen (médico o facturador), por eso las dos rutas convergen en «Después de aprobar»."
           />
           <div className="grid gap-4">
             <div className="grid gap-1.5">
@@ -953,6 +953,13 @@ function SeccionAprobaciones({ aprobaciones }) {
               <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-dash-muted">Flujo directo</p>
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <Etapa desde="Facturador" hasta="Supervisora" horasEtapa={t.solicitanteASupervisoraDirecto} />
+              </div>
+            </div>
+            <div className="grid gap-1.5 border-t border-dash-border pt-3">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-dash-muted">Después de aprobar (mismo camino en ambos flujos)</p>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <Etapa desde="Supervisora" hasta="SYS HIGEA" horasEtapa={tiempos?.asignacionHorasPromedio} />
+                <Etapa desde="SYS HIGEA" hasta="Cierre" horasEtapa={tiempos?.tprHorasPromedio} />
               </div>
             </div>
           </div>
