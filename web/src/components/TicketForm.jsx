@@ -4,7 +4,9 @@ import { useAuth } from "../context/AuthContext";
 import { Card } from "./Card";
 import { Button } from "./Button";
 import { ModalFirmarOficio, previewOficioAlRadicar } from "./ModalFirmarOficio";
-import { IconUpload, IconPlus, IconTrash } from "./icons";
+import { IconUpload, IconPlus, IconTrash, IconClose } from "./icons";
+import { leerBorrador, guardarBorrador, borrarBorrador } from "../lib/borrador";
+import { fechaHora } from "../lib/fecha";
 
 export const PRIORIDADES = { alta: "Alta (1 día hábil)", normal: "Normal (2 días hábiles)", baja: "Baja (5 días hábiles)" };
 
@@ -23,16 +25,29 @@ export function TicketForm({ modo, inicial, onSubmit, submitLabel }) {
   const [confirmandoFirma, setConfirmandoFirma] = useState(false);
   const [tipos, setTipos] = useState([]);
   const [motivos, setMotivos] = useState([]);
-  const [tipo, setTipo] = useState(inicial?.tipo || "");
-  const [prioridad, setPrioridad] = useState(inicial?.prioridad || "normal");
-  // Al crear, se prellena con el nombre de quien está logueado (lo normal:
-  // quien radica es quien firma) — sigue siendo editable por si alguien
-  // radica en nombre de otra persona. Al editar, se respeta el firmante que
-  // ya tenía el ticket.
-  const [firmante, setFirmante] = useState(inicial?.firmante || perfil?.nombre || "");
-  const [observacion, setObservacion] = useState(inicial?.observacion || "");
+
+  // Al crear (nunca al editar un ticket ya existente), si hay un borrador
+  // guardado en este navegador se retoma desde ahí en vez de empezar en
+  // blanco — ver web/src/lib/borrador.js. El archivo del oficio nunca queda
+  // en el borrador (no es serializable), así que eso sí hay que adjuntarlo
+  // de nuevo.
+  const borrador = modo === "crear" ? leerBorrador(perfil?.id) : null;
+  const [seRestauroBorrador, setSeRestauroBorrador] = useState(!!borrador);
+
+  const [tipo, setTipo] = useState(inicial?.tipo || borrador?.tipo || "");
+  const [prioridad, setPrioridad] = useState(inicial?.prioridad || borrador?.prioridad || "normal");
+  // Al crear sin borrador, se prellena con el nombre de quien está logueado
+  // (lo normal: quien radica es quien firma) — sigue siendo editable por si
+  // alguien radica en nombre de otra persona. Al editar, se respeta el
+  // firmante que ya tenía el ticket.
+  const [firmante, setFirmante] = useState(inicial?.firmante || borrador?.firmante || perfil?.nombre || "");
+  const [observacion, setObservacion] = useState(inicial?.observacion || borrador?.observacion || "");
   const [items, setItems] = useState(
-    inicial?.items?.length ? inicial.items.map(({ id, ticket_id, ...rest }) => rest) : [{ ...ITEM_VACIO }]
+    inicial?.items?.length
+      ? inicial.items.map(({ id, ticket_id, ...rest }) => rest)
+      : borrador?.items?.length
+        ? borrador.items
+        : [{ ...ITEM_VACIO }]
   );
   const [oficio, setOficio] = useState(null);
   const [error, setError] = useState(null);
@@ -66,10 +81,29 @@ export function TicketForm({ modo, inicial, onSubmit, submitLabel }) {
         const tiposSeguros = Array.isArray(tiposData) ? tiposData : [];
         setTipos(tiposSeguros);
         setMotivos(Array.isArray(motivosData) ? motivosData : []);
-        if (!inicial?.tipo && tiposSeguros[0]) setTipo(tiposSeguros[0].clave);
+        if (!inicial?.tipo && !borrador?.tipo && tiposSeguros[0]) setTipo(tiposSeguros[0].clave);
       })
       .catch((e) => setError(`No se pudieron cargar los catálogos. ${e.message}`));
   }, []);
+
+  // Autoguardado del borrador mientras se escribe (solo al crear). No incluye
+  // el archivo del oficio — ver lib/borrador.js.
+  useEffect(() => {
+    if (modo !== "crear") return;
+    guardarBorrador(perfil?.id, { tipo, prioridad, firmante, observacion, items });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modo, perfil?.id, tipo, prioridad, firmante, observacion, items]);
+
+  function descartarBorrador() {
+    if (!window.confirm("¿Descartar el borrador guardado y empezar de cero?")) return;
+    borrarBorrador(perfil?.id);
+    setTipo(tipos[0]?.clave || "");
+    setPrioridad("normal");
+    setFirmante(perfil?.nombre || "");
+    setObservacion("");
+    setItems([{ ...ITEM_VACIO }]);
+    setSeRestauroBorrador(false);
+  }
 
   function actualizarItem(i, campo, valor) {
     setItems((prev) => prev.map((item, idx) => (idx === i ? { ...item, [campo]: valor } : item)));
@@ -133,6 +167,7 @@ export function TicketForm({ modo, inicial, onSubmit, submitLabel }) {
     setEnviando(true);
     try {
       await onSubmit(form);
+      if (modo === "crear") borrarBorrador(perfil?.id);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -149,6 +184,23 @@ export function TicketForm({ modo, inicial, onSubmit, submitLabel }) {
 
   return (
     <form onSubmit={enviar} className="grid gap-6">
+      {seRestauroBorrador && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-card)] border border-[var(--color-accent)]/40 bg-[var(--color-accent)]/10 px-3 py-2 text-sm">
+          <span>
+            Se restauró un borrador guardado automáticamente
+            {borrador?.guardadoEn ? ` el ${fechaHora(borrador.guardadoEn)}` : ""}. Vuelve a adjuntar el oficio si lo tenías
+            seleccionado.
+          </span>
+          <button
+            type="button"
+            onClick={descartarBorrador}
+            className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-[var(--color-muted)] hover:text-[var(--color-ink)]"
+          >
+            <IconClose size={12} />
+            Descartar
+          </button>
+        </div>
+      )}
       <h3 className="-mb-3 text-xs font-semibold uppercase tracking-[0.054em] text-[var(--color-muted)]">
         1. Datos de la solicitud
       </h3>

@@ -22,6 +22,7 @@ perfilRouter.get("/perfil", async (req, res) => {
     if (!error) firmaUrl = data?.signedUrl || null;
   }
   res.json({
+    nombre: req.user.nombre,
     identificacion: req.user.identificacion,
     cargo: req.user.cargo,
     // El vector (firma_svg) es lo que realmente se estampa en el oficio — la

@@ -9,8 +9,10 @@ import { StatusTag } from "../components/StatusTag";
 import { RequirePermission } from "../components/RequirePermission";
 import { useToast } from "../context/ToastContext";
 import { SkeletonRow } from "../components/Skeleton";
-import { IconInbox, IconPlus, IconDownload } from "../components/icons";
+import { IconInbox, IconPlus, IconDownload, IconEdit } from "../components/icons";
 import { supabase } from "../lib/supabase";
+import { leerBorrador } from "../lib/borrador";
+import { fechaHora } from "../lib/fecha";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -64,6 +66,7 @@ export function Inbox() {
   const [error, setError] = useState(null);
   const [exportando, setExportando] = useState(false);
   const { fallo } = useToast();
+  const borrador = leerBorrador(perfil?.id);
 
   useEffect(() => {
     apiFetch("/catalogos/tipos")
@@ -145,6 +148,26 @@ export function Inbox() {
           </RequirePermission>
         </div>
       </div>
+
+      {borrador && !busqueda && (
+        <Card
+          onClick={() => navigate("/tickets/nuevo")}
+          className="flex cursor-pointer flex-wrap items-center justify-between gap-2 border-dashed hover:border-[var(--color-ink)]/40"
+        >
+          <span className="flex items-center gap-2 text-sm">
+            <IconEdit size={15} className="shrink-0 text-[var(--color-muted)]" />
+            <span>
+              <span className="rounded-[var(--radius-tag)] bg-[var(--color-ink)]/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--color-muted)]">
+                Borrador
+              </span>{" "}
+              {etiquetaTipo(borrador.tipo) || "Ticket sin enviar"}
+              {borrador.firmante ? ` — ${borrador.firmante}` : ""}
+              {borrador.guardadoEn ? ` · guardado ${fechaHora(borrador.guardadoEn)}` : ""}
+            </span>
+          </span>
+          <span className="shrink-0 text-xs font-medium text-[var(--color-muted)]">Continuar →</span>
+        </Card>
+      )}
 
       {busqueda ? (
         <p className="text-sm text-[var(--color-muted)]">

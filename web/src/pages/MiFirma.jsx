@@ -6,6 +6,7 @@ import { useToast } from "../context/ToastContext";
 import { IconUpload } from "../components/icons";
 
 export function MiFirma() {
+  const [nombre, setNombre] = useState("");
   const [identificacion, setIdentificacion] = useState("");
   const [cargo, setCargo] = useState("");
   const [firmaUrl, setFirmaUrl] = useState(null);
@@ -27,6 +28,7 @@ export function MiFirma() {
   useEffect(() => {
     apiFetch("/perfil")
       .then((data) => {
+        setNombre(data.nombre || "");
         setIdentificacion(data.identificacion || "");
         setCargo(data.cargo || "");
         setFirmaUrl(data.firmaUrl || null);
@@ -167,6 +169,15 @@ export function MiFirma() {
       </div>
       <form onSubmit={guardar} className="grid gap-4">
         <Card className="grid gap-4">
+          <label className="text-sm">
+            <span className="mb-1 block font-medium">Nombre</span>
+            <div className="w-full rounded-[var(--radius-input)] border border-[var(--color-ink)]/10 bg-[var(--color-ink)]/[0.03] px-3 py-2 text-sm text-[var(--color-muted)]">
+              {nombre || "—"}
+            </div>
+            <span className="mt-1 block text-xs text-[var(--color-muted)]">
+              Viene de tu cuenta — para corregirlo pide a un administrador que lo actualice en Administración → Usuarios.
+            </span>
+          </label>
           <label className="text-sm">
             <span className="mb-1 block font-medium">Identificación *</span>
             <input
