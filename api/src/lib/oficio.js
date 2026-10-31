@@ -226,7 +226,7 @@ const CONFIG_OFICIO_DEFAULT = {
   texto_despedida: "Atentamente,",
 };
 
-export async function construirOficioPdf({ ticket, tipoEtiqueta, plantilla, items, solicitante, coordinador, aprobador, firmaUnica, configOficio }) {
+export async function construirOficioPdf({ ticket, tipoEtiqueta, plantilla, items, solicitante, coordinador, aprobador, firmaUnica, configOficio, fechaGeneracion }) {
   // Si no llega (p.ej. falló la consulta a config_oficio), el oficio igual se
   // genera con el texto de siempre — nunca bloquea la generación del PDF.
   const config = { ...CONFIG_OFICIO_DEFAULT, ...configOficio };
@@ -484,6 +484,17 @@ export async function construirOficioPdf({ ticket, tipoEtiqueta, plantilla, item
 
   // El pie va en TODAS las páginas del oficio, no solo en la última.
   for (const pag of pdf.getPages()) dibujarPie(pag, fuente);
+
+  // Sin esto, pdf-lib estampa /CreationDate y /ModDate con la hora exacta de
+  // cada llamada a save() — dos PDFs generados con los MISMOS datos de
+  // entrada saldrían con bytes distintos, y nunca sería posible reconstruir
+  // un oficio ya sellado y obtener el mismo hash. Un oficio sellado siempre
+  // pasa su propia fecha de sellado aquí para que la reconstrucción sea
+  // determinista; una vista previa dinámica (sin sellar) no la pasa y usa la
+  // hora actual, que es irrelevante porque nunca se verifica por hash.
+  const fecha = fechaGeneracion || new Date();
+  pdf.setCreationDate(fecha);
+  pdf.setModificationDate(fecha);
 
   return Buffer.from(await pdf.save());
 }

@@ -559,39 +559,93 @@ function oficioQuedoCompleto(ticket) {
   return Boolean(ticket.firma_solicitante_at) && Boolean(ticket.firma_aprobador_at) && (!requiereCoordinador || Boolean(ticket.firma_coordinador_at));
 }
 
-// Sella el oficio la primera vez que queda completo: genera el PDF con los
-// datos de ese instante, lo sube a Storage (mismo bucket "adjuntos" que
-// cualquier otro adjunto) y guarda su hash SHA-256 + referencia en el ticket.
-// Desde ese momento el documento es inmutable — ver GET oficio-generado.pdf,
-// que a partir de aquí sirve este archivo en vez de regenerarlo. Si ya estaba
-// sellado (no debería, pero por si se llama dos veces) no hace nada.
+// Reúne exactamente los mismos datos que generarOficioPdfTicket consultaría
+// en vivo, pero como un objeto plano y pequeño (unos pocos KB: nombres,
+// cédulas, cargos, el trazo vectorial de cada firma, el texto de la
+// plantilla) en vez del PDF ya renderizado (~550KB). Guardar esto es lo que
+// permite reconstruir el oficio sellado bajo demanda sin gastar espacio de
+// Storage en cada ticket firmado — el snapshot es el documento legal, el PDF
+// es solo su representación, reproducible en cualquier momento a partir de él.
+async function construirSnapshotOficio(ticket) {
+  const { etiqueta, plantilla_oficio } = await cargarPlantillaTipo(ticket.tipo);
+  const solicitante = await cargarPersonaFirma(ticket.solicitante_id);
+  const aprobacionCoord = aprobacionCoordinador(ticket);
+  const requiereCoordinador = Boolean(aprobacionCoord) || ticket.etapa_aprobacion === "coordinador_medico";
+  const coordinador = requiereCoordinador ? (aprobacionCoord ? await cargarPersonaFirma(aprobacionCoord.decidido_por) : null) : null;
+  const decididoPorFinal = ticket.aprobacion?.decidido_por || null;
+  const aprobador = await cargarPersonaFirma(decididoPorFinal);
+  const firmaUnica = !aprobacionCoord && Boolean(decididoPorFinal) && decididoPorFinal === ticket.solicitante_id;
+  const configOficio = await cargarConfigOficio();
+  const motivos = await cargarMotivos();
+  const itemsConMotivoLegible = (ticket.items || []).map((item) => ({ ...item, motivo: motivos[item.motivo] || item.motivo }));
+  return {
+    ticket: {
+      code: ticket.code,
+      created_at: ticket.created_at,
+      firmante: ticket.firmante,
+      observacion: ticket.observacion || "",
+      firma_solicitante_at: ticket.firma_solicitante_at,
+      firma_coordinador_at: aprobacionCoord ? ticket.firma_coordinador_at : null,
+      firma_aprobador_at: ticket.firma_aprobador_at,
+    },
+    tipoEtiqueta: etiqueta,
+    plantilla: plantilla_oficio,
+    items: itemsConMotivoLegible,
+    solicitante,
+    requiereCoordinador,
+    coordinador,
+    aprobador,
+    firmaUnica,
+    configOficio,
+  };
+}
+
+// Reconstruye el PDF a partir de un snapshot ya congelado, con una fecha de
+// generación fija (la del sello, nunca "ahora") para que el resultado sea
+// siempre exactamente el mismo — ver el comentario sobre setCreationDate en
+// oficio.js. `coordinador: undefined` (nunca mostrar esa columna, caso
+// facturador) y `coordinador: null` (columna pendiente de firma) son dos
+// estados distintos que JSON no puede guardar juntos con "undefined", por
+// eso el snapshot guarda requiereCoordinador aparte.
+function construirOficioDesdeSnapshot(snapshot, fechaGeneracion) {
+  return construirOficioPdf({
+    ticket: snapshot.ticket,
+    tipoEtiqueta: snapshot.tipoEtiqueta,
+    plantilla: snapshot.plantilla,
+    items: snapshot.items,
+    solicitante: snapshot.solicitante,
+    coordinador: snapshot.requiereCoordinador ? snapshot.coordinador : undefined,
+    aprobador: snapshot.aprobador,
+    firmaUnica: snapshot.firmaUnica,
+    configOficio: snapshot.configOficio,
+    fechaGeneracion,
+  });
+}
+
+// Sella el oficio la primera vez que queda completo: congela un snapshot de
+// los datos usados (no el PDF) junto con el hash SHA-256 del PDF que esos
+// datos producen. Desde ese momento el documento es inmutable — ver GET
+// oficio-generado.pdf, que a partir de aquí reconstruye el PDF desde este
+// snapshot congelado en vez de consultar los datos actuales (que sí pueden
+// cambiar: firma, cargo, plantilla). Si ya estaba sellado (no debería, pero
+// por si se llama dos veces) no hace nada.
 async function sellarOficioSiQuedaCompleto(ticket) {
-  if (ticket.oficio_sellado_path) return null;
+  if (ticket.oficio_sellado_snapshot) return null;
   if (!oficioQuedoCompleto(ticket)) return null;
-  const pdf = await generarOficioPdfTicket(ticket);
+  const snapshot = await construirSnapshotOficio(ticket);
+  const selladoAt = new Date();
+  const pdf = await construirOficioDesdeSnapshot(snapshot, selladoAt);
   const hash = createHash("sha256").update(pdf).digest("hex");
-  const storagePath = `${ticket.id}/oficio-sellado-${Date.now()}.pdf`;
-  const { error: uploadError } = await supabase.storage
-    .from(BUCKET)
-    .upload(storagePath, pdf, { contentType: "application/pdf" });
-  if (uploadError) {
-    console.error(`[tickets] no se pudo sellar el oficio del ticket ${ticket.code}:`, uploadError.message);
-    return null;
-  }
-  const selladoAt = new Date().toISOString();
+  const selladoAtIso = selladoAt.toISOString();
   const { error: dbError } = await supabase
     .from("tickets")
-    .update({ oficio_sellado_path: storagePath, oficio_sellado_hash: hash, oficio_sellado_at: selladoAt })
+    .update({ oficio_sellado_snapshot: snapshot, oficio_sellado_hash: hash, oficio_sellado_at: selladoAtIso })
     .eq("id", ticket.id);
   if (dbError) {
-    console.error(`[tickets] oficio del ticket ${ticket.code} subido a Storage pero no se pudo registrar su sello:`, dbError.message);
-    // Huérfano en Storage: se intenta retirar para no dejarlo contando contra
-    // el almacenamiento sin una fila que lo referencie.
-    const { error: rmError } = await supabase.storage.from(BUCKET).remove([storagePath]);
-    if (rmError) console.error(`[tickets] no se pudo retirar el oficio sellado huérfano ${storagePath}:`, rmError.message);
+    console.error(`[tickets] no se pudo sellar el oficio del ticket ${ticket.code}:`, dbError.message);
     return null;
   }
-  return { oficio_sellado_path: storagePath, oficio_sellado_hash: hash, oficio_sellado_at: selladoAt };
+  return { oficio_sellado_hash: hash, oficio_sellado_at: selladoAtIso };
 }
 
 ticketsRouter.get("/tickets/:id/oficio-generado.pdf", async (req, res) => {
@@ -602,20 +656,17 @@ ticketsRouter.get("/tickets/:id/oficio-generado.pdf", async (req, res) => {
   }
 
   // Oficio ya sellado (todas sus firmas quedaron completas en algún momento):
-  // se sirve el snapshot fijo de Storage, nunca se regenera. Solo los oficios
-  // aún incompletos siguen generándose al vuelo más abajo.
-  if (ticket.oficio_sellado_path) {
-    const { data, error } = await supabase.storage.from(BUCKET).download(ticket.oficio_sellado_path);
-    if (error) {
-      console.error(`[tickets] no se pudo descargar el oficio sellado del ticket ${ticket.code}:`, error.message);
-      return res.status(500).json({ error: "No se pudo recuperar el oficio sellado" });
-    }
-    const buffer = Buffer.from(await data.arrayBuffer());
+  // se reconstruye desde el snapshot congelado (nunca de los datos actuales)
+  // — no está guardado como archivo en ningún lado, así que un oficio sellado
+  // no gasta espacio de Storage, solo el snapshot JSON ya guardado en el
+  // ticket. Solo los oficios aún incompletos siguen generándose al vuelo.
+  if (ticket.oficio_sellado_snapshot) {
+    const pdf = await construirOficioDesdeSnapshot(ticket.oficio_sellado_snapshot, new Date(ticket.oficio_sellado_at));
     res.set("Content-Type", "application/pdf");
     if (req.query.descargar) {
       res.set("Content-Disposition", `attachment; filename="oficio-${ticket.code}.pdf"`);
     }
-    return res.send(buffer);
+    return res.send(pdf);
   }
 
   const pdf = await generarOficioPdfTicket(ticket);
@@ -627,23 +678,21 @@ ticketsRouter.get("/tickets/:id/oficio-generado.pdf", async (req, res) => {
 });
 
 // ---------- verificación del oficio sellado ----------
-// Recalcula el hash del PDF guardado en Storage y lo compara contra el que se
-// registró al sellarlo — confirma que el archivo que hoy se descarga es
-// exactamente el mismo que quedó firmado, sin confiar solo en que nadie lo
-// tocó.
+// Reconstruye el PDF desde el snapshot congelado y recalcula su hash — si el
+// generador o el snapshot cambiaron de forma que ya no reproducen el mismo
+// documento, "coincide" sale en false en vez de servir en silencio un PDF
+// distinto al que quedó firmado.
 ticketsRouter.get("/tickets/:id/oficio-verificar", async (req, res) => {
   const ticket = await cargarTicketCompleto(req.params.id);
   if (!ticket) return res.status(404).json({ error: "Ticket no encontrado" });
   if (!req.user.permisos.has("tickets.ver_todos") && ticket.solicitante_id !== req.user.id) {
     return res.status(403).json({ error: "No tiene permiso para ver este ticket" });
   }
-  if (!ticket.oficio_sellado_path) {
+  if (!ticket.oficio_sellado_snapshot) {
     return res.status(409).json({ error: "Este ticket todavía no tiene un oficio sellado" });
   }
-  const { data, error } = await supabase.storage.from(BUCKET).download(ticket.oficio_sellado_path);
-  if (error) return res.status(500).json({ error: "No se pudo recuperar el oficio sellado" });
-  const buffer = Buffer.from(await data.arrayBuffer());
-  const hashActual = createHash("sha256").update(buffer).digest("hex");
+  const pdf = await construirOficioDesdeSnapshot(ticket.oficio_sellado_snapshot, new Date(ticket.oficio_sellado_at));
+  const hashActual = createHash("sha256").update(pdf).digest("hex");
   res.json({
     sellado_at: ticket.oficio_sellado_at,
     hash_guardado: ticket.oficio_sellado_hash,

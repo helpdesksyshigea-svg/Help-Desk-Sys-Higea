@@ -7,11 +7,15 @@
 -- exactamente el documento el día en que quedó firmado.
 --
 -- Estas columnas guardan el snapshot inmutable: una vez el ticket recibe su
--- última firma requerida, el backend genera el PDF, lo sube a Storage (bucket
--- "adjuntos", igual que cualquier otro adjunto) y congela su referencia y
--- hash aquí. Desde ese momento, oficio-generado.pdf sirve ese archivo fijo en
--- vez de regenerarlo — solo los oficios aún incompletos siguen generándose al
--- vuelo como vista previa dinámica.
-alter table tickets add column if not exists oficio_sellado_path text;
+-- última firma requerida, el backend congela los datos exactos usados para
+-- construir el oficio (nombres, cédulas, cargos, el trazo de cada firma, el
+-- texto de la plantilla — un JSON de unos pocos KB) y el hash SHA-256 del PDF
+-- que esos datos producen. Desde ese momento, oficio-generado.pdf reconstruye
+-- el PDF siempre a partir de este snapshot congelado (nunca de los datos
+-- actuales, que sí pueden cambiar) — no se guarda el PDF en ningún lado, así
+-- que un ticket firmado no gasta espacio de Storage, solo esta fila. Solo los
+-- oficios aún incompletos siguen generándose al vuelo como vista previa
+-- dinámica.
+alter table tickets add column if not exists oficio_sellado_snapshot jsonb;
 alter table tickets add column if not exists oficio_sellado_hash text;
 alter table tickets add column if not exists oficio_sellado_at timestamptz;
