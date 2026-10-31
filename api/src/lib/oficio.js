@@ -400,7 +400,7 @@ export async function construirOficioPdf({ ticket, tipoEtiqueta, plantilla, item
   // esa frase, ver dibujarFirma). Reservar siempre el peor caso (80) hacía
   // saltar de página oficios cortos que sí cabían enteros en una sola hoja.
   const hayFirmaConfirmada = Boolean(ticket.firma_solicitante_at || ticket.firma_coordinador_at || ticket.firma_aprobador_at);
-  nuevaPaginaSiHaceFalta(15.84 + 34.3 + 25.73 + (hayFirmaConfirmada ? 80 : 50));
+  nuevaPaginaSiHaceFalta(15.84 + 34.3 + 25.73 + (hayFirmaConfirmada ? 92 : 50));
   pagina.drawText(config.texto_cierre, { x: MARGEN, y, size: 10.5, font: fuente, color: NEGRO });
   y -= 15.84;
   y -= 34.3;
@@ -538,9 +538,16 @@ async function dibujarFirma(pdf, pagina, { x, y, ancho, titulo, persona, confirm
   if (confirmadaEn && persona) {
     pagina.drawText(truncar(fuenteNegrita, 9.5, persona.nombre || "—", ancho), { x, y: yFirma, size: 9.5, font: fuenteNegrita, color: NEGRO });
     yFirma -= 12;
-    const linea2 = [persona.identificacion ? `C.C. ${persona.identificacion}` : null, persona.cargo].filter(Boolean).join(" · ");
-    if (linea2) {
-      pagina.drawText(truncar(fuente, 8.5, linea2, ancho), { x, y: yFirma, size: 8.5, font: fuente, color: GRIS });
+    // Cédula y cargo en líneas separadas (no "C.C. ... · cargo" en una sola) —
+    // juntos se truncaban seguido en la columna angosta del layout de 3
+    // firmas (ver commit anterior), sobre todo con un cargo largo como
+    // "Coordinador médico".
+    if (persona.identificacion) {
+      pagina.drawText(truncar(fuente, 8.5, `C.C. ${persona.identificacion}`, ancho), { x, y: yFirma, size: 8.5, font: fuente, color: GRIS });
+      yFirma -= 12;
+    }
+    if (persona.cargo) {
+      pagina.drawText(truncar(fuente, 8.5, persona.cargo, ancho), { x, y: yFirma, size: 8.5, font: fuente, color: GRIS });
       yFirma -= 12;
     }
     pagina.drawText(`Firmado el ${fechaCorta(confirmadaEn)}`, { x, y: yFirma, size: 8, font: fuente, color: GRIS });
