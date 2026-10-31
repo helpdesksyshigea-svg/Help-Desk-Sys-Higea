@@ -404,17 +404,22 @@ function DashboardContenido({ datos }) {
           <PanelTitulo titulo="Por tipo de solicitud" subtitulo="Tickets del rango, de mayor a menor" icono={IconInbox} />
           <ListaBarras items={ordenarDesc(datos.porTipo)} claveDe={(e) => e.tipo} />
         </Panel>
-        <Panel>
+        <Panel className="flex flex-col">
           <PanelTitulo titulo="Por prioridad" subtitulo="Tickets del rango según su prioridad" icono={IconActivity} />
-          <Donut
-            compacto
-            datos={datos.porPrioridad.map((d) => ({
-              clave: d.prioridad,
-              etiqueta: d.etiqueta,
-              color: COLOR_PRIORIDAD[d.prioridad] || "var(--color-chart-neutral)",
-              total: d.total,
-            }))}
-          />
+          {/* flex-1 + justify-center: en este grid de 3 columnas, "Por tipo"/"Por
+              motivo" suelen tener más filas y estiran la fila entera — sin esto,
+              la dona (más compacta que una lista) quedaba arriba con un bloque
+              de espacio vacío abajo en vez de aprovechar la altura disponible. */}
+          <div className="flex flex-1 items-center">
+            <Donut
+              datos={datos.porPrioridad.map((d) => ({
+                clave: d.prioridad,
+                etiqueta: d.etiqueta,
+                color: COLOR_PRIORIDAD[d.prioridad] || "var(--color-chart-neutral)",
+                total: d.total,
+              }))}
+            />
+          </div>
         </Panel>
         <Panel>
           <PanelTitulo
