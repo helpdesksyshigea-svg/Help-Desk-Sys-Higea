@@ -12,10 +12,12 @@ async function diasRetencion() {
 
 /**
  * Archiva los tickets cerrados hace más de N días (configurable): borra sus
- * archivos adjuntos del Storage (lo pesado) y marca archivado_at, pero el
- * ticket, sus registros y su historial completo quedan para siempre, solo de
- * consulta. No se borra ningún ticket — decisión explícita del usuario, en
- * lugar del borrado total sin respaldo que tenía antes.
+ * adjuntos de tipo 'soporte'/'evidencia' del Storage (lo pesado) y marca
+ * archivado_at, pero el ticket, sus registros y su historial completo quedan
+ * para siempre, solo de consulta. No se borra ningún ticket — decisión
+ * explícita del usuario, en lugar del borrado total sin respaldo que tenía
+ * antes. El adjunto de tipo 'oficio' (el documento legal firmado) NO se
+ * borra — ver el comentario junto al filtro `kind !== "oficio"` más abajo.
  */
 export async function limpiarTicketsAntiguos() {
   const dias = await diasRetencion();
@@ -33,18 +35,37 @@ export async function limpiarTicketsAntiguos() {
 
   for (const ticket of elegibles) {
     try {
-      const { data: adjuntos, error: adjError } = await supabase.from("ticket_adjuntos").select("id, storage_path").eq("ticket_id", ticket.id);
+      const { data: adjuntos, error: adjError } = await supabase.from("ticket_adjuntos").select("id, storage_path, kind").eq("ticket_id", ticket.id);
       // Sin este chequeo, un fallo de lectura dejaba rutas = [] y se borraban las
       // filas y se archivaba el ticket, con los archivos huérfanos en Storage.
       if (adjError) throw adjError;
-      const rutas = (adjuntos || []).map((a) => a.storage_path);
+
+      // PAUSA CONSERVADORA (temporal, pendiente de validar con Archivo/Jurídica
+      // del hospital): el 'oficio' es el documento legal firmado — ej. el soporte
+      // de la eliminación de una factura o de una historia clínica. Borrarlo a
+      // los N días de cerrado el ticket, sin que nadie lo haya decidido, es un
+      // riesgo de cumplimiento (Ley 594/2000 de archivos, posible auditoría de
+      // Supersalud o Contraloría), no una optimización de espacio: el volumen
+      // real (~25 tickets/mes) hace que el espacio no sea un problema hoy.
+      // Mientras el hospital no defina una tabla de retención documental real,
+      // el 'oficio' de un ticket archivado se conserva indefinidamente en
+      // Storage y en ticket_adjuntos; solo 'soporte'/'evidencia' (documentos de
+      // trabajo, no el documento legal) siguen el ciclo de limpieza de siempre.
+      const aBorrar = (adjuntos || []).filter((a) => a.kind !== "oficio");
+      const rutas = aBorrar.map((a) => a.storage_path);
       if (rutas.length) {
         const { error: storageError } = await supabase.storage.from(BUCKET).remove(rutas);
         if (storageError) throw storageError;
       }
 
-      const { error: delError } = await supabase.from("ticket_adjuntos").delete().eq("ticket_id", ticket.id);
-      if (delError) throw delError;
+      if (aBorrar.length) {
+        const { error: delError } = await supabase
+          .from("ticket_adjuntos")
+          .delete()
+          .eq("ticket_id", ticket.id)
+          .neq("kind", "oficio");
+        if (delError) throw delError;
+      }
 
       const { error: updError } = await supabase.from("tickets").update({ archivado_at: new Date().toISOString() }).eq("id", ticket.id);
       if (updError) throw updError;
