@@ -137,6 +137,13 @@ adminRouter.post("/admin/usuarios", requirePermission("usuarios.gestionar"), asy
     return res.status(400).json({ error: "Faltan campos obligatorios (email, nombre, rol_id)" });
   }
 
+  // rol_id llega del cliente: se confirma que exista antes de invitar a nadie,
+  // para no enviar una invitación que luego falla al insertar en `usuarios`
+  // por una llave foránea inválida, y para no aceptar un rol inexistente.
+  const { data: rolExistente, error: rolError } = await supabase.from("roles").select("id").eq("id", rol_id).maybeSingle();
+  if (rolError && rolError.code !== "22P02") return res.status(500).json({ error: rolError.message });
+  if (!rolExistente) return res.status(400).json({ error: "El rol indicado no existe" });
+
   const { data: invited, error: authError } = await supabase.auth.admin.inviteUserByEmail(email.trim(), {
     redirectTo: process.env.WEB_ORIGIN,
   });
@@ -177,7 +184,12 @@ adminRouter.post("/admin/usuarios", requirePermission("usuarios.gestionar"), asy
 adminRouter.patch("/admin/usuarios/:id", requirePermission("usuarios.gestionar"), async (req, res) => {
   const { rol_id, activo, nombre, proveedor, codigo_interno, email, beta_firma_oficio } = req.body;
   const patch = {};
-  if (rol_id !== undefined) patch.rol_id = rol_id;
+  if (rol_id !== undefined) {
+    const { data: rolExistente, error: rolError } = await supabase.from("roles").select("id").eq("id", rol_id).maybeSingle();
+    if (rolError && rolError.code !== "22P02") return res.status(500).json({ error: rolError.message });
+    if (!rolExistente) return res.status(400).json({ error: "El rol indicado no existe" });
+    patch.rol_id = rol_id;
+  }
   if (activo !== undefined) patch.activo = activo;
   if (nombre !== undefined) patch.nombre = nombre;
   if (proveedor !== undefined) patch.proveedor = proveedor;
