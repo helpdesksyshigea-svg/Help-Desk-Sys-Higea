@@ -68,7 +68,7 @@ function reemplazarMarcadores(plantilla, datos) {
 // sepa dónde empieza y termina la negrita sin tener que parsear HTML/Markdown.
 const CENTINELA = "\u0001";
 const MARCADORES_MAYUSCULA_NEGRITA = ["firmante", "cargo"];
-const MARCADORES_NEGRITA = ["factura"];
+const MARCADORES_NEGRITA = ["factura", "documento"];
 
 function reemplazarMarcadoresConEstilo(plantilla, datos) {
   const claves = new Set([...MARCADORES_MAYUSCULA_NEGRITA, ...MARCADORES_NEGRITA]);
@@ -333,6 +333,7 @@ export async function construirOficioPdf({ ticket, tipoEtiqueta, plantilla, item
     fecha: fechaCorta(ticket.created_at),
     cargo: solicitante?.cargo || "",
     factura: items?.[0]?.factura || "",
+    documento: items?.[0]?.documento || "",
   };
 
   const tamanoCuerpo = 10.5;
