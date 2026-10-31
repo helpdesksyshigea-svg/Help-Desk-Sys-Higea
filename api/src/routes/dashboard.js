@@ -56,6 +56,7 @@ dashboardRouter.get("/dashboard/resumen", requirePermission("reportes.ver_dashbo
     festivos,
     { data: tiposRows, error: tiposErr },
     { data: items, error: itemsErr },
+    { data: aprobacionesRows, error: aprErr },
   ] = await Promise.all([
     ids.length
       ? supabase.from("ticket_eventos").select("ticket_id, tipo_evento, estado_anterior, estado_nuevo, created_at").in("ticket_id", ids)
@@ -66,11 +67,15 @@ dashboardRouter.get("/dashboard/resumen", requirePermission("reportes.ver_dashbo
     ids.length
       ? supabase.from("ticket_items").select("ticket_id, motivo").in("ticket_id", ids)
       : Promise.resolve({ data: [], error: null }),
+    ids.length
+      ? supabase.from("aprobaciones").select("ticket_id, etapa, decision, decidido_por, created_at").in("ticket_id", ids)
+      : Promise.resolve({ data: [], error: null }),
   ]);
   if (eErr) return res.status(500).json({ error: eErr.message });
   if (sErr) return res.status(500).json({ error: sErr.message });
   if (tiposErr) return res.status(500).json({ error: tiposErr.message });
   if (itemsErr) return res.status(500).json({ error: itemsErr.message });
+  if (aprErr) return res.status(500).json({ error: aprErr.message });
 
   const { data: motivosRows, error: motivosErr } = await supabase.from("motivos").select("clave, etiqueta");
   if (motivosErr) return res.status(500).json({ error: motivosErr.message });
@@ -185,6 +190,117 @@ dashboardRouter.get("/dashboard/resumen", requirePermission("reportes.ver_dashbo
   );
   porAgente.sort((a, b) => (a.tprHorasPromedio ?? Infinity) - (b.tprHorasPromedio ?? Infinity));
 
+  // ---- Aprobaciones: dónde se traba un ticket antes de llegar a supervisora,
+  // y cómo decide la supervisora una vez que lo tiene ----
+  const aprobacionesPorTicket = {};
+  for (const a of aprobacionesRows || []) (aprobacionesPorTicket[a.ticket_id] ||= []).push(a);
+
+  // Horas de espera de cada etapa: médico firma -> coordinador decide,
+  // coordinador decide -> supervisora decide, y facturador firma -> supervisora
+  // decide directo (sin coordinador, porque ese ticket nunca tuvo esa etapa).
+  const horasMedicoACoordinador = [];
+  const horasCoordinadorASupervisora = [];
+  const horasSolicitanteASupervisoraDirecto = [];
+  // horas que tardó la supervisora en decidir, indexadas por ticket — se
+  // reutiliza para el desglose por supervisora más abajo (mismo número, solo
+  // agrupado distinto).
+  const horasEsperaFinalPorTicket = {};
+  for (const t of tickets) {
+    const aprs = aprobacionesPorTicket[t.id] || [];
+    const coord = aprs.find((a) => a.etapa === "coordinador_medico");
+    const final = aprs.find((a) => a.etapa === "final");
+    const esFlujoMedico = Boolean(coord) || t.etapa_aprobacion === "coordinador_medico";
+    const inicio = t.firma_solicitante_at || t.created_at;
+    if (esFlujoMedico) {
+      if (coord) {
+        horasMedicoACoordinador.push(horasEntre(inicio, coord.created_at));
+        if (final) {
+          const h = horasEntre(coord.created_at, final.created_at);
+          horasCoordinadorASupervisora.push(h);
+          horasEsperaFinalPorTicket[t.id] = h;
+        }
+      }
+    } else if (final) {
+      const h = horasEntre(inicio, final.created_at);
+      horasSolicitanteASupervisoraDirecto.push(h);
+      horasEsperaFinalPorTicket[t.id] = h;
+    }
+  }
+
+  // Decisiones de la supervisora en el rango (la fecha que importa es cuándo
+  // decidió, no cuándo se creó el ticket).
+  const finalesEnRango = (aprobacionesRows || []).filter(
+    (a) => a.etapa === "final" && a.created_at >= desde && a.created_at <= hasta,
+  );
+  const aprobadosFinal = finalesEnRango.filter((a) => a.decision === "aprobado").length;
+  const devueltosFinal = finalesEnRango.filter((a) => a.decision === "devuelto").length;
+  const totalFinal = aprobadosFinal + devueltosFinal;
+
+  const porSupervisoraMapa = {};
+  for (const a of finalesEnRango) {
+    if (!a.decidido_por) continue;
+    const s = (porSupervisoraMapa[a.decidido_por] ||= { decidido_por: a.decidido_por, decididos: 0, devueltos: 0, horas: [] });
+    s.decididos++;
+    if (a.decision === "devuelto") s.devueltos++;
+    const h = horasEsperaFinalPorTicket[a.ticket_id];
+    if (h != null) s.horas.push(h);
+  }
+  const idsSupervisoras = Object.keys(porSupervisoraMapa);
+  const { data: supervisorasRows, error: supErr } = idsSupervisoras.length
+    ? await supabase.from("usuarios").select("id, nombre").in("id", idsSupervisoras)
+    : { data: [], error: null };
+  if (supErr) return res.status(500).json({ error: supErr.message });
+  const nombreUsuario = Object.fromEntries((supervisorasRows || []).map((u) => [u.id, u.nombre]));
+  const porSupervisora = Object.values(porSupervisoraMapa)
+    .map((s) => ({
+      nombre: nombreUsuario[s.decidido_por] || s.decidido_por,
+      decididos: s.decididos,
+      horasPromedio: promedio(s.horas),
+      pctDevolucion: s.decididos ? Number(((s.devueltos / s.decididos) * 100).toFixed(1)) : null,
+    }))
+    .sort((a, b) => b.decididos - a.decididos);
+
+  // Cola actual (no histórica, no limitada al rango de fechas del filtro):
+  // tickets ya listos para que cualquier supervisora decida ahora mismo
+  // (etapa_aprobacion null = o nunca requirió coordinador, o el coordinador
+  // ya le dio su visto bueno).
+  const { data: colaRows, error: colaErr } = await supabase
+    .from("tickets")
+    .select("id, created_at, prioridad, estado, aprobado_at")
+    .eq("estado", "pendiente")
+    .is("etapa_aprobacion", null);
+  if (colaErr) return res.status(500).json({ error: colaErr.message });
+  let colaVencidos = 0;
+  for (const t of colaRows || []) {
+    // calcularSla solo marca "vencido" desde que el ticket queda aprobado
+    // (aprobado_at): mientras está en esta cola, pendiente de la firma de la
+    // supervisora, el reloj de SLA todavía no corre — así que hoy siempre da
+    // 0, de forma correcta según ese mismo criterio ya usado en el resto del
+    // dashboard, no por un error de este cálculo.
+    const { vencido } = await calcularSla(t, [], diasHabilesPorPrioridad[t.prioridad] ?? 2, festivos);
+    if (vencido) colaVencidos++;
+  }
+  const masAntiguo = (colaRows || []).reduce((min, t) => (!min || t.created_at < min.created_at ? t : min), null);
+
+  const aprobaciones = {
+    tiempoPorEtapaHoras: {
+      medicoACoordinador: promedio(horasMedicoACoordinador),
+      coordinadorASupervisora: promedio(horasCoordinadorASupervisora),
+      solicitanteASupervisoraDirecto: promedio(horasSolicitanteASupervisoraDirecto),
+    },
+    decisionesSupervisora: {
+      aprobados: aprobadosFinal,
+      devueltos: devueltosFinal,
+      pctDevolucion: totalFinal ? Number(((devueltosFinal / totalFinal) * 100).toFixed(1)) : null,
+    },
+    porSupervisora,
+    colaPendiente: {
+      total: (colaRows || []).length,
+      vencidos: colaVencidos,
+      masAntiguoHoras: masAntiguo ? Number(horasEntre(masAntiguo.created_at, new Date().toISOString()).toFixed(1)) : null,
+    },
+  };
+
   res.json({
     rango: { desde, hasta },
     totales: {
@@ -212,5 +328,6 @@ dashboardRouter.get("/dashboard/resumen", requirePermission("reportes.ver_dashbo
       tprHorasPromedio: promedio(Object.values(tprHorasPorTicket)),
       resolucionHorasPromedio: promedio(Object.values(resolucionHorasPorTicket)),
     },
+    aprobaciones,
   });
 });

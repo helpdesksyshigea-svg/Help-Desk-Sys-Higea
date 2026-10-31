@@ -400,6 +400,99 @@ function DashboardContenido({ datos }) {
           </p>
         )}
       </Card>
+
+      <SeccionAprobaciones aprobaciones={datos.aprobaciones} />
+    </div>
+  );
+}
+
+function SeccionAprobaciones({ aprobaciones }) {
+  if (!aprobaciones) return null;
+  const { tiempoPorEtapaHoras, decisionesSupervisora, porSupervisora, colaPendiente } = aprobaciones;
+
+  return (
+    <div className="grid gap-4">
+      <SeccionTitulo subtitulo="Qué tan rápido se mueve un ticket por cada firma, hasta llegar a la de supervisora">Aprobaciones</SeccionTitulo>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <CardNumero
+          etiqueta="% devolución supervisora"
+          valor={decisionesSupervisora.pctDevolucion == null ? "—" : `${decisionesSupervisora.pctDevolucion}%`}
+          icon={IconAlert}
+          acento="#b3362a"
+        />
+        <CardNumero etiqueta="Coordinador médico decide en" valor={horas(tiempoPorEtapaHoras.medicoACoordinador)} icon={IconClock} acento="#9a5b06" />
+        <CardNumero
+          etiqueta="Supervisora decide en"
+          valor={horas(tiempoPorEtapaHoras.coordinadorASupervisora ?? tiempoPorEtapaHoras.solicitanteASupervisoraDirecto)}
+          icon={IconClock}
+          acento="#3656a3"
+        />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card className="grid gap-3">
+          <SeccionTitulo subtitulo="Aprobados vs. devueltos por supervisora en el rango">Decisiones de supervisora</SeccionTitulo>
+          <div className="flex items-baseline justify-between text-sm">
+            <span>
+              {decisionesSupervisora.aprobados} aprobados · {decisionesSupervisora.devueltos} devueltos
+            </span>
+            <span className="text-lg font-semibold">{decisionesSupervisora.pctDevolucion == null ? "—" : `${decisionesSupervisora.pctDevolucion}%`}</span>
+          </div>
+          {decisionesSupervisora.pctDevolucion != null && <Barra porcentaje={100 - decisionesSupervisora.pctDevolucion} />}
+          <p className="text-xs text-[var(--color-muted)]">
+            Médico → coordinador: {horas(tiempoPorEtapaHoras.medicoACoordinador)} · Coordinador → supervisora:{" "}
+            {horas(tiempoPorEtapaHoras.coordinadorASupervisora)} · Facturador → supervisora directo:{" "}
+            {horas(tiempoPorEtapaHoras.solicitanteASupervisoraDirecto)}
+          </p>
+        </Card>
+
+        <Card className="grid gap-3">
+          <SeccionTitulo subtitulo="Tickets listos ahora mismo para que una supervisora decida">Cola pendiente de firma</SeccionTitulo>
+          <div className="grid grid-cols-3 gap-3 text-sm">
+            <div className="grid gap-0.5">
+              <span className="text-xs text-[var(--color-muted)]">En cola</span>
+              <span className="text-xl font-semibold">{colaPendiente.total}</span>
+            </div>
+            <div className="grid gap-0.5">
+              <span className="text-xs text-[var(--color-muted)]">Vencidos</span>
+              <span className={`text-xl font-semibold ${colaPendiente.vencidos > 0 ? "text-[#b3362a]" : ""}`}>{colaPendiente.vencidos}</span>
+            </div>
+            <div className="grid gap-0.5">
+              <span className="text-xs text-[var(--color-muted)]">Más antiguo</span>
+              <span className="text-xl font-semibold">{horas(colaPendiente.masAntiguoHoras)}</span>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {porSupervisora.length > 1 && (
+        <Card className="grid gap-3">
+          <SeccionTitulo subtitulo="Comparativo cuando hay más de una cuenta con rol de supervisora de facturación">Por supervisora</SeccionTitulo>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[420px] text-sm">
+              <thead>
+                <tr className="border-b border-[var(--color-border)] text-left text-xs uppercase tracking-[0.054em] text-[var(--color-muted)]">
+                  <th className="py-2 pr-3 font-semibold">Supervisora</th>
+                  <th className="py-2 pr-3 font-semibold">Decididos</th>
+                  <th className="py-2 pr-3 font-semibold">Tiempo promedio</th>
+                  <th className="py-2 font-semibold">% devolución</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--color-border)]">
+                {porSupervisora.map((s) => (
+                  <tr key={s.nombre}>
+                    <td className="py-2 pr-3 font-medium">{s.nombre}</td>
+                    <td className="py-2 pr-3">{s.decididos}</td>
+                    <td className="py-2 pr-3">{horas(s.horasPromedio)}</td>
+                    <td className="py-2">{s.pctDevolucion == null ? "—" : `${s.pctDevolucion}%`}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
     </div>
   );
 }
