@@ -407,7 +407,7 @@ export function TicketDetail() {
           )}
           <Adjuntos
             ticketId={ticket.id}
-            kindsPermitidos={["soporte", "evidencia"]}
+            kindsPermitidos={TIPOS_SIN_SYS_HIGEA.has(ticket.tipo) ? ["soporte"] : ["soporte", "evidencia"]}
             oficioGenerado={{
               nombre: `Radicación ticket ${ticket.code}`,
               meta: ticket.oficio_sellado_at
