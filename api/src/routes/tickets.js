@@ -10,6 +10,7 @@ import { predicadosBandeja, aplicarFiltroSQL, VENCIDOS_SENTINEL } from "../lib/f
 import { construirExcelTickets } from "../lib/excel.js";
 import { notificarTransicion } from "../lib/correo.js";
 import { construirOficioPdf } from "../lib/oficio.js";
+import { TIPOS_SIN_SYS_HIGEA } from "../lib/tiposSolicitud.js";
 
 const BUCKET = "adjuntos";
 const TIPOS_OFICIO_PERMITIDOS = ["application/pdf", "image/png", "image/jpeg", "image/webp"];
@@ -222,7 +223,6 @@ async function cargarConfigOficio() {
 // más abajo). El oficio de este tipo debe quedar dirigido a Facturación, no a
 // SYS HIGEA, sin tocar la configuración global de destinatario de los demás
 // tipos de solicitud.
-const TIPOS_SIN_SYS_HIGEA = new Set(["elim_fact_amb"]);
 function ajustarConfigOficioPorTipo(configOficio, tipo) {
   if (!TIPOS_SIN_SYS_HIGEA.has(tipo)) return configOficio;
   return {
@@ -1464,7 +1464,17 @@ ticketsRouter.post("/tickets/:id/reabrir", (req, res) =>
     nuevoEstado: "en_proceso",
     tipoEvento: "reabierto",
     notaObligatoria: true,
-    async efecto() {
+    async efecto(ticket) {
+      // "Eliminación de factura ambulatoria" nunca pasó por SYS HIGEA, así
+      // que reabrirlo no puede volver a "en_proceso" (ahí no hay quien lo
+      // cierre). Queda "devuelto": lo ve la supervisora, que decide si lo
+      // corrige ella misma o lo envía de vuelta al facturador para que la
+      // corrija — mismo estado y permisos de edición que una devolución
+      // normal (ver puedeEditar en TicketDetail.jsx, ya permite editar desde
+      // "devuelto" tanto al solicitante como a la supervisora).
+      if (TIPOS_SIN_SYS_HIGEA.has(ticket.tipo)) {
+        return { cerrado_at: null, estado: "devuelto" };
+      }
       return { cerrado_at: null };
     },
   })

@@ -1,4 +1,5 @@
 import { supabase } from "../config/supabase.js";
+import { TIPOS_SIN_SYS_HIGEA } from "./tiposSolicitud.js";
 
 // Resend en vez de SMTP/Gmail: se descartó SMTP porque el plan gratuito de
 // Render reinicia el contenedor por inactividad y eso corta a medias la
@@ -77,8 +78,16 @@ export async function notificarTransicion(evento, ticket, solicitanteEmail) {
       );
     } else if (evento === "aprobado_coordinador") {
       destinatarios = await correosConPermiso("tickets.aprobar");
-    } else if (evento === "aprobado" || evento === "reabierto") {
+    } else if (evento === "aprobado") {
       destinatarios = [...(await correosConPermiso("tickets.tomar")), solicitanteEmail];
+    } else if (evento === "reabierto") {
+      // Eliminación de factura ambulatoria nunca llega a SYS HIGEA: al
+      // reabrirse vuelve a quedar "devuelto" (ver tickets.js), así que quien
+      // debe enterarse es la supervisora, no SYS HIGEA.
+      destinatarios = [
+        ...(await correosConPermiso(TIPOS_SIN_SYS_HIGEA.has(ticket.tipo) ? "tickets.aprobar" : "tickets.tomar")),
+        solicitanteEmail,
+      ];
     } else if (evento === "devuelto" || evento === "requiere_info" || evento === "cerrado") {
       destinatarios = [solicitanteEmail];
     } else if (evento === "respondido") {
