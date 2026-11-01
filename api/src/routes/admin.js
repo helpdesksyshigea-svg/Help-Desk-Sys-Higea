@@ -283,8 +283,16 @@ adminRouter.delete("/admin/usuarios/:id", requirePermission("usuarios.gestionar"
   }
   const { error: authError } = await supabase.auth.admin.deleteUser(req.params.id);
   if (authError) {
-    console.error(`[admin] usuario ${req.params.id} borrado de usuarios pero no de Auth:`, authError.message);
-    return res.status(500).json({ error: `Usuario eliminado del sistema, pero no de la cuenta de acceso: ${authError.message}` });
+    // Si la cuenta de Auth ya no existía (p.ej. se había borrado antes, o
+    // nunca llegó a crearse ahí), no queda nada más por borrar: la fila de
+    // `usuarios` SÍ se eliminó arriba, así que esto no es un fallo real —
+    // mostrarlo como error 500 solo confundía, dando a entender que la
+    // eliminación completa había fallado cuando en realidad ya terminó bien.
+    const yaNoExistiaEnAuth = authError.status === 404 || /not.?found/i.test(authError.message || "");
+    if (!yaNoExistiaEnAuth) {
+      console.error(`[admin] usuario ${req.params.id} borrado de usuarios pero no de Auth:`, authError.message);
+      return res.status(500).json({ error: `Usuario eliminado del sistema, pero no de la cuenta de acceso: ${authError.message}` });
+    }
   }
   res.json({ ok: true });
 });
