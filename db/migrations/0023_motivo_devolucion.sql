@@ -11,11 +11,24 @@ create table if not exists motivos_devolucion (
   activo boolean not null default true
 );
 
+-- El catálogo original agrupaba todo bajo "datos_incorrectos", sin decir cuál
+-- de los campos que digita el facturador/médico está mal — quien revisa
+-- después tenía que abrir el ticket y adivinar. Se desglosa uno por cada
+-- campo que se captura en el formulario (TicketForm.jsx: firmante, y por
+-- cada registro factura/paciente/documento/cups/fecha/motivo/descripción),
+-- más los que no son de un campo puntual (soporte adjunto, firma del oficio,
+-- duplicado, otro).
 insert into motivos_devolucion (clave, etiqueta) values
+  ('firmante_incorrecto', 'Nombre de quien firma el oficio incorrecto o no coincide'),
+  ('factura_incorrecta', 'Número de factura incorrecto o no corresponde'),
+  ('paciente_incorrecto', 'Datos del paciente incorrectos o no coinciden con la factura'),
+  ('documento_incorrecto', 'Número de documento de identidad incorrecto'),
+  ('cups_incorrecto', 'CUPS o folio incorrecto'),
+  ('fecha_incorrecta', 'Fecha del registro incorrecta'),
+  ('descripcion_insuficiente', 'Descripción del registro insuficiente o poco clara'),
   ('soporte_incompleto', 'Falta soporte o documento adjunto'),
-  ('datos_incorrectos', 'Datos del paciente o factura incorrectos'),
   ('oficio_sin_firmar', 'Oficio no firmado o firma inválida'),
-  ('info_insuficiente', 'La justificación no es suficiente'),
+  ('info_insuficiente', 'La justificación general no es suficiente'),
   ('duplicado', 'Ya existe una solicitud para el mismo caso'),
   ('otro', 'Otro motivo')
 on conflict (clave) do nothing;
