@@ -216,6 +216,22 @@ async function cargarConfigOficio() {
   return data;
 }
 
+// "Eliminación de factura ambulatoria" (elim_fact_amb) no es una gestión que
+// requiera a SYS HIGEA: la resuelve directamente Facturación del hospital
+// (ver también el cierre directo de la supervisora en POST /tickets/:id/cerrar
+// más abajo). El oficio de este tipo debe quedar dirigido a Facturación, no a
+// SYS HIGEA, sin tocar la configuración global de destinatario de los demás
+// tipos de solicitud.
+const TIPOS_SIN_SYS_HIGEA = new Set(["elim_fact_amb"]);
+function ajustarConfigOficioPorTipo(configOficio, tipo) {
+  if (!TIPOS_SIN_SYS_HIGEA.has(tipo)) return configOficio;
+  return {
+    ...configOficio,
+    destinatario_nombre: "FACTURACIÓN E.S.E. HOSPITAL ORITO",
+    destinatario_ciudad: "Orito, Putumayo",
+  };
+}
+
 // Catálogo de causas de devolución (migración 0023, ver db/migrations). Si la
 // migración todavía no se ha corrido, la tabla no existe: no se bloquea la
 // devolución por eso (mismo criterio que cargarConfigOficio), simplemente el
@@ -759,7 +775,7 @@ ticketsRouter.post("/tickets/preview-oficio", requirePermission("tickets.crear")
   }
   const { etiqueta, plantilla_oficio } = await cargarPlantillaTipo(tipo);
   const solicitante = await cargarPersonaFirma(req.user.id);
-  const configOficio = await cargarConfigOficio();
+  const configOficio = ajustarConfigOficioPorTipo(await cargarConfigOficio(), tipo);
   const motivos = await cargarMotivos();
   const itemsConMotivoLegible = items.map((item) => ({ ...item, motivo: motivos[item.motivo] || item.motivo }));
   const ticketSimulado = {
@@ -807,7 +823,7 @@ async function generarOficioPdfTicket(ticket) {
   // tiene sentido mostrarla dos veces. Nunca pasa si hubo tramo de
   // coordinador médico (ese tramo exige que sea otra persona).
   const firmaUnica = !aprobacionCoord && Boolean(decididoPorFinal) && decididoPorFinal === ticket.solicitante_id;
-  const configOficio = await cargarConfigOficio();
+  const configOficio = ajustarConfigOficioPorTipo(await cargarConfigOficio(), ticket.tipo);
   const motivos = await cargarMotivos();
   const itemsConMotivoLegible = (ticket.items || []).map((item) => ({ ...item, motivo: motivos[item.motivo] || item.motivo }));
   return construirOficioPdf({
@@ -849,7 +865,7 @@ async function construirSnapshotOficio(ticket) {
   const decididoPorFinal = ticket.aprobacion?.decidido_por || null;
   const aprobador = await cargarPersonaFirma(decididoPorFinal);
   const firmaUnica = !aprobacionCoord && Boolean(decididoPorFinal) && decididoPorFinal === ticket.solicitante_id;
-  const configOficio = await cargarConfigOficio();
+  const configOficio = ajustarConfigOficioPorTipo(await cargarConfigOficio(), ticket.tipo);
   const motivos = await cargarMotivos();
   const itemsConMotivoLegible = (ticket.items || []).map((item) => ({ ...item, motivo: motivos[item.motivo] || item.motivo }));
   return {
@@ -1299,14 +1315,28 @@ ticketsRouter.post("/tickets/:id/responder-info", (req, res) =>
 ticketsRouter.post("/tickets/:id/cerrar", async (req, res) => {
   const ticket = await cargarTicketCompleto(req.params.id);
   if (!ticket) return res.status(404).json({ error: "Ticket no encontrado" });
-  if (!req.user.permisos.has("tickets.cerrar")) {
-    return res.status(403).json({ error: "No tiene permiso para esta acción" });
-  }
-  if (ticket.estado !== "en_proceso") {
-    return res.status(409).json({ error: `El ticket está en '${ticket.estado}', no se puede cerrar` });
-  }
-  if (ticket.asignado_a && ticket.asignado_a !== req.user.id) {
-    return res.status(409).json({ error: "Este ticket está asignado a otro agente de SYS HIGEA" });
+
+  // "Eliminación de factura ambulatoria" nunca llega a SYS HIGEA: lo resuelve
+  // directamente Facturación, y es la misma supervisora que lo aprobó quien
+  // lo cierra, sin pasar por "tomar" ni por la evidencia de SYS HIGEA (no hay
+  // ningún trabajo técnico que evidenciar). Cualquier otro tipo sigue el
+  // flujo normal, idéntico al de siempre.
+  const cierreDirectoSupervisora = TIPOS_SIN_SYS_HIGEA.has(ticket.tipo) && req.user.permisos.has("tickets.aprobar");
+
+  if (cierreDirectoSupervisora) {
+    if (ticket.estado !== "aprobado") {
+      return res.status(409).json({ error: `El ticket está en '${ticket.estado}', no se puede cerrar` });
+    }
+  } else {
+    if (!req.user.permisos.has("tickets.cerrar")) {
+      return res.status(403).json({ error: "No tiene permiso para esta acción" });
+    }
+    if (ticket.estado !== "en_proceso") {
+      return res.status(409).json({ error: `El ticket está en '${ticket.estado}', no se puede cerrar` });
+    }
+    if (ticket.asignado_a && ticket.asignado_a !== req.user.id) {
+      return res.status(409).json({ error: "Este ticket está asignado a otro agente de SYS HIGEA" });
+    }
   }
   if (!ticket.aprobacion || hashItems(ticket.items) !== ticket.aprobacion.hash_items) {
     return res.status(409).json({
@@ -1316,16 +1346,18 @@ ticketsRouter.post("/tickets/:id/cerrar", async (req, res) => {
   const nota = req.body?.nota?.trim();
   if (!nota) return res.status(400).json({ error: "Cerrar un ticket requiere una nota" });
 
-  const { count: evidencias, error: evidenciaError } = await supabase
-    .from("ticket_adjuntos")
-    .select("id", { count: "exact", head: true })
-    .eq("ticket_id", ticket.id)
-    .eq("kind", "evidencia");
-  if (evidenciaError) return res.status(500).json({ error: evidenciaError.message });
-  if (!evidencias) {
-    return res.status(400).json({
-      error: "Cerrar un ticket requiere adjuntar la evidencia de SYS HIGEA (pantallazo de la solución)",
-    });
+  if (!cierreDirectoSupervisora) {
+    const { count: evidencias, error: evidenciaError } = await supabase
+      .from("ticket_adjuntos")
+      .select("id", { count: "exact", head: true })
+      .eq("ticket_id", ticket.id)
+      .eq("kind", "evidencia");
+    if (evidenciaError) return res.status(500).json({ error: evidenciaError.message });
+    if (!evidencias) {
+      return res.status(400).json({
+        error: "Cerrar un ticket requiere adjuntar la evidencia de SYS HIGEA (pantallazo de la solución)",
+      });
+    }
   }
 
   const { error } = await supabase

@@ -23,6 +23,11 @@ function iniciales(nombre) {
   return ((partes[0]?.[0] || "") + (partes[1]?.[0] || "")).toUpperCase();
 }
 
+// "Eliminación de factura ambulatoria" nunca llega a SYS HIGEA: la misma
+// supervisora que aprueba lo cierra directo (ver también el oficio dirigido a
+// Facturación en vez de SYS HIGEA, api/src/lib/oficio.js y tickets.js).
+const TIPOS_SIN_SYS_HIGEA = new Set(["elim_fact_amb"]);
+
 const ACCIONES = [
   // Primera instancia, solo para tickets radicados por un médico (ticket.etapa_aprobacion
   // === "coordinador_medico"): el coordinador médico revisa antes que cualquier
@@ -31,7 +36,8 @@ const ACCIONES = [
   { ruta: "devolver-coordinador", permiso: "tickets.devolver_coordinador", estados: ["pendiente"], etapaRequerida: "coordinador_medico", label: "Devolver al médico", icon: IconReturn, variant: "danger", notaObligatoria: true, exito: "Ticket devuelto al médico" },
   { ruta: "aprobar", permiso: "tickets.aprobar", estados: ["pendiente"], etapaBloqueada: "coordinador_medico", label: "Aprobar y enviar a SYS HIGEA", icon: IconCheck, variant: "accent", notaObligatoria: false, exito: "Ticket aprobado y enviado a SYS HIGEA" },
   { ruta: "devolver", permiso: "tickets.devolver", estados: ["pendiente"], etapaBloqueada: "coordinador_medico", label: "Devolver al facturador", icon: IconReturn, variant: "danger", notaObligatoria: true, exito: "Ticket devuelto al facturador" },
-  { ruta: "tomar", permiso: "tickets.tomar", estados: ["aprobado"], label: "Tomar caso", icon: IconInbox, variant: "accent", notaObligatoria: false, exito: "Caso tomado" },
+  { ruta: "tomar", permiso: "tickets.tomar", estados: ["aprobado"], label: "Tomar caso", icon: IconInbox, variant: "accent", notaObligatoria: false, exito: "Caso tomado", tipoExcluido: TIPOS_SIN_SYS_HIGEA },
+  { ruta: "cerrar", permiso: "tickets.aprobar", estados: ["aprobado"], label: "Cerrar (gestión directa de Facturación)", icon: IconCheck, variant: "accent", notaObligatoria: true, exito: "Ticket cerrado", tipoRequerido: TIPOS_SIN_SYS_HIGEA },
   { ruta: "pedir-info", permiso: "tickets.pedir_info", estados: ["en_proceso"], label: "Pedir información", icon: IconInfo, variant: "ghost", notaObligatoria: true, exito: "Se solicitó información al facturador", requiereAsignado: true },
   { ruta: "responder-info", permiso: "tickets.responder_info", estados: ["requiere_info"], label: "Responder a SYS HIGEA", icon: IconSend, variant: "ghost", notaObligatoria: true, exito: "Respuesta enviada a SYS HIGEA" },
   { ruta: "cerrar", permiso: "tickets.cerrar", estados: ["en_proceso"], label: "Reportar realizado y cerrar", icon: IconCheck, variant: "accent", notaObligatoria: true, exito: "Ticket cerrado", requiereAsignado: true },
@@ -239,7 +245,9 @@ export function TicketDetail() {
       a.estados.includes(ticket.estado) &&
       !bloqueadoParaMi(a) &&
       (!a.etapaRequerida || ticket.etapa_aprobacion === a.etapaRequerida) &&
-      (!a.etapaBloqueada || ticket.etapa_aprobacion !== a.etapaBloqueada),
+      (!a.etapaBloqueada || ticket.etapa_aprobacion !== a.etapaBloqueada) &&
+      (!a.tipoRequerido || a.tipoRequerido.has(ticket.tipo)) &&
+      (!a.tipoExcluido || !a.tipoExcluido.has(ticket.tipo)),
   );
 
   const esSolicitante = perfil.id === ticket.solicitante_id && tienePermiso("tickets.crear");
