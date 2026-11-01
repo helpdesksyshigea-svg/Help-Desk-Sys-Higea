@@ -1123,6 +1123,78 @@ ticketsRouter.post("/tickets/:id/aprobar", (req, res) =>
   })
 );
 
+// "Eliminación de factura ambulatoria" nunca pasa por SYS HIGEA: la
+// supervisora aprueba y cierra en un solo paso, sin el estado intermedio
+// "aprobado" que en los demás tipos espera a que alguien de SYS HIGEA tome
+// el caso. Exige el soporte adjunto (kind "soporte") de una vez, porque acá
+// no hay un paso posterior donde pedirlo.
+ticketsRouter.post("/tickets/:id/aprobar-cerrar", async (req, res) => {
+  const ticket = await cargarTicketCompleto(req.params.id);
+  if (!ticket) return res.status(404).json({ error: "Ticket no encontrado" });
+  if (!TIPOS_SIN_SYS_HIGEA.has(ticket.tipo)) {
+    return res.status(409).json({ error: "Esta acción solo aplica a Eliminación de factura ambulatoria" });
+  }
+  if (!req.user.permisos.has("tickets.aprobar")) {
+    return res.status(403).json({ error: "No tiene permiso para esta acción" });
+  }
+  if (ticket.estado !== "pendiente") {
+    return res.status(409).json({ error: `El ticket está en '${ticket.estado}', no se puede aplicar esta acción` });
+  }
+  if (ticket.etapa_aprobacion) {
+    return res.status(409).json({ error: "Este ticket requiere primero la aprobación del coordinador médico" });
+  }
+  const nota = req.body?.nota?.trim();
+  if (!nota) return res.status(400).json({ error: "Esta acción requiere una nota" });
+
+  if (!ticket.firma_solicitante_at) {
+    const { data: oficioAdjuntos, error: oficioError } = await supabase
+      .from("ticket_adjuntos")
+      .select("id")
+      .eq("ticket_id", ticket.id)
+      .eq("kind", "oficio");
+    if (oficioError) return res.status(500).json({ error: oficioError.message });
+    if (!oficioAdjuntos || oficioAdjuntos.length === 0) {
+      return res.status(409).json({ error: "No se puede aprobar sin el oficio firmado adjunto" });
+    }
+  }
+
+  const { count: soportes, error: soporteError } = await supabase
+    .from("ticket_adjuntos")
+    .select("id", { count: "exact", head: true })
+    .eq("ticket_id", ticket.id)
+    .eq("kind", "soporte");
+  if (soporteError) return res.status(500).json({ error: soporteError.message });
+  if (!soportes) {
+    return res.status(400).json({ error: "Debe adjuntar el soporte antes de aprobar y cerrar" });
+  }
+
+  const ahora = new Date().toISOString();
+  const { error: aprobacionError } = await supabase.from("aprobaciones").upsert(
+    {
+      ticket_id: ticket.id,
+      etapa: "final",
+      decision: "aprobado",
+      hash_items: hashItems(ticket.items),
+      nota,
+      decidido_por: req.user.id,
+    },
+    { onConflict: "ticket_id,etapa" },
+  );
+  if (aprobacionError) return res.status(500).json({ error: aprobacionError.message });
+
+  const { error } = await supabase
+    .from("tickets")
+    .update({ estado: "cerrado", aprobado_at: ahora, cerrado_at: ahora, updated_at: ahora })
+    .eq("id", ticket.id);
+  if (error) return res.status(500).json({ error: error.message });
+
+  await registrarEvento(ticket.id, "aprobado", "pendiente", "aprobado", req.user.id, nota);
+  await registrarEvento(ticket.id, "cerrado", "aprobado", "cerrado", req.user.id, nota);
+  const actualizado = await cargarTicketCompleto(ticket.id);
+  notificarTransicion("cerrado", actualizado, ticket.solicitante?.email).catch(() => {});
+  res.json(actualizado);
+});
+
 ticketsRouter.post("/tickets/:id/devolver", (req, res) =>
   transicion(req, res, {
     permiso: "tickets.devolver",
