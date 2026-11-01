@@ -193,6 +193,44 @@ function truncar(fuente, tamano, texto, anchoMax) {
   return t + "…";
 }
 
+// Reparte un texto (una celda de la tabla de registros, p.ej. "Motivo") en
+// tantas líneas como haga falta para caber en `anchoMax` sin truncar — a
+// diferencia de truncar(), nunca corta contenido, solo lo baja de línea.
+// Una sola palabra más ancha que la celda se parte a la fuerza por
+// caracteres (mismo criterio que truncar: nunca queda contenido invisible).
+function envolverTexto(fuente, tamano, texto, anchoMax) {
+  const palabras = String(texto ?? "—").split(/\s+/).filter(Boolean);
+  if (palabras.length === 0) return ["—"];
+  const lineas = [];
+  let actual = "";
+  for (const palabra of palabras) {
+    const candidata = actual ? `${actual} ${palabra}` : palabra;
+    if (fuente.widthOfTextAtSize(candidata, tamano) <= anchoMax) {
+      actual = candidata;
+      continue;
+    }
+    if (actual) lineas.push(actual);
+    if (fuente.widthOfTextAtSize(palabra, tamano) <= anchoMax) {
+      actual = palabra;
+    } else {
+      // Palabra sola más ancha que la celda: se parte por caracteres.
+      let trozo = "";
+      for (const char of palabra) {
+        const siguiente = trozo + char;
+        if (trozo && fuente.widthOfTextAtSize(siguiente, tamano) > anchoMax) {
+          lineas.push(trozo);
+          trozo = char;
+        } else {
+          trozo = siguiente;
+        }
+      }
+      actual = trozo;
+    }
+  }
+  if (actual) lineas.push(actual);
+  return lineas.length ? lineas : ["—"];
+}
+
 function centrado(pagina, texto, y, fuente, tamano, color) {
   const ancho = fuente.widthOfTextAtSize(texto, tamano);
   pagina.drawText(texto, { x: (PAGINA.ancho - ancho) / 2, y, size: tamano, font: fuente, color });
@@ -371,16 +409,28 @@ export async function construirOficioPdf({ ticket, tipoEtiqueta, plantilla, item
   pagina.drawLine({ start: { x: MARGEN, y }, end: { x: PAGINA.ancho - MARGEN, y }, thickness: 0.5, color: GRIS });
   y -= 14;
 
+  const ALTO_LINEA_CELDA = 11;
   for (const item of items) {
-    nuevaPaginaSiHaceFalta(16);
-    x = MARGEN;
-    for (const campo of ITEM_CAMPOS) {
+    // Cada celda se envuelve a su propio ancho de columna (nunca se trunca,
+    // ver envolverTexto) — la fila completa crece al alto de la celda con
+    // más líneas, típicamente "Motivo", que es la más ancha y variable.
+    const lineasPorCampo = ITEM_CAMPOS.map((campo) => {
       const anchoCelda = ANCHO_UTIL * campo.ancho - 6;
       const valor = campo.clave === "fecha" ? fechaCorta(item.fecha) : item[campo.clave];
-      pagina.drawText(truncar(fuente, 8.5, valor || "—", anchoCelda), { x, y, size: 8.5, font: fuente, color: NEGRO });
+      return envolverTexto(fuente, 8.5, valor || "—", anchoCelda);
+    });
+    const maxLineas = Math.max(1, ...lineasPorCampo.map((l) => l.length));
+    nuevaPaginaSiHaceFalta(ALTO_LINEA_CELDA * maxLineas);
+    x = MARGEN;
+    ITEM_CAMPOS.forEach((campo, i) => {
+      let yCelda = y;
+      for (const linea of lineasPorCampo[i]) {
+        pagina.drawText(linea, { x, y: yCelda, size: 8.5, font: fuente, color: NEGRO });
+        yCelda -= ALTO_LINEA_CELDA;
+      }
       x += ANCHO_UTIL * campo.ancho;
-    }
-    y -= 16;
+    });
+    y -= ALTO_LINEA_CELDA * maxLineas;
   }
 
   // Cierre y firmas: solicitante y, si ya está confirmada, la de quien aprueba.
