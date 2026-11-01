@@ -1182,15 +1182,25 @@ ticketsRouter.post("/tickets/:id/aprobar-cerrar", async (req, res) => {
   );
   if (aprobacionError) return res.status(500).json({ error: aprobacionError.message });
 
-  const { error } = await supabase
-    .from("tickets")
-    .update({ estado: "cerrado", aprobado_at: ahora, cerrado_at: ahora, updated_at: ahora })
-    .eq("id", ticket.id);
+  // Mismo criterio que /aprobar: la firma solo se estampa si la supervisora
+  // la confirmó explícitamente en el modal "Firmar oficio".
+  const patch = { estado: "cerrado", aprobado_at: ahora, cerrado_at: ahora, updated_at: ahora };
+  if (req.user.beta_firma_oficio && req.body?.firmaConfirmada === true) {
+    patch.firma_aprobador_at = ahora;
+  }
+
+  const { error } = await supabase.from("tickets").update(patch).eq("id", ticket.id);
   if (error) return res.status(500).json({ error: error.message });
 
-  await registrarEvento(ticket.id, "aprobado", "pendiente", "aprobado", req.user.id, nota);
+  const textoAprobado =
+    req.user.beta_firma_oficio && req.body?.firmaConfirmada === true
+      ? [nota, "Firma de aprobación confirmada."].filter(Boolean).join(" — ")
+      : nota;
+  await registrarEvento(ticket.id, "aprobado", "pendiente", "aprobado", req.user.id, textoAprobado);
   await registrarEvento(ticket.id, "cerrado", "aprobado", "cerrado", req.user.id, nota);
-  const actualizado = await cargarTicketCompleto(ticket.id);
+  let actualizado = await cargarTicketCompleto(ticket.id);
+  const sello = await sellarOficioSiQuedaCompleto(actualizado);
+  if (sello) actualizado = { ...actualizado, ...sello };
   notificarTransicion("cerrado", actualizado, ticket.solicitante?.email).catch(() => {});
   res.json(actualizado);
 });

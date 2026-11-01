@@ -166,7 +166,7 @@ export function TicketDetail() {
     // para "aprobar-coordinador", el coordinador nunca podía confirmar su
     // firma y el oficio de un ticket de médico quedaba siempre "pendiente
     // de confirmación" aunque sí hubiera aprobado.
-    if ((def.ruta === "aprobar" || def.ruta === "aprobar-coordinador") && perfil?.beta_firma_oficio && !firmaConfirmada) {
+    if ((def.ruta === "aprobar" || def.ruta === "aprobar-coordinador" || def.ruta === "aprobar-cerrar") && perfil?.beta_firma_oficio && !firmaConfirmada) {
       setAccionPendienteFirma(def);
       return;
     }
