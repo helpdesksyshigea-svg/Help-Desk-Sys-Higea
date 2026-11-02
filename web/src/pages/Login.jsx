@@ -68,7 +68,7 @@ export function Login({ enlaceVencido = false }) {
         >
           <div className="mb-7 flex items-center gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--color-forest)]">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent-ink)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6l-8-3Z" />
               </svg>
             </div>
