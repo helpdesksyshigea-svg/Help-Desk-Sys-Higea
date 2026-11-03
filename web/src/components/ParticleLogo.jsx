@@ -36,7 +36,11 @@ export function ParticleLogo({ className = "" }) {
 
     // Fibonacci sphere: N puntos ~uniformes sobre una esfera unitaria, sin
     // que se agrupen en los polos.
-    const COUNT = 16000; // bajado a propósito: fillText x40k por frame es pesado en equipos modestos
+    // Equipos con pocos núcleos (típico en portátiles Windows con gráficos
+    // integrados) sufren mucho con fillText x16k por frame sin aceleración
+    // de hardware decente: se baja el presupuesto de partículas ahí.
+    const lowPower = (navigator.hardwareConcurrency || 8) <= 4;
+    const COUNT = lowPower ? 7000 : 16000;
     const pts = [];
     const golden = Math.PI * (3 - Math.sqrt(5));
     for (let i = 0; i < COUNT; i++) {
@@ -57,7 +61,7 @@ export function ParticleLogo({ className = "" }) {
     // forman SOLO los dígitos: la imagen fuente nunca se dibuja en pantalla
     // durante esa fase, se usa únicamente para muestrear las posiciones y
     // colores objetivo de cada partícula.
-    const LOGO_SAMPLE = 1100; // resolución del muestreo (cuadrada)
+    const LOGO_SAMPLE = lowPower ? 760 : 1100; // resolución del muestreo (cuadrada)
     const LOGO_ASPECT = 1168 / 1155; // ancho/alto del PNG del logo (se respeta, no se estira)
     const LOGO_GLYPH_K = 1.3;
 
@@ -86,6 +90,15 @@ export function ParticleLogo({ className = "" }) {
     (function loadLogo() {
       const img = new Image();
       img.onload = () => {
+        if (cancelled) return;
+        // El procesamiento de abajo es pesado (del orden de 1M+ píxeles);
+        // se agenda fuera del callback de carga para no bloquear el primer
+        // pintado de la página en equipos lentos.
+        setTimeout(() => processLoadedLogo(img), 0);
+      };
+      img.src = LOGO_SAMPLE_URL;
+
+      function processLoadedLogo(img) {
         if (cancelled) return;
         const S = LOGO_SAMPLE;
         const off = document.createElement("canvas");
@@ -304,8 +317,7 @@ export function ParticleLogo({ className = "" }) {
           logoA[i] = total ? Math.max(0.45, hit / total) : 1;
         }
         logoReady = true;
-      };
-      img.src = LOGO_SAMPLE_URL;
+      }
     })();
 
     // Luz fija viniendo de abajo-a-la-derecha (en espacio de la esfera,
