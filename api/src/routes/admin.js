@@ -423,7 +423,7 @@ adminRouter.delete("/admin/roles/:id", requirePermission("roles.gestionar"), asy
 // /tickets/:id/cerrar). Renombrar una clave del catálogo (p. ej. un
 // "motivo") la actualiza en cascada en todos los tickets que la usan, SIN
 // pasar por esa protección — rompía en silencio el hash de tickets ya
-// aprobados, dejándolos sin forma de cerrarse (ver migración 0024 para la
+// aprobados, dejándolos sin forma de cerrarse (ver migración 0025 para la
 // salida: SYS HIGEA devuelve el ticket, y ahí sí vuelve a 'devuelto', donde
 // se puede corregir y reaprobar). Esta guarda evita que vuelva a pasar: para
 // renombrar una clave en uso fuera de esos dos estados, antes hay que
