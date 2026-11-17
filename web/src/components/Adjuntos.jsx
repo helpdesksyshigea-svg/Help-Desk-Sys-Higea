@@ -299,7 +299,7 @@ export function Adjuntos({ ticketId, kindsPermitidos = ["oficio", "soporte", "ev
 
       {kindsPermitidos.includes("evidencia") && (
         <p className="text-xs text-[var(--color-muted)]">
-          <strong className="font-medium text-[var(--color-ink)]">Obligatoria para cerrar:</strong> suba como "Evidencia SYS
+          <strong className="font-medium text-[var(--color-ink)]">Opcional:</strong> si quiere, suba como "Evidencia SYS
           HIGEA" un pantallazo del sistema de SYS HIGEA mostrando la solución aplicada. Puede pegarlo directamente con
           Ctrl+V (o Cmd+V) sobre esta tarjeta, sin necesidad de guardarlo primero.
         </p>

@@ -167,12 +167,21 @@ async function cargarTicketCompleto(id) {
   const { data: slaConfig, error: slaError } = await supabase.from("sla_config").select("*").eq("prioridad", ticket.prioridad).maybeSingle();
   if (slaError) throw new Error(`cargando SLA '${ticket.prioridad}': ${slaError.message}`);
   const sla = await calcularSla(ticket, eventos || [], slaConfig?.dias_habiles ?? 2);
+  // Mismo chequeo que hace /cerrar antes de bloquear: si ya es diferente acá,
+  // el frontend puede ofrecer "Devolver a facturación" en vez de que el
+  // ingeniero se entere solo hasta que el cierre le rebote el error.
+  const requiereNuevaAprobacion = Boolean(
+    ["aprobado", "en_proceso"].includes(ticket.estado) &&
+      aprobacionFinal &&
+      hashItems(items || []) !== aprobacionFinal.hash_items
+  );
   return {
     ...ticket,
     items: items || [],
     eventos: eventos || [],
     aprobacion: aprobacionFinal,
     aprobaciones: aprobaciones || [],
+    requiere_nueva_aprobacion: requiereNuevaAprobacion,
     ...sla,
   };
 }
@@ -1317,6 +1326,41 @@ ticketsRouter.post("/tickets/:id/devolver-coordinador", (req, res) =>
 // formulario de edición al reenviar un ticket devuelto; PATCH /tickets/:id cubre ese caso
 // (incluso si el usuario no cambia ningún dato, el reenvío es un PATCH con los mismos valores).
 
+// SYS HIGEA detecta que el ticket ya no corresponde a lo aprobado (p. ej. el
+// hash de aprobación no coincide porque un catálogo en uso cambió, o porque
+// los datos del registro no alcanzan para resolver el caso) y lo devuelve a
+// facturación — igual que una supervisora devuelve desde 'pendiente', pero
+// partiendo de 'aprobado'/'en_proceso'. Nunca edita el ticket directamente:
+// el facturador corrige y reenvía (PATCH /tickets/:id), y vuelve a pasar por
+// /aprobar normal, lo que regenera el hash con los datos ya corregidos.
+ticketsRouter.post("/tickets/:id/devolver-higea", (req, res) =>
+  transicion(req, res, {
+    permiso: "tickets.devolver_higea",
+    estadosValidos: ["aprobado", "en_proceso"],
+    nuevoEstado: "devuelto",
+    tipoEvento: "devuelto",
+    notaObligatoria: true,
+    async validar(ticket, req) {
+      if (ticket.asignado_a && ticket.asignado_a !== req.user.id) {
+        return "Este ticket está asignado a otro agente de SYS HIGEA";
+      }
+      return await validarMotivoDevolucion(req);
+    },
+    async efecto(ticket, req) {
+      const { error } = await upsertAprobacionDevuelta({
+        ticket_id: ticket.id,
+        etapa: "final",
+        decision: "devuelto",
+        nota: req.body?.nota || null,
+        motivo_devolucion: req.body?.motivo_devolucion || null,
+        decidido_por: req.user.id,
+      });
+      if (error) throw error;
+      return { asignado_a: null, agente_higea: null };
+    },
+  })
+);
+
 ticketsRouter.post("/tickets/:id/tomar", (req, res) =>
   transicion(req, res, {
     permiso: "tickets.tomar",
@@ -1427,20 +1471,6 @@ ticketsRouter.post("/tickets/:id/cerrar", async (req, res) => {
   }
   const nota = req.body?.nota?.trim();
   if (!nota) return res.status(400).json({ error: "Cerrar un ticket requiere una nota" });
-
-  if (!cierreDirectoSupervisora) {
-    const { count: evidencias, error: evidenciaError } = await supabase
-      .from("ticket_adjuntos")
-      .select("id", { count: "exact", head: true })
-      .eq("ticket_id", ticket.id)
-      .eq("kind", "evidencia");
-    if (evidenciaError) return res.status(500).json({ error: evidenciaError.message });
-    if (!evidencias) {
-      return res.status(400).json({
-        error: "Cerrar un ticket requiere adjuntar la evidencia de SYS HIGEA (pantallazo de la solución)",
-      });
-    }
-  }
 
   const { error } = await supabase
     .from("tickets")

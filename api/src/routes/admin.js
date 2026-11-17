@@ -417,6 +417,47 @@ adminRouter.delete("/admin/roles/:id", requirePermission("roles.gestionar"), asy
 
 // `referencia` describe dónde más vive la clave de este catálogo (la tabla/columna
 // de tickets que la usa), para poder renombrarla en cascada sin dejar tickets huérfanos.
+// Mientras el ticket está en 'pendiente'/'devuelto' sus datos todavía se
+// pueden corregir por el formulario normal; pasado ese punto, un ticket
+// aprobado queda sellado por el hash de aprobación (ver hashItems en
+// /tickets/:id/cerrar). Renombrar una clave del catálogo (p. ej. un
+// "motivo") la actualiza en cascada en todos los tickets que la usan, SIN
+// pasar por esa protección — rompía en silencio el hash de tickets ya
+// aprobados, dejándolos sin forma de cerrarse (ver migración 0024 para la
+// salida: SYS HIGEA devuelve el ticket, y ahí sí vuelve a 'devuelto', donde
+// se puede corregir y reaprobar). Esta guarda evita que vuelva a pasar: para
+// renombrar una clave en uso fuera de esos dos estados, antes hay que
+// desactivarla y crear una nueva.
+const ESTADOS_EDITABLES = ["pendiente", "devuelto"];
+
+async function claveEnUsoFueraDeEdicion(referencia, clave) {
+  if (referencia.tabla === "tickets") {
+    const { count, error } = await supabase
+      .from("tickets")
+      .select("id", { count: "exact", head: true })
+      .eq(referencia.columna, clave)
+      .not("estado", "in", `(${ESTADOS_EDITABLES.join(",")})`);
+    if (error) throw new Error(error.message);
+    return count > 0;
+  }
+  if (referencia.tabla === "ticket_items") {
+    const { data: filas, error } = await supabase.from("ticket_items").select("ticket_id").eq(referencia.columna, clave);
+    if (error) throw new Error(error.message);
+    const ticketIds = [...new Set((filas || []).map((f) => f.ticket_id))];
+    if (!ticketIds.length) return false;
+    const { count, error: error2 } = await supabase
+      .from("tickets")
+      .select("id", { count: "exact", head: true })
+      .in("id", ticketIds)
+      .not("estado", "in", `(${ESTADOS_EDITABLES.join(",")})`);
+    if (error2) throw new Error(error2.message);
+    return count > 0;
+  }
+  // Otras referencias (ej. aprobaciones.motivo_devolucion): son histórico de
+  // decisiones ya tomadas, no afectan el hash de ningún ticket vigente.
+  return false;
+}
+
 function catalogoRouter(path, tabla, referencia, { permiteEliminar = false, verificarUsoAntesDeEliminar = false, camposExtra = [] } = {}) {
   adminRouter.get(`/admin/${path}`, requirePermission("config.editar"), async (req, res) => {
     const { data, error } = await supabase.from(tabla).select("*").order("etiqueta");
@@ -450,6 +491,18 @@ function catalogoRouter(path, tabla, referencia, { permiteEliminar = false, veri
       const { data: existente, error: existeError } = await supabase.from(tabla).select("clave").eq("clave", nueva).maybeSingle();
       if (existeError) return res.status(500).json({ error: existeError.message });
       if (existente) return res.status(409).json({ error: `Ya existe la clave '${nueva}'` });
+
+      let enUso;
+      try {
+        enUso = await claveEnUsoFueraDeEdicion(referencia, claveActual);
+      } catch (e) {
+        return res.status(500).json({ error: e.message });
+      }
+      if (enUso) {
+        return res.status(409).json({
+          error: `No se puede renombrar: '${claveActual}' ya está en uso en tickets que no están en edición (aprobados, en proceso o cerrados). Desactívela y cree una clave nueva en su lugar.`,
+        });
+      }
 
       const { error: renameError } = await supabase.from(tabla).update({ clave: nueva }).eq("clave", claveActual);
       if (renameError) return res.status(500).json({ error: renameError.message });

@@ -38,6 +38,11 @@ const ACCIONES = [
   { ruta: "aprobar-cerrar", permiso: "tickets.aprobar", estados: ["pendiente"], etapaBloqueada: "coordinador_medico", label: "Aprobar y cerrar", icon: IconCheck, variant: "accent", notaObligatoria: true, exito: "Ticket aprobado y cerrado", tipoRequerido: TIPOS_SIN_SYS_HIGEA },
   { ruta: "devolver", permiso: "tickets.devolver", estados: ["pendiente"], etapaBloqueada: "coordinador_medico", label: "Devolver al facturador", icon: IconReturn, variant: "danger", notaObligatoria: true, exito: "Ticket devuelto al facturador" },
   { ruta: "tomar", permiso: "tickets.tomar", estados: ["aprobado"], label: "Tomar caso", icon: IconInbox, variant: "accent", notaObligatoria: false, exito: "Caso tomado", tipoExcluido: TIPOS_SIN_SYS_HIGEA },
+  // Oculto casi siempre: solo aparece cuando cargarTicketCompleto detecta que
+  // el hash de aprobación ya no coincide (ver requiere_nueva_aprobacion en
+  // tickets.js) — no es una acción de uso normal, es la salida para ese caso
+  // puntual, así que no se suma como un botón permanente más.
+  { ruta: "devolver-higea", permiso: "tickets.devolver_higea", estados: ["aprobado", "en_proceso"], label: "Devolver a facturación", icon: IconReturn, variant: "danger", notaObligatoria: true, exito: "Ticket devuelto a facturación, requiere nueva aprobación", tipoExcluido: TIPOS_SIN_SYS_HIGEA, requiereAsignado: true, requiereCondicion: (ticket) => ticket.requiere_nueva_aprobacion },
   { ruta: "cerrar", permiso: "tickets.aprobar", estados: ["aprobado"], label: "Cerrar (gestión directa de Facturación)", icon: IconCheck, variant: "accent", notaObligatoria: true, exito: "Ticket cerrado", tipoRequerido: TIPOS_SIN_SYS_HIGEA },
   { ruta: "pedir-info", permiso: "tickets.pedir_info", estados: ["en_proceso"], label: "Pedir información", icon: IconInfo, variant: "ghost", notaObligatoria: true, exito: "Se solicitó información al facturador", requiereAsignado: true },
   { ruta: "responder-info", permiso: "tickets.responder_info", estados: ["requiere_info"], label: "Responder a SYS HIGEA", icon: IconSend, variant: "ghost", notaObligatoria: true, exito: "Respuesta enviada a SYS HIGEA" },
@@ -46,7 +51,7 @@ const ACCIONES = [
   { ruta: "reabrir", permiso: "tickets.reabrir", estados: ["cerrado"], label: "Reabrir", icon: IconReturn, variant: "danger", notaObligatoria: true, exito: "Ticket reabierto" },
 ];
 
-const RUTAS_DEVOLVER = new Set(["devolver", "devolver-coordinador"]);
+const RUTAS_DEVOLVER = new Set(["devolver", "devolver-coordinador", "devolver-higea"]);
 
 const EVENTO_LABEL = {
   creado: "Ticket radicado",
@@ -248,7 +253,8 @@ export function TicketDetail() {
       (!a.etapaRequerida || ticket.etapa_aprobacion === a.etapaRequerida) &&
       (!a.etapaBloqueada || ticket.etapa_aprobacion !== a.etapaBloqueada) &&
       (!a.tipoRequerido || a.tipoRequerido.has(ticket.tipo)) &&
-      (!a.tipoExcluido || !a.tipoExcluido.has(ticket.tipo)),
+      (!a.tipoExcluido || !a.tipoExcluido.has(ticket.tipo)) &&
+      (!a.requiereCondicion || a.requiereCondicion(ticket)),
   );
 
   const esSolicitante = perfil.id === ticket.solicitante_id && tienePermiso("tickets.crear");
@@ -452,6 +458,14 @@ export function TicketDetail() {
       </div>
 
       {error && <p className="text-sm text-[var(--color-danger)]">{error}</p>}
+
+      {ticket.requiere_nueva_aprobacion && (
+        <Card className="border border-[var(--color-danger)]/30 bg-[var(--color-danger-bg)] text-sm text-[var(--color-danger)]">
+          Los registros de este ticket cambiaron después de la aprobación (por ejemplo, se corrigió un motivo en
+          Administración) y ya no se puede cerrar así. Use "Devolver a facturación" para que lo corrijan y vuelva a
+          pasar por aprobación.
+        </Card>
+      )}
 
       {tienePermisoAccion && disponibles.length === 0 && (
         <Card className="text-sm text-[var(--color-muted)]">
