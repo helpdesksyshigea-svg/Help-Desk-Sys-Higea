@@ -17,13 +17,16 @@ const app = express();
 app.use(cors({ origin: process.env.WEB_ORIGIN }));
 app.use(express.json());
 
+// Las rutas sin sesión de usuario van primero: varios routers de abajo hacen
+// router.use(authenticate) y, montados en la raíz, cortan con 401 cualquier
+// petición que pase por ellos aunque no sea suya (el cron nunca llegaba).
 app.use(healthRouter);
+app.use(cronRouter);
 app.use(meRouter);
 app.use(ticketsRouter);
 app.use(adjuntosRouter);
 app.use(adminRouter);
 app.use(catalogosRouter);
-app.use(cronRouter);
 app.use(dashboardRouter);
 app.use(perfilRouter);
 

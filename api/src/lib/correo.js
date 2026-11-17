@@ -1,32 +1,67 @@
+import nodemailer from "nodemailer";
 import { supabase } from "../config/supabase.js";
 import { TIPOS_SIN_SYS_HIGEA } from "./tiposSolicitud.js";
 
-// Resend en vez de SMTP/Gmail: se descartó SMTP porque el plan gratuito de
-// Render reinicia el contenedor por inactividad y eso corta a medias la
-// conexión TCP persistente que SMTP necesita (confirmado en los logs: el
-// reinicio ocurrió justo durante el intento de conexión). Resend envía por
-// una sola petición HTTPS que se resuelve en menos de un segundo, sin
-// depender de mantener una conexión abierta.
+// Dos formas de enviar, según lo que haya en .env (gana SMTP si están ambas):
+//
+// - SMTP (SMTP_HOST/SMTP_USER/SMTP_PASS), pensado para Gmail con contraseña de
+//   aplicación en el servidor propio del hospital. Gmail exige que el
+//   remitente sea la misma cuenta (o un alias verificado de ella).
+// - Resend (RESEND_API_KEY). Se usó en Render porque su plan gratuito reinicia
+//   el contenedor por inactividad y eso cortaba a medias la conexión TCP de
+//   SMTP; Resend envía en una sola petición HTTPS. Exige un dominio propio
+//   verificado para escribirle a cualquier destinatario.
 const RESEND_URL = "https://api.resend.com/emails";
-const REMITENTE = process.env.RESEND_FROM || "Mesa de ayuda SYS HIGEA <onboarding@resend.dev>";
+const SMTP_CONFIGURADO = !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+const REMITENTE =
+  process.env.MAIL_FROM ||
+  process.env.RESEND_FROM ||
+  (SMTP_CONFIGURADO ? `Mesa de ayuda SYS HIGEA <${process.env.SMTP_USER}>` : "Mesa de ayuda SYS HIGEA <onboarding@resend.dev>");
+
+let transporteSmtp = null;
+function smtp() {
+  if (!transporteSmtp) {
+    const puerto = Number(process.env.SMTP_PORT || 465);
+    transporteSmtp = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: puerto,
+      secure: puerto === 465, // 465 = TLS directo; 587 = STARTTLS
+      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+      // Sin estos límites una conexión colgada dejaría la promesa pendiente
+      // indefinidamente (el envío corre en segundo plano, pero se acumularía).
+      connectionTimeout: 15000,
+      greetingTimeout: 15000,
+      socketTimeout: 30000,
+    });
+  }
+  return transporteSmtp;
+}
+
+async function enviarPorResend(correos, asunto, textoPlano) {
+  const res = await fetch(RESEND_URL, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ from: REMITENTE, to: correos, subject: asunto, text: textoPlano }),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Resend respondió ${res.status}: ${body}`);
+  }
+}
 
 export async function enviarCorreo(destinatarios, asunto, textoPlano) {
   const correos = [...new Set((destinatarios || []).filter(Boolean))];
   if (!correos.length) return;
-  if (!process.env.RESEND_API_KEY) {
-    console.warn(`[correo] RESEND_API_KEY no configurada, se omite: "${asunto}" -> ${correos.join(", ")}`);
+  if (!SMTP_CONFIGURADO && !process.env.RESEND_API_KEY) {
+    console.warn(`[correo] sin SMTP ni RESEND_API_KEY configurados, se omite: "${asunto}" -> ${correos.join(", ")}`);
     return;
   }
   console.log(`[correo] intentando enviar "${asunto}" -> ${correos.join(", ")}`);
   try {
-    const res = await fetch(RESEND_URL, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: REMITENTE, to: correos, subject: asunto, text: textoPlano }),
-    });
-    if (!res.ok) {
-      const body = await res.text().catch(() => "");
-      throw new Error(`Resend respondió ${res.status}: ${body}`);
+    if (SMTP_CONFIGURADO) {
+      await smtp().sendMail({ from: REMITENTE, to: correos, subject: asunto, text: textoPlano });
+    } else {
+      await enviarPorResend(correos, asunto, textoPlano);
     }
     console.log(`[correo] enviado OK: "${asunto}"`);
   } catch (e) {
